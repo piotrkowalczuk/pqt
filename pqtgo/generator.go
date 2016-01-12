@@ -3,6 +3,7 @@ package pqtgo
 import (
 	"bytes"
 	"fmt"
+	"go/types"
 	"io"
 	"sort"
 	"strings"
@@ -14,10 +15,41 @@ import (
 
 type generator struct {
 	acronyms map[string]string
+	imports  []string
+	pkg      string
 }
 
 func Generator() *generator {
-	return &generator{}
+	return &generator{
+		pkg: "main",
+	}
+}
+
+func (g *generator) SetAcronyms(acronyms map[string]string) *generator {
+	g.acronyms = acronyms
+
+	return g
+}
+
+func (g *generator) SetImports(imports ...string) *generator {
+	g.imports = imports
+
+	return g
+}
+
+func (g *generator) AddImport(i string) *generator {
+	if g.imports == nil {
+		g.imports = make([]string, 0, 1)
+	}
+
+	g.imports = append(g.imports, i)
+	return g
+}
+
+func (g *generator) SetPackage(pkg string) *generator {
+	g.pkg = pkg
+
+	return g
 }
 
 func (g *generator) Generate(s *pqt.Schema) ([]byte, error) {
@@ -40,11 +72,12 @@ func (g *generator) GenerateTo(s *pqt.Schema, w io.Writer) error {
 }
 
 func (g *generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
-	code := bytes.NewBufferString("package main\n")
+	code := bytes.NewBuffer(nil)
 
+	g.generatePackage(code)
+	g.generateImports(code, s)
 	for _, table := range s.Tables {
 		g.generateConstants(code, table)
-		g.generateConstraints(code, table)
 		g.generateColumns(code, table)
 		g.generateEntity(code, table)
 	}
@@ -52,10 +85,26 @@ func (g *generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	return code, nil
 }
 
-func (g *generator) SetAcronyms(acronyms map[string]string) *generator {
-	g.acronyms = acronyms
+func (g *generator) generatePackage(code *bytes.Buffer) {
+	fmt.Fprintf(code, "package %s \n", g.pkg)
+}
 
-	return g
+func (g *generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
+	imports := []string{}
+
+	for _, t := range schema.Tables {
+		for _, c := range t.Columns {
+			if ct, ok := c.Type.(CustomType); ok {
+				imports = append(imports, ct.pkg)
+			}
+		}
+	}
+
+	code.WriteString("import (\n")
+	for _, imp := range imports {
+		fmt.Fprintf(code, `"%s"`, imp)
+	}
+	code.WriteString(")\n")
 }
 
 func (g *generator) generateEntity(code *bytes.Buffer, table *pqt.Table) {
@@ -70,40 +119,30 @@ func (g *generator) generateEntity(code *bytes.Buffer, table *pqt.Table) {
 }
 
 func (g *generator) generateType(code *bytes.Buffer, c *pqt.Column) {
-	t := "struct{}"
-	mandatory := c.NotNull || c.PrimaryKey
+	var t string
 
-	switch c.Type {
-	case pqt.TypeText():
-		t = nullable("string", "nilt.String", mandatory)
-	case pqt.TypeBool():
-		t = nullable("bool", "nilt.Bool", mandatory)
-	case pqt.TypeIntegerSmall():
-		t = "int16"
-	case pqt.TypeInteger():
-		t = nullable("int32", "nilt.Int32", mandatory)
-	case pqt.TypeIntegerBig():
-		t = nullable("int64", "nilt.Int64", mandatory)
-	case pqt.TypeSerial():
-		t = "uint32"
-	case pqt.TypeSerialSmall():
-		t = "uint16"
-	case pqt.TypeSerialBig():
-		t = "uint64"
-	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-		t = nullable("time.Time", "*time.Time", mandatory)
-	case pqt.TypeMoney(), pqt.TypeReal():
-		t = nullable("float32", "nilt.Float32", mandatory)
-	case pqt.TypeDoublePrecision():
-		t = nullable("float64", "nilt.Float64", mandatory)
+	if str, ok := c.Type.(fmt.Stringer); ok {
+		t = str.String()
+	} else {
+		t = "struct{}"
 	}
 
-	gt := c.Type.String()
-	switch {
-	case strings.HasPrefix(gt, "DECIMAL"):
-		t = nullable("float32", "nilt.Float32", mandatory)
-	case strings.HasPrefix(gt, "VARCHAR"):
-		t = nullable("float64", "nilt.Float64", mandatory)
+	mandatory := c.NotNull || c.PrimaryKey
+
+	switch tp := c.Type.(type) {
+	case pqt.MappableType:
+		for _, mapto := range tp.Mapping {
+			switch mt := mapto.(type) {
+			case BuiltinType:
+				t = generateBuiltinType(mt, mandatory)
+			case CustomType:
+				t = mt.String()
+			}
+		}
+	case BuiltinType:
+		t = generateBuiltinType(tp, mandatory)
+	case pqt.BaseType:
+		t = generateBaseType(tp, mandatory)
 	}
 
 	code.WriteString(t)
@@ -111,42 +150,41 @@ func (g *generator) generateType(code *bytes.Buffer, c *pqt.Column) {
 
 func (g *generator) generateConstants(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString("const (\n")
-	if table.Schema != nil {
-		fmt.Fprintf(code, `table%s = "%s.%s"`, g.public(table.Name), table.Schema.Name, table.Name)
-	} else {
-		fmt.Fprintf(code, `table%s = "%s"`, g.public(table.Name), table.Name)
-	}
+	g.generateConstantsColumns(code, table)
+	g.generateConstantsConstraints(code, table)
+	code.WriteString(")\n")
+}
+
+func (g *generator) generateConstantsColumns(code *bytes.Buffer, table *pqt.Table) {
+	fmt.Fprintf(code, `table%s = "%s"`, g.public(table.Name), table.FullName())
 	code.WriteRune('\n')
 
 	for _, name := range sortedColumns(table.Columns) {
 		fmt.Fprintf(code, `table%sColumn%s = "%s"`, g.public(table.Name), g.public(name), name)
 		code.WriteRune('\n')
 	}
-	code.WriteString(")\n")
-
 }
 
-func (g *generator) generateConstraints(code *bytes.Buffer, table *pqt.Table) {
-	code.WriteString("const (\n")
+func (g *generator) generateConstantsConstraints(code *bytes.Buffer, table *pqt.Table) {
 	for _, c := range tableConstraints(table) {
+		name := fmt.Sprintf("%s_%s", c.Table.Name, pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
 		case pqcnstr.KindCheck:
-			fmt.Fprintf(code, `table%sConstraint%sCheck = "%s"`, g.public(table.Name), g.public(c.Name()), c.String())
+			fmt.Fprintf(code, `table%sConstraint%sCheck = "%s"`, g.public(table.Name), g.public(name), c.String())
 		case pqcnstr.KindPrimaryKey:
 			fmt.Fprintf(code, `table%sConstraintPrimaryKey = "%s"`, g.public(table.Name), c.String())
 		case pqcnstr.KindForeignKey:
-			fmt.Fprintf(code, `table%sConstraint%sForeignKey = "%s"`, g.public(table.Name), g.public(c.Name()), c.String())
+			fmt.Fprintf(code, `table%sConstraint%sForeignKey = "%s"`, g.public(table.Name), g.public(name), c.String())
 		case pqcnstr.KindExclusion:
-			fmt.Fprintf(code, `table%sConstraint%sExclusion = "%s"`, g.public(table.Name), g.public(c.Name()), c.String())
+			fmt.Fprintf(code, `table%sConstraint%sExclusion = "%s"`, g.public(table.Name), g.public(name), c.String())
 		case pqcnstr.KindUnique:
-			fmt.Fprintf(code, `table%sConstraint%sUnique = "%s"`, g.public(table.Name), g.public(c.Name()), c.String())
+			fmt.Fprintf(code, `table%sConstraint%sUnique = "%s"`, g.public(table.Name), g.public(name), c.String())
 		case pqcnstr.KindIndex:
-			fmt.Fprintf(code, `table%sConstraint%sIndex = "%s"`, g.public(table.Name), g.public(c.Name()), c.String())
+			fmt.Fprintf(code, `table%sConstraint%sIndex = "%s"`, g.public(table.Name), g.public(name), c.String())
 		}
 
 		code.WriteRune('\n')
 	}
-	code.WriteString(")\n")
 }
 
 func (g *generator) generateColumns(code *bytes.Buffer, table *pqt.Table) {
@@ -224,10 +262,94 @@ func nullable(typeA, typeB string, mandatory bool) string {
 func tableConstraints(t *pqt.Table) []*pqt.Constraint {
 	constraints := make([]*pqt.Constraint, 0)
 	for _, c := range t.Columns {
-		if cnstr, ok := c.Constraint(); ok {
-			constraints = append(constraints, cnstr)
-		}
+		constraints = append(constraints, c.Constraints()...)
 	}
 
 	return append(constraints, t.Constraints...)
+}
+
+func generateBaseType(t pqt.Type, mandatory bool) string {
+	switch t {
+	case pqt.TypeText():
+		return nullable("string", "nilt.String", mandatory)
+	case pqt.TypeBool():
+		return nullable("bool", "nilt.Bool", mandatory)
+	case pqt.TypeIntegerSmall():
+		return "int16"
+	case pqt.TypeInteger():
+		return nullable("int", "nilt.Int", mandatory)
+	case pqt.TypeIntegerBig():
+		return nullable("int64", "nilt.Int64", mandatory)
+	case pqt.TypeSerial():
+		return "uint32"
+	case pqt.TypeSerialSmall():
+		return "uint16"
+	case pqt.TypeSerialBig():
+		return "uint64"
+	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+		return nullable("time.Time", "*time.Time", mandatory)
+	case pqt.TypeMoney(), pqt.TypeReal():
+		return nullable("float32", "nilt.Float32", mandatory)
+	case pqt.TypeDoublePrecision():
+		return nullable("float64", "nilt.Float64", mandatory)
+	default:
+		gt := t.String()
+		switch {
+		case strings.HasPrefix(gt, "SMALLINT["):
+			return "[]int16"
+		case strings.HasPrefix(gt, "INTEGER["):
+			return "[]int"
+		case strings.HasPrefix(gt, "BIGINT["):
+			return "[]int64"
+		case strings.HasPrefix(gt, "TEXT["):
+			return "[]string"
+		case strings.HasPrefix(gt, "DECIMAL"):
+			return nullable("float32", "nilt.Float32", mandatory)
+		case strings.HasPrefix(gt, "VARCHAR"):
+			return nullable("string", "nilt.String", mandatory)
+		default:
+			return "struct{}"
+		}
+	}
+}
+
+func generateBuiltinType(t BuiltinType, mandatory bool) (r string) {
+	switch types.BasicKind(t) {
+	case types.Bool:
+		r = nullable("bool", "nilt.Bool", mandatory)
+	case types.Int:
+		r = nullable("int", "nilt.Int", mandatory)
+	case types.Int8:
+		r = nullable("int8", "*int8", mandatory)
+	case types.Int16:
+		r = nullable("int16", "*int16", mandatory)
+	case types.Int32:
+		r = nullable("int32", "nilt.Int32", mandatory)
+	case types.Int64:
+		r = nullable("int64", "nilt.Int64", mandatory)
+	case types.Uint:
+		r = nullable("uint", "*uint", mandatory)
+	case types.Uint8:
+		r = nullable("uint8", "*uint8", mandatory)
+	case types.Uint16:
+		r = nullable("uint16", "*uint16", mandatory)
+	case types.Uint32:
+		r = nullable("uint32", "nilt.Uint32", mandatory)
+	case types.Uint64:
+		r = nullable("uint64", "*uint64", mandatory)
+	case types.Float32:
+		r = nullable("float32", "nilt.Float32", mandatory)
+	case types.Float64:
+		r = nullable("float64", "nilt.Float64", mandatory)
+	case types.Complex64:
+		r = nullable("complex64", "*complex64", mandatory)
+	case types.Complex128:
+		r = nullable("complex128", "*complex128", mandatory)
+	case types.String:
+		r = nullable("string", "nilt.String", mandatory)
+	default:
+		r = "invalid"
+	}
+
+	return
 }

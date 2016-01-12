@@ -50,3 +50,24 @@ func (bt BuiltinType) String() string {
 func (bt BuiltinType) Fingerprint() string {
 	return fmt.Sprintf("gobuiltin: %v", bt)
 }
+
+type CustomType struct {
+	name, pkg string
+}
+
+// String implements Stringer interface.
+func (st CustomType) String() string {
+	return st.name
+}
+
+// Fingerprint implements Type interface.
+func (st CustomType) Fingerprint() string {
+	return fmt.Sprintf("gocustomtype: %v", st)
+}
+
+func TypeCustom(pkg, name string) CustomType {
+	return CustomType{
+		name: name,
+		pkg:  pkg,
+	}
+}
