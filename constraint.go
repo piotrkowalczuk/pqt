@@ -32,12 +32,13 @@ func (c *Constraint) Name() string {
 		return "<missing table>"
 	case c.Table.Schema == nil || c.Table.Schema.Name == "":
 		schema = "public"
+	default:
+		schema = c.Table.Schema.Name
 	}
 
 	if len(c.Columns) == 0 {
 		return fmt.Sprintf("%s.%s_%s", schema, c.Table.Name, c.Type)
 	}
-
 	return fmt.Sprintf("%s.%s_%s_%s", schema, c.Table.Name, JoinColumns(c.Columns, "_"), c.Type)
 }
 

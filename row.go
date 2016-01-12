@@ -10,33 +10,42 @@ type Column struct {
 	Reference                     *Column
 }
 
-func (c *Column) Constraint() (*Constraint, bool) {
-	var kind string
-	switch {
-	case c.Unique && !c.PrimaryKey:
-		kind = ConstraintTypeUnique
-	case c.PrimaryKey && !c.Unique:
-		kind = ConstraintTypePrimaryKey
-	case c.Check != "":
-		kind = ConstraintTypeCheck
-	case c.Reference != nil:
-		kind = ConstraintTypeForeignKey
-	default:
-		return nil, false
+func (c *Column) Constraints() []*Constraint {
+	cs := make([]*Constraint, 0)
+
+	if c.Unique && !c.PrimaryKey {
+		cs = append(cs, &Constraint{
+			Type:    ConstraintTypeUnique,
+			Columns: []*Column{c},
+			Table:   c.Table,
+		})
+	}
+	if c.PrimaryKey && !c.Unique {
+		cs = append(cs, &Constraint{
+			Type:    ConstraintTypePrimaryKey,
+			Columns: []*Column{c},
+			Table:   c.Table,
+		})
+	}
+	if c.Check != "" {
+		cs = append(cs, &Constraint{
+			Type:    ConstraintTypeCheck,
+			Check:   c.Check,
+			Columns: []*Column{c},
+			Table:   c.Table,
+		})
+	}
+	if c.Reference != nil {
+		cs = append(cs, &Constraint{
+			Type:             ConstraintTypeForeignKey,
+			Columns:          []*Column{c},
+			ReferenceColumns: []*Column{c.Reference},
+			ReferenceTable:   c.Reference.Table,
+			Table:            c.Table,
+		})
 	}
 
-	cnstr := &Constraint{
-		Type:    kind,
-		Check:   c.Check,
-		Columns: []*Column{c},
-		Table:   c.Table,
-	}
-	if kind == ConstraintTypeForeignKey && c.Reference != nil {
-		cnstr.ReferenceColumns = []*Column{c.Reference}
-		cnstr.ReferenceTable = c.Reference.Table
-	}
-
-	return cnstr, true
+	return cs
 }
 
 func JoinColumns(columns []*Column, sep string) string {

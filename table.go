@@ -30,6 +30,14 @@ func NewTableWithOpts(name string, opts TableOpts) *Table {
 	}
 }
 
+func (t *Table) FullName() string {
+	if t.Schema != nil && t.Schema.Name != "" {
+		return t.Schema.Name + "." + t.Name
+	}
+
+	return t.Name
+}
+
 func (t *Table) AddColumn(c *Column) *Table {
 	if t.Columns == nil {
 		t.Columns = make([]*Column, 0, 1)

@@ -93,6 +93,10 @@ func TypeVarchar(l int64) BaseType {
 	return BaseType{name: fmt.Sprintf("VARCHAR(%d)", l)}
 }
 
+func TypeBytea() BaseType {
+	return BaseType{name: "BYTEA"}
+}
+
 func TypeTimestamp() BaseType {
 	return BaseType{name: "TIMESTAMP"}
 }
