@@ -300,9 +300,9 @@ func generateBaseType(t pqt.Type, mandatory bool) string {
 		case strings.HasPrefix(gt, "INTEGER["):
 			return "[]int"
 		case strings.HasPrefix(gt, "BIGINT["):
-			return "[]int64"
+			return "pqt.ArrayInt64"
 		case strings.HasPrefix(gt, "TEXT["):
-			return "[]string"
+			return "pqt.ArrayString"
 		case strings.HasPrefix(gt, "DECIMAL"):
 			return nullable("float32", "nilt.Float32", mandatory)
 		case strings.HasPrefix(gt, "VARCHAR"):
