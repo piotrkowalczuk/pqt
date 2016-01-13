@@ -87,3 +87,14 @@ func (t *Table) SetSchema(s *Schema) *Table {
 
 	return t
 }
+
+// PrimaryKey returns column that is primary key, or false if none.
+func (t *Table) PrimaryKey() (*Column, bool) {
+	for _, c := range t.Columns {
+		if c.PrimaryKey {
+			return c, true
+		}
+	}
+
+	return nil, false
+}
