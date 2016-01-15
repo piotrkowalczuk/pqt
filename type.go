@@ -12,7 +12,6 @@ type Type interface {
 // BaseType ...
 type BaseType struct {
 	name string
-	//	input, output Function
 }
 
 // String implements Stringer interface.
@@ -29,7 +28,7 @@ func (bt BaseType) Fingerprint() string {
 func TypeDecimal(precision, scale int) BaseType {
 	switch {
 	case precision == 0:
-		return BaseType{name: "DECIMAL()"}
+		return BaseType{name: "DECIMAL"}
 	case precision != 0 && scale == 0:
 		return BaseType{name: fmt.Sprintf("DECIMAL(%d)", precision)}
 	default:
@@ -73,18 +72,34 @@ func TypeIntegerBig() BaseType {
 }
 
 // TypeIntegerArray ...
-func TypeIntegerArray(l int64) BaseType {
+func TypeIntegerArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "INTEGER[]"}
 	}
 	return BaseType{name: fmt.Sprintf("INTEGER[%d]", l)}
 }
 
+// TypeIntegerBigArray ...
+func TypeIntegerBigArray(l int) BaseType {
+	if l == 0 {
+		return BaseType{name: "BIGINT[]"}
+	}
+	return BaseType{name: fmt.Sprintf("BIGINT[%d]", l)}
+}
+
+// TypeIntegerSmallArray ...
+func TypeIntegerSmallArray(l int) BaseType {
+	if l == 0 {
+		return BaseType{name: "SMALLINT[]"}
+	}
+	return BaseType{name: fmt.Sprintf("SMALLINT[%d]", l)}
+}
+
 // TypeNumeric ...
 func TypeNumeric(precision, scale int) BaseType {
 	switch {
 	case precision == 0:
-		return BaseType{name: "NUMERIC()"}
+		return BaseType{name: "NUMERIC"}
 	case precision != 0 && scale == 0:
 		return BaseType{name: fmt.Sprintf("NUMERIC(%d)", precision)}
 	default:
@@ -108,7 +123,7 @@ func TypeText() BaseType {
 }
 
 // TypeTextArray ...
-func TypeTextArray(l int64) BaseType {
+func TypeTextArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "TEXT[]"}
 	}
@@ -116,7 +131,7 @@ func TypeTextArray(l int64) BaseType {
 }
 
 // TypeVarchar ...
-func TypeVarchar(l int64) BaseType {
+func TypeVarchar(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "VARCHAR"}
 

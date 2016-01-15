@@ -29,16 +29,15 @@ func NewColumn(n string, t Type, opts ...columnOpt) *Column {
 func (c *Column) Constraints() []*Constraint {
 	var cs []*Constraint
 
-	if c.Unique && !c.PrimaryKey {
+	if c.PrimaryKey {
 		cs = append(cs, &Constraint{
-			Type:    ConstraintTypeUnique,
+			Type:    ConstraintTypePrimaryKey,
 			Columns: []*Column{c},
 			Table:   c.Table,
 		})
-	}
-	if c.PrimaryKey && !c.Unique {
+	} else if c.Unique {
 		cs = append(cs, &Constraint{
-			Type:    ConstraintTypePrimaryKey,
+			Type:    ConstraintTypeUnique,
 			Columns: []*Column{c},
 			Table:   c.Table,
 		})

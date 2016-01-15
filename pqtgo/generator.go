@@ -343,7 +343,7 @@ func generateBaseType(t pqt.Type, mandatory bool) string {
 	case pqt.TypeIntegerSmall():
 		return "int16"
 	case pqt.TypeInteger():
-		return nullable("int", "nilt.Int", mandatory)
+		return nullable("int32", "nilt.Int32", mandatory)
 	case pqt.TypeIntegerBig():
 		return nullable("int64", "nilt.Int64", mandatory)
 	case pqt.TypeSerial():
@@ -362,9 +362,9 @@ func generateBaseType(t pqt.Type, mandatory bool) string {
 		gt := t.String()
 		switch {
 		case strings.HasPrefix(gt, "SMALLINT["):
-			return "[]int16"
+			return "pqt.ArrayInt64"
 		case strings.HasPrefix(gt, "INTEGER["):
-			return "[]int"
+			return "pqt.ArrayInt64"
 		case strings.HasPrefix(gt, "BIGINT["):
 			return "pqt.ArrayInt64"
 		case strings.HasPrefix(gt, "TEXT["):
