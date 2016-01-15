@@ -2,11 +2,13 @@ package pqt
 
 // Table ...
 type Table struct {
+	self                      bool
 	Name, Collate, TableSpace string
 	IfNotExists, Temporary    bool
 	Schema                    *Schema
 	Columns                   []*Column
 	Constraints               []*Constraint
+	Relationships             []*Relationship
 }
 
 // TableOpts ...
@@ -18,7 +20,10 @@ type TableOpts struct {
 // NewTable ...
 func NewTable(name string) *Table {
 	return &Table{
-		Name: name,
+		Name:          name,
+		Columns:       make([]*Column, 0),
+		Constraints:   make([]*Constraint, 0),
+		Relationships: make([]*Relationship, 0),
 	}
 }
 
@@ -54,6 +59,83 @@ func (t *Table) AddColumn(c *Column) *Table {
 		*c.Table = *t
 	}
 	t.Columns = append(t.Columns, c)
+
+	return t
+}
+
+// AddRelationship ...
+func (t *Table) AddRelationship(r *Relationship) *Table {
+	if r == nil {
+		return t
+	}
+
+	if r.Type == RelationshipTypeOneToOneSelfReferencing || r.Type == RelationshipTypeOneToManySelfReferencing || r.Type == RelationshipTypeManyToManySelfReferencing {
+		r.MappedTable = t
+	}
+
+	pk, ok := t.PrimaryKey()
+	if !ok {
+		return t
+	}
+
+	name := r.MappedTable.Name + "_" + pk.Name
+	nt := fkType(pk.Type)
+
+	switch r.Type {
+	case RelationshipTypeOneToOneBidirectional, RelationshipTypeOneToOneSelfReferencing:
+		t.Relationships = append(t.Relationships, &Relationship{
+			MappedBy:    r.MappedBy,
+			MappedTable: r.MappedTable,
+			Type:        r.Type,
+		})
+
+		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
+			InversedBy:    r.InversedBy,
+			InversedTable: t,
+			Type:          r.Type,
+		})
+		r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique()))
+	case RelationshipTypeOneToOneUnidirectional:
+		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
+			InversedBy:    r.InversedBy,
+			InversedTable: t,
+			Type:          r.Type,
+		})
+		r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique()))
+	case RelationshipTypeOneToMany, RelationshipTypeOneToManySelfReferencing:
+		t.Relationships = append(t.Relationships, &Relationship{
+			MappedBy:    r.MappedBy,
+			MappedTable: r.MappedTable,
+			Type:        r.Type,
+		})
+
+		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
+			InversedBy:    r.InversedBy,
+			InversedTable: t,
+			Type:          r.Type,
+		})
+		r.MappedTable.AddColumn(NewColumn(name, nt))
+	case RelationshipTypeManyToMany, RelationshipTypeManyToManySelfReferencing:
+		t.Relationships = append(t.Relationships, &Relationship{
+			MappedBy:    r.MappedBy,
+			MappedTable: r.MappedTable,
+			Type:        r.Type,
+		})
+
+		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
+			InversedBy:    r.InversedBy,
+			InversedTable: t,
+			Type:          r.Type,
+		})
+
+		pk2, ok := r.MappedTable.PrimaryKey()
+		if !ok {
+			return t
+		}
+
+		r.JoinTable.AddColumn(NewColumn(t.Name+"_"+pk.Name, fkType(pk.Type), WithNotNull(), WithReference(pk)))
+		r.JoinTable.AddColumn(NewColumn(r.MappedTable.Name+"_"+pk2.Name, fkType(pk2.Type), WithNotNull(), WithReference(pk2)))
+	}
 
 	return t
 }
@@ -106,4 +188,17 @@ func (t *Table) PrimaryKey() (*Column, bool) {
 	}
 
 	return nil, false
+}
+
+func fkType(t Type) Type {
+	switch t {
+	case TypeSerial():
+		return TypeInteger()
+	case TypeSerialBig():
+		return TypeIntegerBig()
+	case TypeSerialSmall():
+		return TypeIntegerSmall()
+	default:
+		return t
+	}
 }
