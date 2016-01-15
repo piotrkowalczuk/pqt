@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/huandu/xstrings"
-	"github.com/piotrkowalczuk/pqcnstr"
 	"github.com/piotrkowalczuk/pqt"
 )
 
@@ -176,17 +175,17 @@ func (g *generator) generateConstantsConstraints(code *bytes.Buffer, table *pqt.
 	for _, c := range tableConstraints(table) {
 		name := fmt.Sprintf("%s_%s", c.Table.Name, pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
-		case pqcnstr.KindCheck:
+		case pqt.ConstraintTypeCheck:
 			fmt.Fprintf(code, `table%sConstraint%sCheck = "%s"`, g.public(table.Name), g.public(name), c.String())
-		case pqcnstr.KindPrimaryKey:
+		case pqt.ConstraintTypePrimaryKey:
 			fmt.Fprintf(code, `table%sConstraintPrimaryKey = "%s"`, g.public(table.Name), c.String())
-		case pqcnstr.KindForeignKey:
+		case pqt.ConstraintTypeForeignKey:
 			fmt.Fprintf(code, `table%sConstraint%sForeignKey = "%s"`, g.public(table.Name), g.public(name), c.String())
-		case pqcnstr.KindExclusion:
+		case pqt.ConstraintTypeExclusion:
 			fmt.Fprintf(code, `table%sConstraint%sExclusion = "%s"`, g.public(table.Name), g.public(name), c.String())
-		case pqcnstr.KindUnique:
+		case pqt.ConstraintTypeUnique:
 			fmt.Fprintf(code, `table%sConstraint%sUnique = "%s"`, g.public(table.Name), g.public(name), c.String())
-		case pqcnstr.KindIndex:
+		case pqt.ConstraintTypeIndex:
 			fmt.Fprintf(code, `table%sConstraint%sIndex = "%s"`, g.public(table.Name), g.public(name), c.String())
 		}
 
