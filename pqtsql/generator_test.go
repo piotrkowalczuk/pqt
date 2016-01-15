@@ -19,7 +19,9 @@ CREATE TEMPORARY TABLE schema.user (
 	username TEXT NOT NULL,
 	password TEXT,
 	created_at TIMESTAMPTZ
-);`,
+);
+
+`,
 			given: func() *pqt.Table {
 				return pqt.NewTableWithOpts("user", pqt.TableOpts{Temporary: true}).
 					SetSchema(pqt.NewSchema("schema")).
@@ -50,7 +52,9 @@ CREATE TABLE IF NOT EXISTS table_name (
 	CONSTRAINT "public.table_name_name_key" UNIQUE (name),
 	CONSTRAINT "public.table_name_slug_key" UNIQUE (slug),
 	CONSTRAINT "public.table_name_start_at_end_at_check" CHECK ((start_at IS NULL AND end_at IS NULL) OR start_at < end_at)
-);`,
+);
+
+`,
 			given: func() *pqt.Table {
 				id := pqt.Column{Name: "id", Type: pqt.TypeSerial()}
 				startAt := &pqt.Column{Name: "start_at", Type: pqt.TypeTimestampTZ(), NotNull: true}
@@ -77,7 +81,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 	}
 
 	for i, data := range success {
-		q, err := pqtsql.Generator().Generate(pqt.Schema{
+		q, err := pqtsql.Generator().Generate(&pqt.Schema{
 			Tables: []*pqt.Table{data.given},
 		})
 
@@ -87,7 +91,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 		}
 
 		if string(q) != data.expected {
-			t.Errorf("wrong query, expected:\n%s\nbut got:\n%s", data.expected, q)
+			t.Errorf("wrong query, expected:\n'%s'\nbut got:\n'%s'", data.expected, q)
 		}
 	}
 }
