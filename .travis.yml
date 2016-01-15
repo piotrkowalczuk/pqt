@@ -1,14 +1,14 @@
 language: go
 go:
-- tip
+	- tip
 before_install:
-- pip install --user codecov
+	- pip install --user codecov
 install:
-- go get ./...
+	- go get ./...
 script:
-- go test -v ./...
+	- go test -v ./...
 after_success:
-- codecov
+	- codecov
 notifications:
-  slack:
-    secure: GlbUiPiSpa05wDHorgk+uOmupZ0kNNcaoGaJehhPRKrD6NZRgLr9bjrQgzHOKxZqgbK98l4aGPsCCJXtIw5bUrXu/Si7AaxzE4qP74FUnzpXkXxUxqexV+DAvI3WuPaqho7NXkqMs+EvYj/roM+ieuZ47jM2noPpPvLbw7Vp8CE=
+	slack:
+		secure: GlbUiPiSpa05wDHorgk+uOmupZ0kNNcaoGaJehhPRKrD6NZRgLr9bjrQgzHOKxZqgbK98l4aGPsCCJXtIw5bUrXu/Si7AaxzE4qP74FUnzpXkXxUxqexV+DAvI3WuPaqho7NXkqMs+EvYj/roM+ieuZ47jM2noPpPvLbw7Vp8CE=
