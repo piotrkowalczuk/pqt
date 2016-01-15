@@ -10,6 +10,20 @@ type Column struct {
 	Reference                     *Column
 }
 
+// NewColumn ...
+func NewColumn(n string, t Type, opts ...columnOpt) *Column {
+	c := &Column{
+		Name: n,
+		Type: t,
+	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
+}
+
 func (c *Column) Constraints() []*Constraint {
 	cs := make([]*Constraint, 0)
 
@@ -81,4 +95,65 @@ func (a *Attribute) Constraint() (*Constraint, bool) {
 		Check:     a.Check,
 		Attribute: []*Attribute{a},
 	}, true
+}
+
+type columnOpt func(*Column)
+
+func WithType(t Type) columnOpt {
+	return func(c *Column) {
+		c.Type = t
+	}
+}
+
+func WithTypeMapping(t Type) columnOpt {
+	return func(c *Column) {
+		switch ct := c.Type.(type) {
+		case MappableType:
+			ct.Mapping = append(ct.Mapping, t)
+		default:
+			c.Type = TypeMappable(c.Type, t)
+		}
+	}
+}
+
+func WithCheck(ch string) columnOpt {
+	return func(c *Column) {
+		c.Check = ch
+	}
+}
+
+func WithUnique() columnOpt {
+	return func(c *Column) {
+		c.Unique = true
+	}
+}
+
+func WithPrimaryKey() columnOpt {
+	return func(c *Column) {
+		c.PrimaryKey = true
+	}
+}
+
+func WithCollate(cl string) columnOpt {
+	return func(c *Column) {
+		c.Collate = cl
+	}
+}
+
+func WithDefault(d string) columnOpt {
+	return func(c *Column) {
+		c.Default = d
+	}
+}
+
+func WithNotNull() columnOpt {
+	return func(c *Column) {
+		c.NotNull = true
+	}
+}
+
+func WithReference(r *Column) columnOpt {
+	return func(c *Column) {
+		c.Reference = r
+	}
 }
