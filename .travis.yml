@@ -4,7 +4,7 @@ go:
 before_install:
 - pip install --user codecov
 install:
-- go get
+- go get ./...
 script:
 - go test -v ./...
 after_success:
