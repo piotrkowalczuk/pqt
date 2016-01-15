@@ -121,6 +121,62 @@ func (g *generator) generateEntity(code *bytes.Buffer, table *pqt.Table) {
 		g.generateType(code, c)
 		code.WriteRune('\n')
 	}
+	for _, r := range table.Relationships {
+		switch {
+		case r.MappedTable != nil:
+			switch r.Type {
+			case pqt.RelationshipTypeOneToMany,
+				pqt.RelationshipTypeOneToManySelfReferencing,
+				pqt.RelationshipTypeManyToMany,
+				pqt.RelationshipTypeManyToManySelfReferencing:
+				if r.MappedBy != "" {
+					code.WriteString(g.public(r.MappedBy))
+				} else {
+					code.WriteString(g.public(r.MappedTable.Name) + "s")
+				}
+				code.WriteRune(' ')
+				fmt.Fprintf(code, "[]*%sEntity", g.private(r.MappedTable.Name))
+				code.WriteRune('\n')
+			case pqt.RelationshipTypeOneToOneBidirectional,
+				pqt.RelationshipTypeOneToOneUnidirectional, // TODO: remove?
+				pqt.RelationshipTypeOneToOneSelfReferencing:
+				if r.MappedBy != "" {
+					code.WriteString(g.public(r.MappedBy))
+				} else {
+					code.WriteString(g.public(r.MappedTable.Name))
+				}
+				code.WriteRune(' ')
+				fmt.Fprintf(code, "*%sEntity", g.private(r.MappedTable.Name))
+				code.WriteRune('\n')
+			}
+		case r.InversedTable != nil:
+			switch r.Type {
+			case pqt.RelationshipTypeManyToMany,
+				pqt.RelationshipTypeManyToManySelfReferencing:
+				if r.InversedBy != "" {
+					code.WriteString(g.public(r.InversedBy))
+				} else {
+					code.WriteString(g.public(r.InversedTable.Name) + "s")
+				}
+				code.WriteRune(' ')
+				fmt.Fprintf(code, "[]*%sEntity", g.private(r.InversedTable.Name))
+				code.WriteRune('\n')
+			case pqt.RelationshipTypeOneToMany,
+				pqt.RelationshipTypeOneToManySelfReferencing,
+				pqt.RelationshipTypeOneToOneBidirectional,
+				pqt.RelationshipTypeOneToOneUnidirectional,
+				pqt.RelationshipTypeOneToOneSelfReferencing:
+				if r.InversedBy != "" {
+					code.WriteString(g.public(r.InversedBy))
+				} else {
+					code.WriteString(g.public(r.InversedTable.Name))
+				}
+				code.WriteRune(' ')
+				fmt.Fprintf(code, "*%sEntity", g.private(r.InversedTable.Name))
+				code.WriteRune('\n')
+			}
+		}
+	}
 	code.WriteString("}\n")
 }
 

@@ -78,7 +78,7 @@ func (t *Table) AddRelationship(r *Relationship) *Table {
 		return t
 	}
 
-	name := r.MappedTable.Name + "_" + pk.Name
+	name := t.Name + "_" + pk.Name
 	nt := fkType(pk.Type)
 
 	switch r.Type {
@@ -94,14 +94,14 @@ func (t *Table) AddRelationship(r *Relationship) *Table {
 			InversedTable: t,
 			Type:          r.Type,
 		})
-		r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique()))
+		r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique(), WithReference(pk)))
 	case RelationshipTypeOneToOneUnidirectional:
 		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
 			InversedBy:    r.InversedBy,
 			InversedTable: t,
 			Type:          r.Type,
 		})
-		r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique()))
+		r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique(), WithReference(pk)))
 	case RelationshipTypeOneToMany, RelationshipTypeOneToManySelfReferencing:
 		t.Relationships = append(t.Relationships, &Relationship{
 			MappedBy:    r.MappedBy,
@@ -114,7 +114,7 @@ func (t *Table) AddRelationship(r *Relationship) *Table {
 			InversedTable: t,
 			Type:          r.Type,
 		})
-		r.MappedTable.AddColumn(NewColumn(name, nt))
+		r.MappedTable.AddColumn(NewColumn(name, nt, WithReference(pk)))
 	case RelationshipTypeManyToMany, RelationshipTypeManyToManySelfReferencing:
 		t.Relationships = append(t.Relationships, &Relationship{
 			MappedBy:    r.MappedBy,
