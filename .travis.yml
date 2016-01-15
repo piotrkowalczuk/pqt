@@ -6,7 +6,7 @@ before_install:
 install:
 - go get
 script:
-- go test -v
+- go test -v ./...
 after_success:
 - codecov
 notifications:
