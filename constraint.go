@@ -6,15 +6,23 @@ import (
 )
 
 const (
-	ConstraintTypeUnknown    = "unknown"
+	// ConstraintTypeUnknown ...
+	ConstraintTypeUnknown = "unknown"
+	// ConstraintTypePrimaryKey ...
 	ConstraintTypePrimaryKey = "pkey"
-	ConstraintTypeCheck      = "check"
-	ConstraintTypeUnique     = "key"
-	ConstraintTypeIndex      = "idx"
+	// ConstraintTypeCheck ...
+	ConstraintTypeCheck = "check"
+	// ConstraintTypeUnique ...
+	ConstraintTypeUnique = "key"
+	// ConstraintTypeIndex ...
+	ConstraintTypeIndex = "idx"
+	// ConstraintTypeForeignKey ...
 	ConstraintTypeForeignKey = "fkey"
-	ConstraintTypeExclusion  = "excl"
+	// ConstraintTypeExclusion ...
+	ConstraintTypeExclusion = "excl"
 )
 
+// Constraint ...
 type Constraint struct {
 	Type, Check      string
 	Table            *Table
@@ -24,6 +32,7 @@ type Constraint struct {
 	Attribute        []*Attribute
 }
 
+// Name ...
 func (c *Constraint) Name() string {
 	var schema string
 
