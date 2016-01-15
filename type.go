@@ -2,12 +2,14 @@ package pqt
 
 import "fmt"
 
+// Type ...
 type Type interface {
 	fmt.Stringer
 	// Fingerprint returns unique identifier of the type. Two different types can have same SQL representation.
 	Fingerprint() string
 }
 
+// BaseType ...
 type BaseType struct {
 	name string
 	//	input, output Function
@@ -23,6 +25,7 @@ func (bt BaseType) Fingerprint() string {
 	return fmt.Sprintf("base: %s", bt.name)
 }
 
+// TypeDecimal ...
 func TypeDecimal(precision, scale int) BaseType {
 	switch {
 	case precision == 0:
@@ -34,34 +37,42 @@ func TypeDecimal(precision, scale int) BaseType {
 	}
 }
 
+// TypeReal ...
 func TypeReal() BaseType {
 	return BaseType{name: "REAL"}
 }
 
+// TypeSerial ...
 func TypeSerial() BaseType {
 	return BaseType{name: "SERIAL"}
 }
 
+// TypeSerialSmall ...
 func TypeSerialSmall() BaseType {
 	return BaseType{name: "SMALLSERIAL"}
 }
 
+// TypeSerialBig ...
 func TypeSerialBig() BaseType {
 	return BaseType{name: "BIGSERIAL"}
 }
 
+// TypeInteger ...
 func TypeInteger() BaseType {
 	return BaseType{name: "INTEGER"}
 }
 
+// TypeIntegerSmall ...
 func TypeIntegerSmall() BaseType {
 	return BaseType{name: "SMALLINT"}
 }
 
+// TypeIntegerBig ...
 func TypeIntegerBig() BaseType {
 	return BaseType{name: "BIGINT"}
 }
 
+// TypeIntegerArray ...
 func TypeIntegerArray(l int64) BaseType {
 	if l == 0 {
 		return BaseType{name: "INTEGER[]"}
@@ -69,6 +80,7 @@ func TypeIntegerArray(l int64) BaseType {
 	return BaseType{name: fmt.Sprintf("INTEGER[%d]", l)}
 }
 
+// TypeNumeric ...
 func TypeNumeric(precision, scale int) BaseType {
 	switch {
 	case precision == 0:
@@ -80,18 +92,22 @@ func TypeNumeric(precision, scale int) BaseType {
 	}
 }
 
+// TypeDoublePrecision ...
 func TypeDoublePrecision() BaseType {
 	return BaseType{name: "DOUBLE PRECISION"}
 }
 
+// TypeBool ...
 func TypeBool() BaseType {
 	return BaseType{name: "BOOL"}
 }
 
+// TypeText ...
 func TypeText() BaseType {
 	return BaseType{name: "TEXT"}
 }
 
+// TypeTextArray ...
 func TypeTextArray(l int64) BaseType {
 	if l == 0 {
 		return BaseType{name: "TEXT[]"}
@@ -99,30 +115,39 @@ func TypeTextArray(l int64) BaseType {
 	return BaseType{name: fmt.Sprintf("TEXT[%d]", l)}
 }
 
+// TypeVarchar ...
 func TypeVarchar(l int64) BaseType {
+	if l == 0 {
+		return BaseType{name: "VARCHAR"}
+
+	}
 	return BaseType{name: fmt.Sprintf("VARCHAR(%d)", l)}
 }
 
+// TypeBytea ...
 func TypeBytea() BaseType {
 	return BaseType{name: "BYTEA"}
 }
 
+// TypeTimestamp ...
 func TypeTimestamp() BaseType {
 	return BaseType{name: "TIMESTAMP"}
 }
 
+// TypeTimestampTZ ...
 func TypeTimestampTZ() BaseType {
 	return BaseType{name: "TIMESTAMPTZ"}
 }
 
+// CompositeType ...
 type CompositeType struct {
 	name       string
 	Attributes []*Attribute
 }
 
-// SQL implements Stringer interface.
+// String implements Stringer interface.
 func (ct CompositeType) String() string {
-	return ""
+	return "" // TODO: ?
 }
 
 // Fingerprint implements Type interface.
@@ -130,6 +155,7 @@ func (ct CompositeType) Fingerprint() string {
 	return fmt.Sprintf("composite: %v", ct)
 }
 
+// TypeComposite ...
 func TypeComposite(name string, attributes ...*Attribute) CompositeType {
 	return CompositeType{
 		name:       name,
@@ -137,12 +163,13 @@ func TypeComposite(name string, attributes ...*Attribute) CompositeType {
 	}
 }
 
+// EnumeratedType ...
 type EnumeratedType struct {
 	name  string
 	Enums []string
 }
 
-// SQL implements Stringer interface.
+// String implements Stringer interface.
 func (et EnumeratedType) String() string {
 	return et.name
 }
@@ -152,6 +179,7 @@ func (et EnumeratedType) Fingerprint() string {
 	return fmt.Sprintf("enumarated: %v", et)
 }
 
+// TypeEnumerated ...
 func TypeEnumerated(name string, enums ...string) EnumeratedType {
 	return EnumeratedType{
 		name:  name,
@@ -159,6 +187,7 @@ func TypeEnumerated(name string, enums ...string) EnumeratedType {
 	}
 }
 
+// PseudoType ...
 type PseudoType struct {
 	name string
 	//	input, output Function
@@ -174,12 +203,14 @@ func (pt PseudoType) Fingerprint() string {
 	return fmt.Sprintf("pseudo: %v", pt)
 }
 
+// TypePseudo ...
 func TypePseudo(name string) PseudoType {
 	return PseudoType{
 		name: name,
 	}
 }
 
+// MappableType ...
 type MappableType struct {
 	from    Type
 	Mapping []Type
@@ -195,6 +226,7 @@ func (mt MappableType) Fingerprint() string {
 	return fmt.Sprintf("mappable: %v", mt)
 }
 
+// TypeMappable ...
 func TypeMappable(from Type, mapping ...Type) MappableType {
 	return MappableType{
 		from:    from,

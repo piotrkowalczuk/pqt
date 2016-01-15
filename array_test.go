@@ -11,7 +11,7 @@ import (
 
 func TestArrayInt64_Value(t *testing.T) {
 	success := map[string]pqt.ArrayInt64{
-		"{1,2,3,4}": pqt.ArrayInt64{1, 2, 3, 4},
+		"{1,2,3,4}": pqt.ArrayInt64{0: 1, 1: 2, 2: 3, 3: 4},
 		"{}":        pqt.ArrayInt64{},
 	}
 
@@ -37,7 +37,7 @@ SuccessLoop:
 
 func TestArrayInt64_Scan(t *testing.T) {
 	success := map[string]pqt.ArrayInt64{
-		"{1,2,3,4}": pqt.ArrayInt64{1, 2, 3, 4},
+		"{1,2,3,4}": pqt.ArrayInt64{0: 1, 1: 2, 2: 3, 3: 4},
 		"{}":        pqt.ArrayInt64{},
 	}
 
@@ -94,8 +94,8 @@ func TestArrayInt64_Scan_nil(t *testing.T) {
 
 func TestArrayString_Value(t *testing.T) {
 	success := map[string]pqt.ArrayString{
-		"{1,2,3,4}":             pqt.ArrayString{"1", "2", "3", "4"},
-		"{hehe1,string,some,'}": pqt.ArrayString{"hehe1", "string", "some", "'"},
+		"{1,2,3,4}":             pqt.ArrayString{0: "1", 1: "2", 2: "3", 3: "4"},
+		"{hehe1,string,some,'}": pqt.ArrayString{0: "hehe1", 1: "string", 2: "some", 3: "'"},
 		"{}": pqt.ArrayString{},
 	}
 
@@ -121,7 +121,7 @@ SuccessLoop:
 
 func TestArrayString_Scan(t *testing.T) {
 	success := map[string]pqt.ArrayString{
-		"{1,2,3,4}": pqt.ArrayString{"1", "2", "3", "4"},
+		"{1,2,3,4}": pqt.ArrayString{0: "1", 1: "2", 2: "3", 3: "4"},
 	}
 
 SuccessLoop:

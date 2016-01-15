@@ -19,24 +19,28 @@ type generator struct {
 	pkg      string
 }
 
+// Generator ...
 func Generator() *generator {
 	return &generator{
 		pkg: "main",
 	}
 }
 
+// SetAcronyms ...
 func (g *generator) SetAcronyms(acronyms map[string]string) *generator {
 	g.acronyms = acronyms
 
 	return g
 }
 
+// SetImports ...
 func (g *generator) SetImports(imports ...string) *generator {
 	g.imports = imports
 
 	return g
 }
 
+// AddImport ...
 func (g *generator) AddImport(i string) *generator {
 	if g.imports == nil {
 		g.imports = make([]string, 0, 1)
@@ -46,12 +50,14 @@ func (g *generator) AddImport(i string) *generator {
 	return g
 }
 
+// SetPackage ...
 func (g *generator) SetPackage(pkg string) *generator {
 	g.pkg = pkg
 
 	return g
 }
 
+// Generate ...
 func (g *generator) Generate(s *pqt.Schema) ([]byte, error) {
 	code, err := g.generate(s)
 	if err != nil {
@@ -61,6 +67,7 @@ func (g *generator) Generate(s *pqt.Schema) ([]byte, error) {
 	return code.Bytes(), nil
 }
 
+// GenerateTo ...
 func (g *generator) GenerateTo(s *pqt.Schema, w io.Writer) error {
 	code, err := g.generate(s)
 	if err != nil {
@@ -204,6 +211,10 @@ func (g *generator) generateColumns(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString(")\n")
 }
 
+func (g *generator) generateQueries(code *bytes.Buffer, table *pqt.Table) {
+
+}
+
 func sortedColumns(columns []*pqt.Column) []string {
 	tmp := make([]string, 0, len(columns))
 	for _, c := range columns {
@@ -260,7 +271,7 @@ func nullable(typeA, typeB string, mandatory bool) string {
 }
 
 func tableConstraints(t *pqt.Table) []*pqt.Constraint {
-	constraints := make([]*pqt.Constraint, 0)
+	var constraints []*pqt.Constraint
 	for _, c := range t.Columns {
 		constraints = append(constraints, c.Constraints()...)
 	}
@@ -281,14 +292,14 @@ func generateBaseType(t pqt.Type, mandatory bool) string {
 	case pqt.TypeIntegerBig():
 		return nullable("int64", "nilt.Int64", mandatory)
 	case pqt.TypeSerial():
-		return "uint32"
+		return "int32"
 	case pqt.TypeSerialSmall():
-		return "uint16"
+		return "int16"
 	case pqt.TypeSerialBig():
-		return "uint64"
+		return "int64"
 	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
 		return nullable("time.Time", "*time.Time", mandatory)
-	case pqt.TypeMoney(), pqt.TypeReal():
+	case pqt.TypeReal():
 		return nullable("float32", "nilt.Float32", mandatory)
 	case pqt.TypeDoublePrecision():
 		return nullable("float64", "nilt.Float64", mandatory)

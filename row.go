@@ -2,6 +2,7 @@ package pqt
 
 import "strings"
 
+// Column ...
 type Column struct {
 	Name, Collate, Default, Check string
 	NotNull, Unique, PrimaryKey   bool
@@ -24,8 +25,9 @@ func NewColumn(n string, t Type, opts ...columnOpt) *Column {
 	return c
 }
 
+// Constraints ...
 func (c *Column) Constraints() []*Constraint {
-	cs := make([]*Constraint, 0)
+	var cs []*Constraint
 
 	if c.Unique && !c.PrimaryKey {
 		cs = append(cs, &Constraint{
@@ -62,6 +64,7 @@ func (c *Column) Constraints() []*Constraint {
 	return cs
 }
 
+// JoinColumns ...
 func JoinColumns(columns []*Column, sep string) string {
 	tmp := make([]string, 0, len(columns))
 	for _, c := range columns {
@@ -71,12 +74,14 @@ func JoinColumns(columns []*Column, sep string) string {
 	return strings.Join(tmp, sep)
 }
 
+// Attribute ...
 type Attribute struct {
 	Name, Collate, Default, Check string
 	NotNull, Unique, PrimaryKey   bool
 	Type                          Type
 }
 
+// Constraint ...
 func (a *Attribute) Constraint() (*Constraint, bool) {
 	var kind string
 	switch {
@@ -99,12 +104,14 @@ func (a *Attribute) Constraint() (*Constraint, bool) {
 
 type columnOpt func(*Column)
 
+// WithType ...
 func WithType(t Type) columnOpt {
 	return func(c *Column) {
 		c.Type = t
 	}
 }
 
+// WithTypeMapping ...
 func WithTypeMapping(t Type) columnOpt {
 	return func(c *Column) {
 		switch ct := c.Type.(type) {
@@ -116,42 +123,49 @@ func WithTypeMapping(t Type) columnOpt {
 	}
 }
 
+// WithCheck ...
 func WithCheck(ch string) columnOpt {
 	return func(c *Column) {
 		c.Check = ch
 	}
 }
 
+// WithUnique ...
 func WithUnique() columnOpt {
 	return func(c *Column) {
 		c.Unique = true
 	}
 }
 
+// WithPrimaryKey ...
 func WithPrimaryKey() columnOpt {
 	return func(c *Column) {
 		c.PrimaryKey = true
 	}
 }
 
+// WithCollate ...
 func WithCollate(cl string) columnOpt {
 	return func(c *Column) {
 		c.Collate = cl
 	}
 }
 
+// WithDefault ...
 func WithDefault(d string) columnOpt {
 	return func(c *Column) {
 		c.Default = d
 	}
 }
 
+// WithNotNull ...
 func WithNotNull() columnOpt {
 	return func(c *Column) {
 		c.NotNull = true
 	}
 }
 
+// WithReference ...
 func WithReference(r *Column) columnOpt {
 	return func(c *Column) {
 		c.Reference = r

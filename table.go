@@ -1,5 +1,6 @@
 package pqt
 
+// Table ...
 type Table struct {
 	Name, Collate, TableSpace string
 	IfNotExists, Temporary    bool
@@ -8,6 +9,7 @@ type Table struct {
 	Constraints               []*Constraint
 }
 
+// TableOpts ...
 type TableOpts struct {
 	Collate, TableSpace    string
 	IfNotExists, Temporary bool
@@ -20,6 +22,7 @@ func NewTable(name string) *Table {
 	}
 }
 
+// NewTableWithOpts ...
 func NewTableWithOpts(name string, opts TableOpts) *Table {
 	return &Table{
 		Name:        name,
@@ -30,6 +33,7 @@ func NewTableWithOpts(name string, opts TableOpts) *Table {
 	}
 }
 
+// FullName ...
 func (t *Table) FullName() string {
 	if t.Schema != nil && t.Schema.Name != "" {
 		return t.Schema.Name + "." + t.Name
@@ -38,6 +42,7 @@ func (t *Table) FullName() string {
 	return t.Name
 }
 
+// AddColumn ...
 func (t *Table) AddColumn(c *Column) *Table {
 	if t.Columns == nil {
 		t.Columns = make([]*Column, 0, 1)
@@ -53,6 +58,7 @@ func (t *Table) AddColumn(c *Column) *Table {
 	return t
 }
 
+// AddConstraint ...
 func (t *Table) AddConstraint(c *Constraint) *Table {
 	if t.Constraints == nil {
 		t.Constraints = make([]*Constraint, 0, 1)
@@ -69,15 +75,18 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 	return t
 }
 
+// AddCheck ...
 func (t *Table) AddCheck(check string, columns ...*Column) *Table {
 	return t.AddConstraint(Check(t, check, columns...))
 }
 
+// SetIfNotExists ...
 func (t *Table) SetIfNotExists(ine bool) *Table {
 	t.IfNotExists = ine
 	return t
 }
 
+// SetSchema ...
 func (t *Table) SetSchema(s *Schema) *Table {
 	if t.Schema == nil {
 		t.Schema = s

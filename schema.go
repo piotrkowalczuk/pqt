@@ -1,5 +1,6 @@
 package pqt
 
+// Schema ...
 type Schema struct {
 	Name      string
 	Tables    []*Table
@@ -14,6 +15,7 @@ func NewSchema(name string) *Schema {
 	}
 }
 
+// AddTable ...
 func (s *Schema) AddTable(t *Table) *Schema {
 	if s.Tables == nil {
 		s.Tables = make([]*Table, 0, 1)
