@@ -24,7 +24,14 @@ func (bt BaseType) Fingerprint() string {
 }
 
 func TypeDecimal(precision, scale int) BaseType {
-	return BaseType{name: fmt.Sprintf("DECIMAL(%d,%d)", precision, scale)}
+	switch {
+	case precision == 0:
+		return BaseType{name: "DECIMAL()"}
+	case precision != 0 && scale == 0:
+		return BaseType{name: fmt.Sprintf("DECIMAL(%d)", precision)}
+	default:
+		return BaseType{name: fmt.Sprintf("DECIMAL(%d,%d)", precision, scale)}
+	}
 }
 
 func TypeReal() BaseType {
@@ -63,11 +70,14 @@ func TypeIntegerArray(l int64) BaseType {
 }
 
 func TypeNumeric(precision, scale int) BaseType {
-	return BaseType{name: fmt.Sprintf("NUMERIC(%d,%d)", precision, scale)}
-}
-
-func TypeMoney() BaseType {
-	return BaseType{name: "MONEY"}
+	switch {
+	case precision == 0:
+		return BaseType{name: "NUMERIC()"}
+	case precision != 0 && scale == 0:
+		return BaseType{name: fmt.Sprintf("NUMERIC(%d)", precision)}
+	default:
+		return BaseType{name: fmt.Sprintf("NUMERIC(%d,%d)", precision, scale)}
+	}
 }
 
 func TypeDoublePrecision() BaseType {
