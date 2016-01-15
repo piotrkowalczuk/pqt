@@ -1,12 +1,9 @@
 language: go
 go:
-	- tip
+- tip
 install:
-	- go get ./...
+- go get ./...
 script:
-	- ./go.test.sh
+- ./go.test.sh
 after_success:
-	- bash <(curl -s https://codecov.io/bash)
-notifications:
-	slack:
-		secure: GlbUiPiSpa05wDHorgk+uOmupZ0kNNcaoGaJehhPRKrD6NZRgLr9bjrQgzHOKxZqgbK98l4aGPsCCJXtIw5bUrXu/Si7AaxzE4qP74FUnzpXkXxUxqexV+DAvI3WuPaqho7NXkqMs+EvYj/roM+ieuZ47jM2noPpPvLbw7Vp8CE=
+- bash <(curl -s https://codecov.io/bash)
