@@ -48,7 +48,7 @@ func TestNewColumn(t *testing.T) {
 		t.Error("wrong column primary key, expected true but got false")
 	}
 	if c.Reference != r {
-		t.Error("wrong column reference, expected &p but got %p", r, c.Reference)
+		t.Errorf("wrong column reference, expected &p but got %p", r, c.Reference)
 	}
 
 	constraints := c.Constraints()

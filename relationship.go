@@ -1,13 +1,15 @@
 package pqt
 
 const (
-	RelationshipTypeOneToOneUnidirectional RelationshipType = iota
-	RelationshipTypeOneToOneBidirectional
-	RelationshipTypeOneToOneSelfReferencing
+	// RelationshipTypeOneToOne is a relationship that each row in one database table is linked to 1 and only 1 other row in another table.
+	// In a one-to-one relationship between Table A and Table B, each row in Table A is linked to another row in Table B.
+	// The number of rows in Table A must equal the number of rows in Table B
+	RelationshipTypeOneToOne RelationshipType = iota
+	// RelationshipTypeOneToMany is a relationship that each row in the related to table can be related to many rows in the relating table.
+	// This allows frequently used information to be saved only once in a table and referenced many times in all other tables.
 	RelationshipTypeOneToMany
-	RelationshipTypeOneToManySelfReferencing
-	RelationshipTypeManyToMany
-	RelationshipTypeManyToManySelfReferencing
+	// RelationshipTypeManyToOne works like one to many, but it points to another owner.
+	RelationshipTypeManyToOne
 
 	// NoAction produce an error indicating that the deletion or update would create a foreign key constraint violation.
 	// If the constraint is deferred, this error will be produced at constraint check time if there still exist any referencing rows.
@@ -31,19 +33,20 @@ type RelationshipType int
 
 // Relationship ...
 type Relationship struct {
-	Optional                              bool
-	Type                                  RelationshipType
-	InversedColumnName                    string
-	MappedBy, InversedBy                  string
-	MappedTable, InversedTable, JoinTable *Table
-	OnDelete, OnUpdate                    int32
+	Bidirectional                           bool
+	Type                                    RelationshipType
+	OwnerName, InversedName                 string
+	OwnerTable, InversedTable, ThroughTable *Table
+	ColumnName                              string
+	OnDelete, OnUpdate                      int32
 }
 
-func newRelationship(t, j *Table, rt RelationshipType, opts ...relationshipOpt) *Relationship {
+func newRelationship(owner, inversed, through *Table, rt RelationshipType, opts ...RelationshipOption) *Relationship {
 	r := &Relationship{
-		Type:        rt,
-		MappedTable: t,
-		JoinTable:   j,
+		Type:          rt,
+		ThroughTable:  through,
+		OwnerTable:    owner,
+		InversedTable: inversed,
 	}
 
 	for _, opt := range opts {
@@ -53,80 +56,64 @@ func newRelationship(t, j *Table, rt RelationshipType, opts ...relationshipOpt) 
 	return r
 }
 
-// OneToOneUnidirectional ...
-func OneToOneUnidirectional(t *Table, opts ...relationshipOpt) *Relationship {
-	return newRelationship(t, nil, RelationshipTypeOneToOneUnidirectional, opts...)
-}
-
-// OneToOneBidirectional ...
-func OneToOneBidirectional(t *Table, opts ...relationshipOpt) *Relationship {
-	return newRelationship(t, nil, RelationshipTypeOneToOneBidirectional, opts...)
-}
-
-// OneToOneSelfReferencing ...
-func OneToOneSelfReferencing(opts ...relationshipOpt) *Relationship {
-	return newRelationship(nil, nil, RelationshipTypeOneToOneSelfReferencing, opts...)
+// OneToOne ...
+func OneToOne(t *Table, opts ...RelationshipOption) *Relationship {
+	return newRelationship(nil, t, nil, RelationshipTypeOneToOne, opts...)
 }
 
 // OneToMany ...
-func OneToMany(t *Table, opts ...relationshipOpt) *Relationship {
-	return newRelationship(t, nil, RelationshipTypeOneToMany, opts...)
+func OneToMany(t *Table, opts ...RelationshipOption) *Relationship {
+	return newRelationship(t, nil, nil, RelationshipTypeOneToMany, opts...)
 }
 
-// OneToManySelfReferencing ...
-func OneToManySelfReferencing(t *Table, opts ...relationshipOpt) *Relationship {
-	return newRelationship(t, nil, RelationshipTypeOneToManySelfReferencing, opts...)
+// ManyToOne ...
+func ManyToOne(t *Table, opts ...RelationshipOption) *Relationship {
+	return newRelationship(nil, t, nil, RelationshipTypeManyToOne, opts...)
 }
 
-// ManyToMany ...
-func ManyToMany(t, j *Table, opts ...relationshipOpt) *Relationship {
-	return newRelationship(t, j, RelationshipTypeManyToMany, opts...)
-}
+// RelationshipOption configures how we set up the relationship.
+type RelationshipOption func(*Relationship)
 
-// ManyToManySelfReferencing ...
-func ManyToManySelfReferencing(j *Table, opts ...relationshipOpt) *Relationship {
-	return newRelationship(nil, j, RelationshipTypeManyToManySelfReferencing, opts...)
-}
-
-type relationshipOpt func(*Relationship)
-
-// WithMappedBy ...
-func WithMappedBy(s string) relationshipOpt {
+// WithOwnerName ...
+func WithOwnerName(s string) RelationshipOption {
 	return func(r *Relationship) {
-		r.MappedBy = s
+		r.OwnerName = s
 	}
 }
 
-// WithInversedBy ...
-func WithInversedBy(s string) relationshipOpt {
+// WithInversedName ...
+func WithInversedName(s string) RelationshipOption {
 	return func(r *Relationship) {
-		r.InversedBy = s
+		r.InversedName = s
 	}
 }
 
-// WithInversedColumnName ...
-func WithInversedColumnName(n string) relationshipOpt {
+// WithColumnName ...
+func WithColumnName(n string) RelationshipOption {
 	return func(r *Relationship) {
-		r.InversedColumnName = n
-	}
-}
-
-func WithOptional() relationshipOpt {
-	return func(r *Relationship) {
-		r.Optional = true
+		r.ColumnName = n
 	}
 }
 
 // WithOnDelete add ON DELETE clause that specifies the action to perform when a referenced row in the referenced table is being deleted
-func WithOnDelete(on int32) relationshipOpt {
+func WithOnDelete(on int32) RelationshipOption {
 	return func(r *Relationship) {
 		r.OnDelete = on
 	}
 }
 
 // WithOnUpdate add ON UPDATE clause that specifies the action to perform when a referenced column in the referenced table is being updated to a new value.
-func WithOnUpdate(on int32) relationshipOpt {
+func WithOnUpdate(on int32) RelationshipOption {
 	return func(r *Relationship) {
 		r.OnUpdate = on
 	}
+
+}
+
+// WithBidirectional ...
+func WithBidirectional() RelationshipOption {
+	return func(r *Relationship) {
+		r.Bidirectional = true
+	}
+
 }

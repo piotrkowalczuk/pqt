@@ -23,7 +23,7 @@ CREATE TEMPORARY TABLE schema.user (
 
 `,
 			given: func() *pqt.Table {
-				return pqt.NewTableWithOpts("user", pqt.TableOpts{Temporary: true}).
+				return pqt.NewTable("user", pqt.WithTemporary()).
 					SetSchema(pqt.NewSchema("schema")).
 					AddColumn(&pqt.Column{Name: "username", Type: pqt.TypeText(), NotNull: true}).
 					AddColumn(&pqt.Column{Name: "password", Type: pqt.TypeText()}).
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 				_ = pqt.NewTable("related_table").
 					AddColumn(&id)
 
-				return pqt.NewTableWithOpts("table_name", pqt.TableOpts{IfNotExists: true}).
+				return pqt.NewTable("table_name", pqt.WithIfNotExists()).
 					AddColumn(&pqt.Column{Name: "id", Type: pqt.TypeSerial(), PrimaryKey: true}).
 					AddColumn(&pqt.Column{Name: "rel_id", Type: pqt.TypeInteger(), Reference: &id}).
 					AddColumn(&pqt.Column{Name: "name", Type: pqt.TypeText(), Unique: true}).
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 	}
 
 	for i, data := range success {
-		q, err := pqtsql.Generator().Generate(&pqt.Schema{
+		q, err := pqtsql.NewGenerator().Generate(&pqt.Schema{
 			Tables: []*pqt.Table{data.given},
 		})
 

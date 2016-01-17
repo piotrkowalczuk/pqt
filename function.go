@@ -1,12 +1,18 @@
 package pqt
 
+// Function ...
+// TODO: implement
 type Function struct {
 }
 
-func FunctionNow() *Function {
-	return &Function{}
-}
-
+// Name ...
+// TODO: implement
 func (f *Function) Name() string {
 	return ""
+}
+
+// FunctionNow ...
+// TODO: implement
+func FunctionNow() *Function {
+	return &Function{}
 }

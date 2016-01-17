@@ -5,6 +5,7 @@ import (
 	"go/types"
 )
 
+// BuiltinType ...
 type BuiltinType types.BasicKind
 
 func (bt BuiltinType) String() string {
@@ -51,6 +52,7 @@ func (bt BuiltinType) Fingerprint() string {
 	return fmt.Sprintf("gobuiltin: %v", bt)
 }
 
+// CustomType ...
 type CustomType struct {
 	name, pkg string
 }
@@ -65,6 +67,7 @@ func (st CustomType) Fingerprint() string {
 	return fmt.Sprintf("gocustomtype: %v", st)
 }
 
+// TypeCustom ...
 func TypeCustom(pkg, name string) CustomType {
 	return CustomType{
 		name: name,

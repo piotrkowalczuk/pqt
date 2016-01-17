@@ -12,7 +12,7 @@ type Column struct {
 }
 
 // NewColumn ...
-func NewColumn(n string, t Type, opts ...columnOpt) *Column {
+func NewColumn(n string, t Type, opts ...ColumnOption) *Column {
 	c := &Column{
 		Name: n,
 		Type: t,
@@ -101,17 +101,18 @@ func (a *Attribute) Constraint() (*Constraint, bool) {
 	}, true
 }
 
-type columnOpt func(*Column)
+// ColumnOption configures how we set up the column.
+type ColumnOption func(*Column)
 
 // WithType ...
-func WithType(t Type) columnOpt {
+func WithType(t Type) ColumnOption {
 	return func(c *Column) {
 		c.Type = t
 	}
 }
 
 // WithTypeMapping ...
-func WithTypeMapping(t Type) columnOpt {
+func WithTypeMapping(t Type) ColumnOption {
 	return func(c *Column) {
 		switch ct := c.Type.(type) {
 		case MappableType:
@@ -123,49 +124,49 @@ func WithTypeMapping(t Type) columnOpt {
 }
 
 // WithCheck ...
-func WithCheck(ch string) columnOpt {
+func WithCheck(ch string) ColumnOption {
 	return func(c *Column) {
 		c.Check = ch
 	}
 }
 
 // WithUnique ...
-func WithUnique() columnOpt {
+func WithUnique() ColumnOption {
 	return func(c *Column) {
 		c.Unique = true
 	}
 }
 
 // WithPrimaryKey ...
-func WithPrimaryKey() columnOpt {
+func WithPrimaryKey() ColumnOption {
 	return func(c *Column) {
 		c.PrimaryKey = true
 	}
 }
 
 // WithCollate ...
-func WithCollate(cl string) columnOpt {
+func WithCollate(cl string) ColumnOption {
 	return func(c *Column) {
 		c.Collate = cl
 	}
 }
 
 // WithDefault ...
-func WithDefault(d string) columnOpt {
+func WithDefault(d string) ColumnOption {
 	return func(c *Column) {
 		c.Default = d
 	}
 }
 
 // WithNotNull ...
-func WithNotNull() columnOpt {
+func WithNotNull() ColumnOption {
 	return func(c *Column) {
 		c.NotNull = true
 	}
 }
 
 // WithReference ...
-func WithReference(r *Column) columnOpt {
+func WithReference(r *Column) ColumnOption {
 	return func(c *Column) {
 		c.Reference = r
 	}

@@ -6,6 +6,22 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
+func TestNewTable(t *testing.T) {
+	tbl := pqt.NewTable("test", pqt.WithIfNotExists(), pqt.WithTableSpace("table_space"), pqt.WithTemporary())
+
+	if !tbl.IfNotExists {
+		t.Errorf("table should have field if not exists set to true")
+	}
+
+	if !tbl.Temporary {
+		t.Errorf("table should have field temporary set to true")
+	}
+
+	if tbl.TableSpace != "table_space" {
+		t.Errorf("table should have field table space set to table_space")
+	}
+}
+
 func TestTable_AddColumn(t *testing.T) {
 	c1 := &pqt.Column{Name: "c1"}
 	c2 := &pqt.Column{Name: "c2"}
@@ -34,110 +50,103 @@ func TestTable_AddRelationship_oneToOneBidirectional(t *testing.T) {
 	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 	userDetail := pqt.NewTable("user_detail").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 
-	user.AddRelationship(pqt.OneToOneBidirectional(
+	user.AddRelationship(pqt.OneToOne(
 		userDetail,
-		pqt.WithInversedBy("user"),
-		pqt.WithMappedBy("details"),
+		pqt.WithInversedName("details"),
+		pqt.WithOwnerName("user"),
+		pqt.WithBidirectional(),
 	))
 
-	if len(user.Relationships) != 1 {
-		t.Fatalf("user should have 1 relationship, but has %d", len(user.Relationships))
+	if len(user.OwnedRelationships) != 1 {
+		t.Fatalf("user should have 1 relationship, but has %d", len(user.OwnedRelationships))
 	}
 
-	if user.Relationships[0].MappedBy != "details" {
-		t.Errorf("user relationship to user_detail should be mapped by details")
+	if user.OwnedRelationships[0].OwnerName != "user" {
+		t.Errorf("user relationship to user_detail should be mapped by user, but is %s", user.OwnedRelationships[0].OwnerName)
 	}
 
-	if user.Relationships[0].MappedTable != userDetail {
-		t.Errorf("user relationship to user_detail should be mapped by user_detail table")
+	if user.OwnedRelationships[0].OwnerTable != user {
+		t.Errorf("user relationship to user_detail should be mapped by user table, but is %s", user.OwnedRelationships[0].OwnerTable)
 	}
 
-	if user.Relationships[0].Type != pqt.RelationshipTypeOneToOneBidirectional {
+	if user.OwnedRelationships[0].Type != pqt.RelationshipTypeOneToOne {
 		t.Errorf("user relationship to user_detail should be one to one bidirectional")
 	}
 
-	if len(userDetail.Relationships) != 1 {
-		t.Fatalf("user_detail should have 1 relationship, but has %d", len(userDetail.Relationships))
+	if len(userDetail.InversedRelationships) != 1 {
+		t.Fatalf("user_detail should have 1 relationship, but has %d", len(userDetail.InversedRelationships))
 	}
 
-	if userDetail.Relationships[0].InversedBy != "user" {
+	if userDetail.InversedRelationships[0].InversedName != "details" {
 		t.Errorf("user_detail relationship to user should be mapped by user")
 	}
 
-	if userDetail.Relationships[0].InversedTable != user {
-		t.Errorf("user_detail relationship to user should be mapped by user table")
+	if userDetail.InversedRelationships[0].InversedTable != userDetail {
+		t.Errorf("user_detail relationship to user should be mapped by user_detail table")
 	}
 
-	if userDetail.Relationships[0].Type != pqt.RelationshipTypeOneToOneBidirectional {
-		t.Errorf("user_detail relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOneBidirectional, userDetail.Relationships[0].Type)
+	if userDetail.InversedRelationships[0].Type != pqt.RelationshipTypeOneToOne {
+		t.Errorf("user_detail relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOne, userDetail.InversedRelationships[0].Type)
 	}
 }
 
 func TestTable_AddRelationship_oneToOneUnidirectional(t *testing.T) {
 	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-	userDetail := pqt.NewTable("user_detail").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-
-	user.AddRelationship(pqt.OneToOneUnidirectional(
-		userDetail,
-		pqt.WithInversedBy("user"),
-		pqt.WithMappedBy("details"),
+	userDetail := pqt.NewTable("user_detail").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey())).
+		AddRelationship(pqt.OneToOne(
+		user,
+		pqt.WithInversedName("user"),
+		pqt.WithOwnerName("details"),
 	))
 
-	if len(user.Relationships) != 0 {
-		t.Fatalf("user should have 0 relationship, but has %d", len(user.Relationships))
+	if len(user.InversedRelationships) != 0 {
+		t.Fatalf("user should have 0 relationship, but has %d", len(user.InversedRelationships))
 	}
 
-	if len(userDetail.Relationships) != 1 {
-		t.Fatalf("user_detail should have 1 relationship, but has %d", len(userDetail.Relationships))
+	if len(userDetail.OwnedRelationships) != 1 {
+		t.Fatalf("user_detail should have 1 relationship, but has %d", len(userDetail.OwnedRelationships))
 	}
 
-	if userDetail.Relationships[0].InversedBy != "user" {
+	if userDetail.OwnedRelationships[0].InversedName != "user" {
 		t.Errorf("user_detail relationship to user should be mapped by user")
 	}
 
-	if userDetail.Relationships[0].InversedTable != user {
+	if userDetail.OwnedRelationships[0].InversedTable != user {
 		t.Errorf("user_detail relationship to user should be mapped by user table")
 	}
 
-	if userDetail.Relationships[0].Type != pqt.RelationshipTypeOneToOneUnidirectional {
-		t.Errorf("user_detail relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOneUnidirectional, userDetail.Relationships[0].Type)
+	if userDetail.OwnedRelationships[0].Type != pqt.RelationshipTypeOneToOne {
+		t.Errorf("user_detail relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOne, userDetail.OwnedRelationships[0].Type)
 	}
 }
 
 func TestTable_AddRelationship_oneToOneSelfReferencing(t *testing.T) {
 	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 
-	user.AddRelationship(pqt.OneToOneSelfReferencing(
-		pqt.WithInversedBy("child"),
-		pqt.WithMappedBy("parent"),
+	user.AddRelationship(pqt.OneToOne(
+		pqt.SelfRefference(),
+		pqt.WithInversedName("child"),
+		pqt.WithOwnerName("parent"),
 	))
 
-	if len(user.Relationships) != 2 {
-		t.Fatalf("user should have 2 relationship, but has %d", len(user.Relationships))
+	if len(user.OwnedRelationships) != 1 {
+		t.Fatalf("user should have 1 owned relationship, but has %d", len(user.OwnedRelationships))
 	}
 
-	if user.Relationships[0].MappedBy != "parent" {
+	if user.OwnedRelationships[0].OwnerName != "parent" {
 		t.Errorf("user relationship to user should be mapped by parent")
 	}
 
-	if user.Relationships[0].MappedTable != user {
+	if user.OwnedRelationships[0].OwnerTable != user {
 		t.Errorf("user relationship to user should be mapped by user table")
 	}
 
-	if user.Relationships[0].Type != pqt.RelationshipTypeOneToOneSelfReferencing {
-		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOneSelfReferencing, user.Relationships[0].Type)
+	if user.OwnedRelationships[0].Type != pqt.RelationshipTypeOneToOne {
+		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOne, user.OwnedRelationships[0].Type)
 	}
 
-	if user.Relationships[1].InversedBy != "child" {
-		t.Errorf("user relationship to user should be mapped by user")
-	}
-
-	if user.Relationships[1].InversedTable != user {
-		t.Errorf("user relationship to user should be mapped by user table")
-	}
-
-	if user.Relationships[1].Type != pqt.RelationshipTypeOneToOneSelfReferencing {
-		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToOneSelfReferencing, user.Relationships[1].Type)
+	if len(user.InversedRelationships) != 0 {
+		t.Fatalf("user should have 0 inversed relationship, but has %d", len(user.InversedRelationships))
 	}
 }
 
@@ -147,122 +156,127 @@ func TestTable_AddRelationship_oneToMany(t *testing.T) {
 
 	user.AddRelationship(pqt.OneToMany(
 		comment,
-		pqt.WithInversedBy("author"),
-		pqt.WithMappedBy("comments"),
+		pqt.WithBidirectional(),
+		pqt.WithInversedName("author"),
+		pqt.WithOwnerName("comments"),
 	))
 
-	if len(user.Relationships) != 1 {
-		t.Fatalf("user should have 1 relationship, but has %d", len(user.Relationships))
+	if len(user.OwnedRelationships) != 0 {
+		t.Fatalf("user should have 0 owned relationship, but has %d", len(user.OwnedRelationships))
 	}
 
-	if user.Relationships[0].MappedBy != "comments" {
-		t.Errorf("user relationship to comment should be mapped by comments")
+	if len(user.InversedRelationships) != 1 {
+		t.Fatalf("user should have 0 inverse relationship, but has %d", len(user.InversedRelationships))
 	}
 
-	if user.Relationships[0].MappedTable != comment {
-		t.Errorf("user relationship to comment should be mapped by comment table")
+	if user.InversedRelationships[0].OwnerName != "comments" {
+		t.Errorf("user inversed relationship to comment should be mapped by comments")
 	}
 
-	if user.Relationships[0].Type != pqt.RelationshipTypeOneToMany {
-		t.Errorf("user relationship to comment should be one to many")
+	if user.InversedRelationships[0].OwnerTable != comment {
+		t.Errorf("user inversed relationship to comment should be mapped by comment table")
 	}
 
-	if len(comment.Relationships) != 1 {
-		t.Fatalf("comment should have 1 relationship, but has %d", len(comment.Relationships))
+	if user.InversedRelationships[0].Type != pqt.RelationshipTypeOneToMany {
+		t.Errorf("user inversed relationship to comment should be one to many")
 	}
 
-	if comment.Relationships[0].InversedBy != "author" {
+	if len(comment.OwnedRelationships) != 1 {
+		t.Fatalf("comment should have 1 owned relationship, but has %d", len(comment.OwnedRelationships))
+	}
+
+	if comment.OwnedRelationships[0].InversedName != "author" {
 		t.Errorf("comment relationship to user should be mapped by author")
 	}
 
-	if comment.Relationships[0].InversedTable != user {
+	if comment.OwnedRelationships[0].InversedTable != user {
 		t.Errorf("comment relationship to user should be mapped by user table")
 	}
 
-	if comment.Relationships[0].Type != pqt.RelationshipTypeOneToMany {
-		t.Errorf("comment relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToMany, comment.Relationships[0].Type)
+	if comment.OwnedRelationships[0].Type != pqt.RelationshipTypeOneToMany {
+		t.Errorf("comment relationship to user should be %d, but is %d", pqt.RelationshipTypeOneToMany, comment.OwnedRelationships[0].Type)
 	}
 }
 
-func TestTable_AddRelationship_manyToMany(t *testing.T) {
-	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-	group := pqt.NewTable("group").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-	userGroups := pqt.NewTable("user_groups")
-	user.AddRelationship(pqt.ManyToMany(
-		group,
-		userGroups,
-		pqt.WithInversedBy("users"),
-		pqt.WithMappedBy("groups"),
-	))
-
-	if len(user.Relationships) != 1 {
-		t.Fatalf("user should have 1 relationship, but has %d", len(user.Relationships))
-	}
-
-	if user.Relationships[0].MappedBy != "groups" {
-		t.Errorf("user relationship to group should be mapped by groups")
-	}
-
-	if user.Relationships[0].MappedTable != group {
-		t.Errorf("user relationship to group should be mapped by group table")
-	}
-
-	if user.Relationships[0].Type != pqt.RelationshipTypeManyToMany {
-		t.Errorf("user relationship to group should be many to many")
-	}
-
-	if len(group.Relationships) != 1 {
-		t.Fatalf("group should have 1 relationship, but has %d", len(group.Relationships))
-	}
-
-	if group.Relationships[0].InversedBy != "users" {
-		t.Errorf("group relationship to user should be mapped by users")
-	}
-
-	if group.Relationships[0].InversedTable != user {
-		t.Errorf("group relationship to user should be mapped by user table")
-	}
-
-	if group.Relationships[0].Type != pqt.RelationshipTypeManyToMany {
-		t.Errorf("group relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToMany, group.Relationships[0].Type)
-	}
-}
-
-func TestTable_AddRelationship_manyToManySelfReferencing(t *testing.T) {
-	friendship := pqt.NewTable("friendship")
-	user := pqt.NewTable("user").
-		AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey())).
-		AddRelationship(pqt.ManyToManySelfReferencing(
-		friendship,
-		pqt.WithInversedBy("friends_with_me"),
-		pqt.WithMappedBy("my_friends"),
-	))
-
-	if len(user.Relationships) != 2 {
-		t.Fatalf("user should have 2 relationships, but has %d", len(user.Relationships))
-	}
-
-	if user.Relationships[0].MappedBy != "my_friends" {
-		t.Errorf("user relationship to user should be mapped by my_friends")
-	}
-
-	if user.Relationships[0].MappedTable != user {
-		t.Errorf("user relationship to group should be mapped by group table")
-	}
-
-	if user.Relationships[0].Type != pqt.RelationshipTypeManyToManySelfReferencing {
-		t.Errorf("user relationship to group should be many to many")
-	}
-
-	if user.Relationships[1].InversedBy != "friends_with_me" {
-		t.Errorf("user relationship to user should be mapped by friends_with_me")
-	}
-
-	if user.Relationships[1].InversedTable != user {
-		t.Errorf("user relationship to user should be mapped by user table")
-	}
-
-	if user.Relationships[1].Type != pqt.RelationshipTypeManyToManySelfReferencing {
-		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToManySelfReferencing, user.Relationships[1].Type)
-	}
-}
+//func TestTable_AddRelationship_manyToMany(t *testing.T) {
+//	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
+//	group := pqt.NewTable("group").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
+//	userGroups := pqt.NewTable("user_groups")
+//	user.AddRelationship(pqt.ManyToMany(
+//		group,
+//		userGroups,
+//		pqt.WithInversedName("users"),
+//		pqt.WithOwnerName("groups"),
+//	))
+//
+//	if len(user.Relationships) != 1 {
+//		t.Fatalf("user should have 1 relationship, but has %d", len(user.Relationships))
+//	}
+//
+//	if user.Relationships[0].OwnerName != "groups" {
+//		t.Errorf("user relationship to group should be mapped by groups")
+//	}
+//
+//	if user.Relationships[0].OwnerTable != group {
+//		t.Errorf("user relationship to group should be mapped by group table")
+//	}
+//
+//	if user.Relationships[0].Type != pqt.RelationshipTypeManyToMany {
+//		t.Errorf("user relationship to group should be many to many")
+//	}
+//
+//	if len(group.Relationships) != 1 {
+//		t.Fatalf("group should have 1 relationship, but has %d", len(group.Relationships))
+//	}
+//
+//	if group.Relationships[0].InversedName != "users" {
+//		t.Errorf("group relationship to user should be mapped by users")
+//	}
+//
+//	if group.Relationships[0].InversedTable != user {
+//		t.Errorf("group relationship to user should be mapped by user table")
+//	}
+//
+//	if group.Relationships[0].Type != pqt.RelationshipTypeManyToMany {
+//		t.Errorf("group relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToMany, group.Relationships[0].Type)
+//	}
+//}
+//
+//func TestTable_AddRelationship_manyToManySelfReferencing(t *testing.T) {
+//	friendship := pqt.NewTable("friendship")
+//	user := pqt.NewTable("user").
+//		AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey())).
+//		AddRelationship(pqt.ManyToManySelfReferencing(
+//		friendship,
+//		pqt.WithInversedName("friends_with_me"),
+//		pqt.WithOwnerName("my_friends"),
+//	))
+//
+//	if len(user.Relationships) != 2 {
+//		t.Fatalf("user should have 2 relationships, but has %d", len(user.Relationships))
+//	}
+//
+//	if user.Relationships[0].OwnerName != "my_friends" {
+//		t.Errorf("user relationship to user should be mapped by my_friends")
+//	}
+//
+//	if user.Relationships[0].OwnerTable != user {
+//		t.Errorf("user relationship to group should be mapped by group table")
+//	}
+//
+//	if user.Relationships[0].Type != pqt.RelationshipTypeManyToManySelfReferencing {
+//		t.Errorf("user relationship to group should be many to many")
+//	}
+//
+//	if user.Relationships[1].InversedName != "friends_with_me" {
+//		t.Errorf("user relationship to user should be mapped by friends_with_me")
+//	}
+//
+//	if user.Relationships[1].InversedTable != user {
+//		t.Errorf("user relationship to user should be mapped by user table")
+//	}
+//
+//	if user.Relationships[1].Type != pqt.RelationshipTypeManyToManySelfReferencing {
+//		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToManySelfReferencing, user.Relationships[1].Type)
+//	}
+//}

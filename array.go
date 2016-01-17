@@ -69,24 +69,29 @@ func (a *ArrayInt64) Scan(src interface{}) error {
 
 // Value satisfy driver.Valuer interface.
 func (a ArrayInt64) Value() (driver.Value, error) {
-	var buffer bytes.Buffer
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
 
-	buffer.WriteString(arrayBeginningChar)
+	if _, err = buffer.WriteString(arrayBeginningChar); err != nil {
+		return nil, err
+	}
 
 	for i, v := range a {
 		if i > 0 {
-			_, err := buffer.WriteString(arraySeparator)
-			if err != nil {
+			if _, err := buffer.WriteString(arraySeparator); err != nil {
 				return nil, err
 			}
 		}
-		_, err := buffer.WriteString(strconv.FormatInt(v, 10))
-		if err != nil {
+		if _, err := buffer.WriteString(strconv.FormatInt(v, 10)); err != nil {
 			return nil, err
 		}
 	}
 
-	buffer.WriteString(arrayEndChar)
+	if _, err = buffer.WriteString(arrayEndChar); err != nil {
+		return nil, err
+	}
 
 	return buffer.Bytes(), nil
 }
@@ -131,24 +136,29 @@ func (a *ArrayString) Scan(src interface{}) error {
 
 // Value satisfy driver.Valuer interface.
 func (a ArrayString) Value() (driver.Value, error) {
-	var buffer bytes.Buffer
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
 
-	buffer.WriteString(arrayBeginningChar)
+	if _, err = buffer.WriteString(arrayBeginningChar); err != nil {
+		return nil, err
+	}
 
 	for i, v := range a {
 		if i > 0 {
-			_, err := buffer.WriteString(arraySeparator)
-			if err != nil {
+			if _, err := buffer.WriteString(arraySeparator); err != nil {
 				return nil, err
 			}
 		}
-		_, err := buffer.WriteString(v)
-		if err != nil {
+		if _, err = buffer.WriteString(v); err != nil {
 			return nil, err
 		}
 	}
 
-	buffer.WriteString(arrayEndChar)
+	if _, err = buffer.WriteString(arrayEndChar); err != nil {
+		return nil, err
+	}
 
 	return buffer.Bytes(), nil
 }

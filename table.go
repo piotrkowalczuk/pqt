@@ -8,33 +8,34 @@ type Table struct {
 	Schema                    *Schema
 	Columns                   []*Column
 	Constraints               []*Constraint
-	Relationships             []*Relationship
+	OwnedRelationships        []*Relationship
+	InversedRelationships     []*Relationship
 }
 
-// TableOpts ...
-type TableOpts struct {
-	Collate, TableSpace    string
-	IfNotExists, Temporary bool
-}
+// TableOption configures how we set up the table.
+type TableOption func(*Table)
 
 // NewTable ...
-func NewTable(name string) *Table {
-	return &Table{
-		Name:          name,
-		Columns:       make([]*Column, 0),
-		Constraints:   make([]*Constraint, 0),
-		Relationships: make([]*Relationship, 0),
+func NewTable(name string, opts ...TableOption) *Table {
+	t := &Table{
+		Name:                  name,
+		Columns:               make([]*Column, 0),
+		Constraints:           make([]*Constraint, 0),
+		InversedRelationships: make([]*Relationship, 0),
+		OwnedRelationships:    make([]*Relationship, 0),
 	}
+
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
 }
 
-// NewTableWithOpts ...
-func NewTableWithOpts(name string, opts TableOpts) *Table {
+// SelfRefference returns almost empty table that express self reference. Should be used with relationships.
+func SelfRefference() *Table {
 	return &Table{
-		Name:        name,
-		Temporary:   opts.Temporary,
-		Collate:     opts.Collate,
-		TableSpace:  opts.TableSpace,
-		IfNotExists: opts.IfNotExists,
+		self: true,
 	}
 }
 
@@ -64,21 +65,27 @@ func (t *Table) AddColumn(c *Column) *Table {
 }
 
 // AddRelationship ...
-func (t *Table) AddRelationship(r *Relationship) *Table {
+func (t *Table) AddRelationship(r *Relationship, opts ...ColumnOption) *Table {
 	if r == nil {
 		return t
 	}
 
-	if r.Type == RelationshipTypeOneToOneSelfReferencing || r.Type == RelationshipTypeOneToManySelfReferencing || r.Type == RelationshipTypeManyToManySelfReferencing {
-		r.MappedTable = t
+	if r.InversedTable != nil && r.InversedTable.self {
+		r.InversedTable = t
 	}
 
-	pk, ok := t.PrimaryKey()
+	switch r.Type {
+	case RelationshipTypeOneToOne, RelationshipTypeManyToOne:
+		r.OwnerTable = t
+	case RelationshipTypeOneToMany:
+		r.InversedTable = t
+	}
+	pk, ok := r.InversedTable.PrimaryKey()
 	if !ok {
 		return t
 	}
 
-	name := r.InversedColumnName
+	name := r.ColumnName
 	if name == "" {
 		name = t.Name + "_" + pk.Name
 	}
@@ -86,74 +93,19 @@ func (t *Table) AddRelationship(r *Relationship) *Table {
 	nt := fkType(pk.Type)
 
 	switch r.Type {
-	case RelationshipTypeOneToOneBidirectional, RelationshipTypeOneToOneSelfReferencing:
-		t.Relationships = append(t.Relationships, &Relationship{
-			MappedBy:    r.MappedBy,
-			MappedTable: r.MappedTable,
-			Type:        r.Type,
-		})
-
-		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
-			InversedBy:    r.InversedBy,
-			InversedTable: t,
-			Type:          r.Type,
-		})
-	case RelationshipTypeOneToOneUnidirectional:
-		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
-			InversedBy:    r.InversedBy,
-			InversedTable: t,
-			Type:          r.Type,
-		})
-	case RelationshipTypeOneToMany, RelationshipTypeOneToManySelfReferencing:
-		t.Relationships = append(t.Relationships, &Relationship{
-			MappedBy:    r.MappedBy,
-			MappedTable: r.MappedTable,
-			Type:        r.Type,
-		})
-
-		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
-			InversedBy:    r.InversedBy,
-			InversedTable: t,
-			Type:          r.Type,
-		})
-	case RelationshipTypeManyToMany, RelationshipTypeManyToManySelfReferencing:
-		t.Relationships = append(t.Relationships, &Relationship{
-			MappedBy:    r.MappedBy,
-			MappedTable: r.MappedTable,
-			Type:        r.Type,
-		})
-
-		r.MappedTable.Relationships = append(r.MappedTable.Relationships, &Relationship{
-			InversedBy:    r.InversedBy,
-			InversedTable: t,
-			Type:          r.Type,
-		})
+	case RelationshipTypeOneToOne, RelationshipTypeManyToOne:
+		r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
+		if r.Bidirectional {
+			r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
+		}
+	case RelationshipTypeOneToMany:
+		r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
+		if r.Bidirectional {
+			r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
+		}
 	}
 
-	switch r.Type {
-	case RelationshipTypeOneToOneBidirectional,
-		RelationshipTypeOneToOneSelfReferencing,
-		RelationshipTypeOneToOneUnidirectional:
-		if r.Optional {
-			r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique(), WithReference(pk)))
-		} else {
-			r.MappedTable.AddColumn(NewColumn(name, nt, WithUnique(), WithReference(pk), WithNotNull()))
-		}
-	case RelationshipTypeOneToMany, RelationshipTypeOneToManySelfReferencing:
-		if r.Optional {
-			r.MappedTable.AddColumn(NewColumn(name, nt, WithReference(pk)))
-		} else {
-			r.MappedTable.AddColumn(NewColumn(name, nt, WithReference(pk), WithNotNull()))
-		}
-	case RelationshipTypeManyToMany, RelationshipTypeManyToManySelfReferencing:
-		pk2, ok := r.MappedTable.PrimaryKey()
-		if !ok {
-			return t
-		}
-
-		r.JoinTable.AddColumn(NewColumn(t.Name+"_"+pk.Name, fkType(pk.Type), WithNotNull(), WithReference(pk)))
-		r.JoinTable.AddColumn(NewColumn(r.MappedTable.Name+"_"+pk2.Name, fkType(pk2.Type), WithNotNull(), WithReference(pk2)))
-	}
+	r.OwnerTable.AddColumn(NewColumn(name, nt, append([]ColumnOption{WithUnique(), WithReference(pk)}, opts...)...))
 
 	return t
 }
@@ -206,6 +158,27 @@ func (t *Table) PrimaryKey() (*Column, bool) {
 	}
 
 	return nil, false
+}
+
+// WithIfNotExists ...
+func WithIfNotExists() func(*Table) {
+	return func(t *Table) {
+		t.IfNotExists = true
+	}
+}
+
+// WithTemporary ...
+func WithTemporary() func(*Table) {
+	return func(t *Table) {
+		t.Temporary = true
+	}
+}
+
+// WithTableSpace ...
+func WithTableSpace(s string) func(*Table) {
+	return func(t *Table) {
+		t.TableSpace = s
+	}
 }
 
 func fkType(t Type) Type {
