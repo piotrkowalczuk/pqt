@@ -10,6 +10,7 @@ const (
 	RelationshipTypeOneToMany
 	// RelationshipTypeManyToOne works like one to many, but it points to another owner.
 	RelationshipTypeManyToOne
+	RelationshipTypeManyToMany
 
 	// NoAction produce an error indicating that the deletion or update would create a foreign key constraint violation.
 	// If the constraint is deferred, this error will be produced at constraint check time if there still exist any referencing rows.
@@ -69,6 +70,11 @@ func OneToMany(t *Table, opts ...RelationshipOption) *Relationship {
 // ManyToOne ...
 func ManyToOne(t *Table, opts ...RelationshipOption) *Relationship {
 	return newRelationship(nil, t, nil, RelationshipTypeManyToOne, opts...)
+}
+
+// ManyToMany ...
+func ManyToMany(t1 *Table, t2 *Table, opts ...RelationshipOption) *Relationship {
+	return newRelationship(t1, t2, nil, RelationshipTypeManyToMany, opts...)
 }
 
 // RelationshipOption configures how we set up the relationship.

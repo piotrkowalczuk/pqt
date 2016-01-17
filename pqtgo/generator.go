@@ -142,6 +142,24 @@ func (g *Generator) generateEntity(code *bytes.Buffer, table *pqt.Table) {
 			code.WriteRune(' ')
 			fmt.Fprintf(code, "*%sEntity", g.private(r.OwnerTable.Name))
 			code.WriteRune('\n')
+		case pqt.RelationshipTypeManyToMany:
+			if r.OwnerName != "" {
+				code.WriteString(g.public(r.OwnerName))
+			} else {
+				code.WriteString(g.public(r.OwnerTable.Name))
+			}
+			code.WriteRune(' ')
+			fmt.Fprintf(code, "*%sEntity", g.private(r.OwnerTable.Name))
+			code.WriteRune('\n')
+
+			if r.InversedName != "" {
+				code.WriteString(g.public(r.InversedName))
+			} else {
+				code.WriteString(g.public(r.InversedTable.Name))
+			}
+			code.WriteRune(' ')
+			fmt.Fprintf(code, "*%sEntity", g.private(r.InversedTable.Name))
+			code.WriteRune('\n')
 		}
 	}
 	for _, r := range table.InversedRelationships {
@@ -163,6 +181,32 @@ func (g *Generator) generateEntity(code *bytes.Buffer, table *pqt.Table) {
 			}
 			code.WriteRune(' ')
 			fmt.Fprintf(code, "[]*%sEntity", g.private(r.InversedTable.Name))
+			code.WriteRune('\n')
+		}
+	}
+	for _, r := range table.ManyToManyRelationships {
+		if r.Type != pqt.RelationshipTypeManyToMany {
+			continue
+		}
+
+		switch {
+		case r.OwnerTable == table:
+			if r.InversedName != "" {
+				code.WriteString(g.public(r.InversedName))
+			} else {
+				code.WriteString(g.public(r.InversedTable.Name))
+			}
+			code.WriteRune(' ')
+			fmt.Fprintf(code, "[]*%sEntity", g.private(r.InversedTable.Name))
+			code.WriteRune('\n')
+		case r.InversedTable == table:
+			if r.OwnerName != "" {
+				code.WriteString(g.public(r.OwnerName))
+			} else {
+				code.WriteString(g.public(r.OwnerTable.Name) + "s")
+			}
+			code.WriteRune(' ')
+			fmt.Fprintf(code, "[]*%sEntity", g.private(r.OwnerTable.Name))
 			code.WriteRune('\n')
 		}
 	}
@@ -218,7 +262,7 @@ func (g *Generator) generateConstantsColumns(code *bytes.Buffer, table *pqt.Tabl
 
 func (g *Generator) generateConstantsConstraints(code *bytes.Buffer, table *pqt.Table) {
 	for _, c := range tableConstraints(table) {
-		name := fmt.Sprintf("%s_%s", c.Table.Name, pqt.JoinColumns(c.Columns, "_"))
+		name := fmt.Sprintf("%s", pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
 			fmt.Fprintf(code, `table%sConstraint%sCheck = "%s"`, g.public(table.Name), g.public(name), c.String())
@@ -347,6 +391,8 @@ func generateBaseType(t pqt.Type, mandatory bool) string {
 		return nullable("float32", "nilt.Float32", mandatory)
 	case pqt.TypeDoublePrecision():
 		return nullable("float64", "nilt.Float64", mandatory)
+	case pqt.TypeBytea():
+		return "[]byte"
 	default:
 		gt := t.String()
 		switch {

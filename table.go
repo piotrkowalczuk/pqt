@@ -10,6 +10,7 @@ type Table struct {
 	Constraints               []*Constraint
 	OwnedRelationships        []*Relationship
 	InversedRelationships     []*Relationship
+	ManyToManyRelationships   []*Relationship
 }
 
 // TableOption configures how we set up the table.
@@ -70,6 +71,9 @@ func (t *Table) AddRelationship(r *Relationship, opts ...ColumnOption) *Table {
 		return t
 	}
 
+	if r.Type == RelationshipTypeManyToMany {
+		return t.addRelationshipManyToMany(r, opts...)
+	}
 	if r.InversedTable != nil && r.InversedTable.self {
 		r.InversedTable = t
 	}
@@ -105,7 +109,43 @@ func (t *Table) AddRelationship(r *Relationship, opts ...ColumnOption) *Table {
 		}
 	}
 
-	r.OwnerTable.AddColumn(NewColumn(name, nt, append([]ColumnOption{WithUnique(), WithReference(pk)}, opts...)...))
+	r.OwnerTable.AddColumn(NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...))
+
+	return t
+}
+
+func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption) *Table {
+	r.ThroughTable = t
+	r.ThroughTable.OwnedRelationships = append(r.ThroughTable.OwnedRelationships, r)
+
+	if r.Bidirectional {
+		r.InversedTable.ManyToManyRelationships = append(r.InversedTable.ManyToManyRelationships, r)
+		r.OwnerTable.ManyToManyRelationships = append(r.OwnerTable.ManyToManyRelationships, r)
+	}
+
+	pk1, ok := r.OwnerTable.PrimaryKey()
+	if !ok {
+		return t
+	}
+	pk2, ok := r.InversedTable.PrimaryKey()
+	if !ok {
+		return t
+	}
+
+	name1 := r.ColumnName
+	if name1 == "" {
+		name1 = r.OwnerTable.Name + "_" + pk1.Name
+	}
+
+	name2 := r.ColumnName
+	if name2 == "" {
+		name2 = r.InversedTable.Name + "_" + pk2.Name
+	}
+
+	nt1 := fkType(pk1.Type)
+	nt2 := fkType(pk2.Type)
+	r.ThroughTable.AddColumn(NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...))
+	r.ThroughTable.AddColumn(NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...))
 
 	return t
 }
@@ -130,6 +170,11 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 // AddCheck ...
 func (t *Table) AddCheck(check string, columns ...*Column) *Table {
 	return t.AddConstraint(Check(t, check, columns...))
+}
+
+// AddUnique ...
+func (t *Table) AddUnique(columns ...*Column) *Table {
+	return t.AddConstraint(Unique(t, columns...))
 }
 
 // SetIfNotExists ...

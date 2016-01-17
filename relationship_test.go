@@ -6,7 +6,7 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
-func TestWithOwnerColumnName(t *testing.T) {
+func TestWithColumnName(t *testing.T) {
 	icn := "author"
 	t1 := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 	t2 := pqt.NewTable("comment")
@@ -32,4 +32,8 @@ func TestWithOwnerColumnName(t *testing.T) {
 	if !exists {
 		t.Errorf("comment table should have collumn with name %s", icn)
 	}
+}
+
+func TestManyToMany(t *testing.T) {
+
 }
