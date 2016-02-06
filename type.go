@@ -154,6 +154,16 @@ func TypeTimestampTZ() BaseType {
 	return BaseType{name: "TIMESTAMPTZ"}
 }
 
+// TypeJSON ...
+func TypeJSON() BaseType {
+	return BaseType{name: "JSON"}
+}
+
+// TypeJSONB ...
+func TypeJSONB() BaseType {
+	return BaseType{name: "JSONB"}
+}
+
 // CompositeType ...
 type CompositeType struct {
 	name       string
