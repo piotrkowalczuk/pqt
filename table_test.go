@@ -124,7 +124,7 @@ func TestTable_AddRelationship_oneToOneSelfReferencing(t *testing.T) {
 	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 
 	user.AddRelationship(pqt.OneToOne(
-		pqt.SelfRefference(),
+		pqt.SelfReference(),
 		pqt.WithInversedName("child"),
 		pqt.WithOwnerName("parent"),
 	))
@@ -161,12 +161,8 @@ func TestTable_AddRelationship_oneToMany(t *testing.T) {
 		pqt.WithOwnerName("comments"),
 	))
 
-	if len(user.OwnedRelationships) != 0 {
-		t.Fatalf("user should have 0 owned relationship, but has %d", len(user.OwnedRelationships))
-	}
-
 	if len(user.InversedRelationships) != 1 {
-		t.Fatalf("user should have 0 inverse relationship, but has %d", len(user.InversedRelationships))
+		t.Fatalf("user should have 1 inversed relationship, but has %d", len(user.InversedRelationships))
 	}
 
 	if user.InversedRelationships[0].OwnerName != "comments" {

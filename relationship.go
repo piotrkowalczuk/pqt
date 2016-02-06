@@ -101,25 +101,9 @@ func WithColumnName(n string) RelationshipOption {
 	}
 }
 
-// WithOnDelete add ON DELETE clause that specifies the action to perform when a referenced row in the referenced table is being deleted
-func WithOnDelete(on int32) RelationshipOption {
-	return func(r *Relationship) {
-		r.OnDelete = on
-	}
-}
-
-// WithOnUpdate add ON UPDATE clause that specifies the action to perform when a referenced column in the referenced table is being updated to a new value.
-func WithOnUpdate(on int32) RelationshipOption {
-	return func(r *Relationship) {
-		r.OnUpdate = on
-	}
-
-}
-
 // WithBidirectional ...
 func WithBidirectional() RelationshipOption {
 	return func(r *Relationship) {
 		r.Bidirectional = true
 	}
-
 }

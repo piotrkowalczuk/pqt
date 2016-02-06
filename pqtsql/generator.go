@@ -91,9 +91,9 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 			buf.WriteRune(' ')
 			buf.WriteString(c.Collate)
 		}
-		if c.Default != "" {
+		if d, ok := c.DefaultOn(pqt.EventInsert); ok {
 			buf.WriteString(" DEFAULT ")
-			buf.WriteString(c.Default)
+			buf.WriteString(d)
 		}
 		if c.NotNull {
 			buf.WriteString(" NOT NULL")
@@ -166,6 +166,28 @@ func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
 		c.ReferenceTable.FullName(),
 		pqt.JoinColumns(c.ReferenceColumns, ", "),
 	)
+
+	switch c.OnDelete {
+	case pqt.Cascade:
+		buf.WriteString(" ON DELETE CASCADE")
+	case pqt.Restrict:
+		buf.WriteString(" ON DELETE RESTRICT")
+	case pqt.SetNull:
+		buf.WriteString(" ON DELETE SET NULL")
+	case pqt.SetDefault:
+		buf.WriteString(" ON DELETE SET DEFAULT")
+	}
+
+	switch c.OnUpdate {
+	case pqt.Cascade:
+		buf.WriteString(" ON UPDATE CASCADE")
+	case pqt.Restrict:
+		buf.WriteString(" ON UPDATE RESTRICT")
+	case pqt.SetNull:
+		buf.WriteString(" ON UPDATE SET NULL")
+	case pqt.SetDefault:
+		buf.WriteString(" ON UPDATE SET DEFAULT")
+	}
 
 	return nil
 }

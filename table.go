@@ -1,12 +1,17 @@
 package pqt
 
+import "sort"
+
+// ExtendFunc ...
+type ExtendFunc func(*Table)
+
 // Table ...
 type Table struct {
 	self                      bool
 	Name, Collate, TableSpace string
 	IfNotExists, Temporary    bool
 	Schema                    *Schema
-	Columns                   []*Column
+	Columns                   Columns
 	Constraints               []*Constraint
 	OwnedRelationships        []*Relationship
 	InversedRelationships     []*Relationship
@@ -20,7 +25,7 @@ type TableOption func(*Table)
 func NewTable(name string, opts ...TableOption) *Table {
 	t := &Table{
 		Name:                  name,
-		Columns:               make([]*Column, 0),
+		Columns:               make(Columns, 0),
 		Constraints:           make([]*Constraint, 0),
 		InversedRelationships: make([]*Relationship, 0),
 		OwnedRelationships:    make([]*Relationship, 0),
@@ -33,8 +38,8 @@ func NewTable(name string, opts ...TableOption) *Table {
 	return t
 }
 
-// SelfRefference returns almost empty table that express self reference. Should be used with relationships.
-func SelfRefference() *Table {
+// SelfReference returns almost empty table that express self reference. Should be used with relationships.
+func SelfReference() *Table {
 	return &Table{
 		self: true,
 	}
@@ -51,8 +56,30 @@ func (t *Table) FullName() string {
 
 // AddColumn ...
 func (t *Table) AddColumn(c *Column) *Table {
+	if c.Reference != nil {
+		t.AddConstraint(&Constraint{
+			Type:             ConstraintTypeForeignKey,
+			Table:            t,
+			Columns:          Columns{c},
+			ReferenceTable:   c.Reference.Table,
+			ReferenceColumns: Columns{c.Reference},
+			OnDelete:         c.OnDelete,
+			OnUpdate:         c.OnUpdate,
+			Match:            c.Match,
+		})
+		// When constraint is created, redundant data from column needs to be removed.
+		c.Reference = nil
+		c.OnDelete = 0
+		c.OnUpdate = 0
+		c.Match = 0
+	}
+
+	return t.addColumn(c)
+}
+
+func (t *Table) addColumn(c *Column) *Table {
 	if t.Columns == nil {
-		t.Columns = make([]*Column, 0, 1)
+		t.Columns = make(Columns, 0, 1)
 	}
 
 	if c.Table == nil {
@@ -62,6 +89,7 @@ func (t *Table) AddColumn(c *Column) *Table {
 	}
 	t.Columns = append(t.Columns, c)
 
+	sort.Sort(&t.Columns)
 	return t
 }
 
@@ -70,11 +98,15 @@ func (t *Table) AddRelationship(r *Relationship, opts ...ColumnOption) *Table {
 	if r == nil {
 		return t
 	}
-
 	if r.Type == RelationshipTypeManyToMany {
 		return t.addRelationshipManyToMany(r, opts...)
 	}
-	if r.InversedTable != nil && r.InversedTable.self {
+	return t.addRelationship(r, opts...)
+}
+
+func (t *Table) addRelationship(r *Relationship, opts ...ColumnOption) *Table {
+	switch {
+	case r.InversedTable != nil && r.InversedTable.self:
 		r.InversedTable = t
 	}
 
@@ -91,25 +123,17 @@ func (t *Table) AddRelationship(r *Relationship, opts ...ColumnOption) *Table {
 
 	name := r.ColumnName
 	if name == "" {
-		name = t.Name + "_" + pk.Name
+		name = r.InversedTable.Name + "_" + pk.Name
 	}
 
 	nt := fkType(pk.Type)
 
-	switch r.Type {
-	case RelationshipTypeOneToOne, RelationshipTypeManyToOne:
-		r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
-		if r.Bidirectional {
-			r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
-		}
-	case RelationshipTypeOneToMany:
-		r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
-		if r.Bidirectional {
-			r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
-		}
+	r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
+	if r.Bidirectional {
+		r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
 	}
 
-	r.OwnerTable.AddColumn(NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...))
+	r.OwnerTable.addColumn(NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...))
 
 	return t
 }
@@ -203,6 +227,11 @@ func (t *Table) PrimaryKey() (*Column, bool) {
 	}
 
 	return nil, false
+}
+
+// Extend ...
+func (t *Table) Extend(fn ExtendFunc) {
+	fn(t)
 }
 
 // WithIfNotExists ...

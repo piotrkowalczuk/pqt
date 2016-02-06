@@ -1,14 +1,30 @@
 package pqt
 
-import "strings"
+import (
+	"bytes"
+	"strings"
+)
+
+const (
+	// EventInsert ...
+	EventInsert Event = "INSERT"
+	// EventUpdate ...
+	EventUpdate Event = "UPDATE"
+)
+
+type Event string
 
 // Column ...
 type Column struct {
-	Name, Collate, Default, Check string
-	NotNull, Unique, PrimaryKey   bool
-	Type                          Type
-	Table                         *Table
-	Reference                     *Column
+	Name, ShortName, Collate, Check                                      string
+	Default                                                              map[Event]string
+	NotNull, Unique, PrimaryKey                                          bool
+	Type                                                                 Type
+	Table                                                                *Table
+	Reference                                                            *Column
+	ReferenceOptions                                                     []RelationshipOption
+	Match, OnDelete, OnUpdate                                            int32
+	NoInherit, DeferrableInitiallyDeferred, DeferrableInitiallyImmediate bool
 }
 
 // NewColumn ...
@@ -32,13 +48,13 @@ func (c *Column) Constraints() []*Constraint {
 	if c.PrimaryKey {
 		cs = append(cs, &Constraint{
 			Type:    ConstraintTypePrimaryKey,
-			Columns: []*Column{c},
+			Columns: Columns{c},
 			Table:   c.Table,
 		})
 	} else if c.Unique {
 		cs = append(cs, &Constraint{
 			Type:    ConstraintTypeUnique,
-			Columns: []*Column{c},
+			Columns: Columns{c},
 			Table:   c.Table,
 		})
 	}
@@ -46,15 +62,15 @@ func (c *Column) Constraints() []*Constraint {
 		cs = append(cs, &Constraint{
 			Type:    ConstraintTypeCheck,
 			Check:   c.Check,
-			Columns: []*Column{c},
+			Columns: Columns{c},
 			Table:   c.Table,
 		})
 	}
 	if c.Reference != nil {
 		cs = append(cs, &Constraint{
 			Type:             ConstraintTypeForeignKey,
-			Columns:          []*Column{c},
-			ReferenceColumns: []*Column{c.Reference},
+			Columns:          Columns{c},
+			ReferenceColumns: Columns{c.Reference},
 			ReferenceTable:   c.Reference.Table,
 			Table:            c.Table,
 		})
@@ -63,8 +79,53 @@ func (c *Column) Constraints() []*Constraint {
 	return cs
 }
 
+type Columns []*Column
+
+// Len implements sort.Interface interface.
+func (c Columns) Len() int {
+	return len(c)
+}
+
+// Swap implements sort.Interface interface.
+func (c Columns) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
+}
+
+// Less implements sort.Interface interface.
+func (c Columns) Less(i, j int) bool {
+	return c[i].Name < c[j].Name
+}
+
+// String implements Stringer interface.
+func (c Columns) String() string {
+	b := bytes.NewBuffer(nil)
+	defer b.Reset()
+
+	for i, col := range c {
+		if i != 0 {
+			b.WriteRune(',')
+		}
+		b.WriteString(col.Name)
+	}
+
+	return b.String()
+}
+
+// DefaultOn ...
+func (c Column) DefaultOn(e ...Event) (string, bool) {
+	for k, v := range c.Default {
+		for _, ee := range e {
+			if k == ee {
+				return v, true
+			}
+		}
+	}
+
+	return "", false
+}
+
 // JoinColumns ...
-func JoinColumns(columns []*Column, sep string) string {
+func JoinColumns(columns Columns, sep string) string {
 	tmp := make([]string, 0, len(columns))
 	for _, c := range columns {
 		tmp = append(tmp, c.Name)
@@ -152,9 +213,19 @@ func WithCollate(cl string) ColumnOption {
 }
 
 // WithDefault ...
-func WithDefault(d string) ColumnOption {
+func WithDefault(d string, e ...Event) ColumnOption {
 	return func(c *Column) {
-		c.Default = d
+		if len(e) == 0 {
+			e = []Event{EventInsert}
+		}
+
+		if c.Default == nil {
+			c.Default = make(map[Event]string, len(e))
+		}
+
+		for _, event := range e {
+			c.Default[event] = d
+		}
 	}
 }
 
@@ -166,8 +237,30 @@ func WithNotNull() ColumnOption {
 }
 
 // WithReference ...
-func WithReference(r *Column) ColumnOption {
+func WithReference(r *Column, opts ...ColumnOption) ColumnOption {
 	return func(c *Column) {
 		c.Reference = r
+		//		c.ReferenceOptions = opts
+	}
+}
+
+// WithOnDelete add ON DELETE clause that specifies the action to perform when a referenced row in the referenced table is being deleted
+func WithOnDelete(on int32) ColumnOption {
+	return func(c *Column) {
+		c.OnDelete = on
+	}
+}
+
+// WithOnUpdate add ON UPDATE clause that specifies the action to perform when a referenced column in the referenced table is being updated to a new value.
+func WithOnUpdate(on int32) ColumnOption {
+	return func(c *Column) {
+		c.OnUpdate = on
+	}
+}
+
+// WithShortName ...
+func WithShortName(s string) ColumnOption {
+	return func(c *Column) {
+		c.ShortName = s
 	}
 }

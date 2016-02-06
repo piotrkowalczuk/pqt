@@ -35,8 +35,8 @@ func TestNewColumn(t *testing.T) {
 	if c.Check != check {
 		t.Errorf("wrong column check, expected %s but got %s", check, c.Check)
 	}
-	if c.Default != "janusz" {
-		t.Errorf("wrong column default, expected %s but got %s", "janusz", c.Default)
+	if d, ok := c.Default[pqt.EventInsert]; ok && d != "janusz" {
+		t.Errorf("wrong column default, expected %s but got %s", "janusz", d)
 	}
 	if !c.Unique {
 		t.Error("wrong column unique, expected true but got false")
@@ -77,5 +77,34 @@ func TestNewColumn(t *testing.T) {
 	}
 	if !hasCH {
 		t.Errorf("mising check constraint")
+	}
+}
+
+func TestColumn_DefaultOn(t *testing.T) {
+	success := []struct {
+		d string
+		e []pqt.Event
+	}{
+		{
+			d: "NOW()",
+			e: []pqt.Event{pqt.EventUpdate},
+		},
+	}
+
+	for _, data := range success {
+		c := pqt.NewColumn("column", pqt.TypeTimestampTZ(), pqt.WithDefault(data.d, data.e...))
+
+	EventLoop:
+		for _, e := range data.e {
+			d, ok := c.DefaultOn(e)
+			if !ok {
+				t.Errorf("missing default value for %s", e)
+				continue EventLoop
+			}
+
+			if d != data.d {
+				t.Errorf("wrong value, expected %s but got %s", data.d, d)
+			}
+		}
 	}
 }
