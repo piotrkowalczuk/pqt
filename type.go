@@ -237,13 +237,13 @@ func TypePseudo(name string) PseudoType {
 
 // MappableType ...
 type MappableType struct {
-	from    Type
+	From    Type
 	Mapping []Type
 }
 
 // String implements Stringer interface.
 func (mt MappableType) String() string {
-	return mt.from.String()
+	return mt.From.String()
 }
 
 // Fingerprint implements Type interface.
@@ -254,7 +254,7 @@ func (mt MappableType) Fingerprint() string {
 // TypeMappable ...
 func TypeMappable(from Type, mapping ...Type) MappableType {
 	return MappableType{
-		from:    from,
+		From:    from,
 		Mapping: mapping,
 	}
 }

@@ -219,9 +219,16 @@ func (g *Generator) generateCriteria(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString("type " + g.private(table.Name) + "Criteria struct {")
 	code.WriteString("offset, limit int64\n")
 	code.WriteString("sort map[string]bool\n")
+
+ColumnLoop:
 	for _, c := range table.Columns {
+		if g.shouldBeColumnIgnoredForCriteria(c) {
+			continue ColumnLoop
+		}
+
 		code.WriteString(g.private(c.Name))
 		code.WriteRune(' ')
+
 		switch c.Type {
 		case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
 			code.WriteString("protot.TimestampRange")
@@ -359,7 +366,13 @@ func (g *Generator) generateRepositoryFind(code *bytes.Buffer, table *pqt.Table)
 
 			where := comp.Compose(%d)
 	`, len(table.Columns))
+
+ColumnLoop:
 	for _, c := range table.Columns {
+		if g.shouldBeColumnIgnoredForCriteria(c) {
+			continue ColumnLoop
+		}
+
 		switch c.Type {
 		case pqt.TypeTimestampTZ(), pqt.TypeTimestamp():
 			fmt.Fprintf(code, "if c.%s.From != nil {\n", g.private(c.Name))
@@ -765,4 +778,15 @@ func generateBuiltinType(t BuiltinType, mandatory bool) (r string) {
 
 func (g *Generator) writeColumnNameConstraintTo(w io.Writer, tableName, columnName string) {
 	fmt.Fprintf(w, "table%sColumn%s", g.public(tableName), g.public(columnName))
+}
+
+func (g *Generator) shouldBeColumnIgnoredForCriteria(c *pqt.Column) bool {
+	if mt, ok := c.Type.(pqt.MappableType); ok {
+		switch mt.From {
+		case pqt.TypeJSON(), pqt.TypeJSONB():
+			return true
+		}
+	}
+
+	return false
 }
