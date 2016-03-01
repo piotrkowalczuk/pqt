@@ -108,6 +108,8 @@ func (t *Table) addRelationship(r *Relationship, opts ...ColumnOption) *Table {
 	switch {
 	case r.InversedTable != nil && r.InversedTable.self:
 		r.InversedTable = t
+	case r.OwnerTable != nil && r.OwnerTable.self:
+		r.OwnerTable = t
 	}
 
 	switch r.Type {
@@ -168,9 +170,13 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 
 	nt1 := fkType(pk1.Type)
 	nt2 := fkType(pk2.Type)
-	r.ThroughTable.AddColumn(NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...))
-	r.ThroughTable.AddColumn(NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...))
 
+	column1 := NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...)
+	column2 := NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...)
+
+	r.ThroughTable.AddColumn(column1)
+	r.ThroughTable.AddColumn(column2)
+	r.ThroughTable.AddUnique(column1, column2)
 	return t
 }
 
