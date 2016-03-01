@@ -167,22 +167,22 @@ func (g *Generator) generateEntity(code *bytes.Buffer, table *pqt.Table) {
 	for _, r := range table.InversedRelationships {
 		switch r.Type {
 		case pqt.RelationshipTypeOneToMany:
-			if r.InversedName != "" {
-				code.WriteString(g.public(r.InversedName))
+			if r.OwnerName != "" {
+				code.WriteString(g.public(r.OwnerName))
 			} else {
-				code.WriteString(g.public(r.InversedTable.Name) + "s")
+				code.WriteString(g.public(r.OwnerTable.Name))
 			}
 			code.WriteRune(' ')
-			fmt.Fprintf(code, "*%sEntity", g.private(r.InversedTable.Name))
+			fmt.Fprintf(code, "*%sEntity", g.private(r.OwnerTable.Name))
 			code.WriteRune('\n')
 		case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
-			if r.InversedName != "" {
-				code.WriteString(g.public(r.InversedName))
+			if r.OwnerName != "" {
+				code.WriteString(g.public(r.OwnerName))
 			} else {
-				code.WriteString(g.public(r.InversedTable.Name))
+				code.WriteString(g.public(r.OwnerTable.Name) + "s")
 			}
 			code.WriteRune(' ')
-			fmt.Fprintf(code, "[]*%sEntity", g.private(r.InversedTable.Name))
+			fmt.Fprintf(code, "[]*%sEntity", g.private(r.OwnerTable.Name))
 			code.WriteRune('\n')
 		}
 	}
