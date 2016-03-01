@@ -171,12 +171,34 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	nt1 := fkType(pk1.Type)
 	nt2 := fkType(pk2.Type)
 
-	column1 := NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...)
-	column2 := NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...)
+	ownerColumns := make(Columns, 0)
+	inversedColumns := make(Columns, 0)
 
-	r.ThroughTable.AddColumn(column1)
-	r.ThroughTable.AddColumn(column2)
-	r.ThroughTable.AddUnique(column1, column2)
+	if r.OwnerForeignKey != nil {
+		r.ThroughTable.AddConstraint(r.OwnerForeignKey)
+		for _, oc := range r.OwnerForeignKey.Columns {
+			r.ThroughTable.AddColumn(oc)
+			ownerColumns = append(ownerColumns, oc)
+		}
+	} else {
+		oc := NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...)
+		r.ThroughTable.AddColumn(oc)
+		ownerColumns = append(ownerColumns, oc)
+	}
+
+	if r.InversedForeignKey != nil {
+		r.ThroughTable.AddConstraint(r.InversedForeignKey)
+		for _, ic := range r.InversedForeignKey.Columns {
+			r.ThroughTable.AddColumn(ic)
+			ownerColumns = append(ownerColumns, ic)
+		}
+	} else {
+		ic := NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...)
+		r.ThroughTable.AddColumn(ic)
+		inversedColumns = append(inversedColumns, ic)
+	}
+
+	r.ThroughTable.AddUnique(append(ownerColumns, inversedColumns...)...)
 	return t
 }
 

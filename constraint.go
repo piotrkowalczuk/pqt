@@ -131,10 +131,14 @@ type Reference struct {
 // must match the values appearing in some row of another table.
 // We say this maintains the referential integrity between two related tables.
 func ForeignKey(table *Table, columns, references Columns, opts ...ConstraintOption) *Constraint {
+	if len(references) == 0 {
+		panic("foreign key expects at least one reference column")
+	}
 	fk := &Constraint{
 		Type:             ConstraintTypeForeignKey,
 		Columns:          columns,
 		ReferenceColumns: references,
+		ReferenceTable: references[0].Table,
 	}
 
 	for _, o := range opts {

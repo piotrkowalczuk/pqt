@@ -38,6 +38,7 @@ type Relationship struct {
 	Type                                    RelationshipType
 	OwnerName, InversedName                 string
 	OwnerTable, InversedTable, ThroughTable *Table
+	OwnerForeignKey, InversedForeignKey *Constraint
 	ColumnName                              string
 	OnDelete, OnUpdate                      int32
 }
@@ -87,10 +88,25 @@ func WithOwnerName(s string) RelationshipOption {
 	}
 }
 
+// WithOwnerForeignKey ...
+func WithOwnerForeignKey(columns, references Columns, opts ...ConstraintOption) RelationshipOption {
+	return func(r *Relationship) {
+		r.OwnerForeignKey = ForeignKey(r.OwnerTable, columns, references, opts...)
+	}
+}
+
+
 // WithInversedName ...
 func WithInversedName(s string) RelationshipOption {
 	return func(r *Relationship) {
 		r.InversedName = s
+	}
+}
+
+// WithInversedForeignKey ...
+func WithInversedForeignKey(columns, references Columns, opts ...ConstraintOption) RelationshipOption {
+	return func(r *Relationship) {
+		r.InversedForeignKey = ForeignKey(r.InversedTable, columns, references, opts...)
 	}
 }
 
