@@ -2,9 +2,6 @@ package pqt
 
 import "sort"
 
-// ExtendFunc ...
-type ExtendFunc func(*Table)
-
 // Table ...
 type Table struct {
 	self                      bool
@@ -17,9 +14,6 @@ type Table struct {
 	InversedRelationships     []*Relationship
 	ManyToManyRelationships   []*Relationship
 }
-
-// TableOption configures how we set up the table.
-type TableOption func(*Table)
 
 // NewTable ...
 func NewTable(name string, opts ...TableOption) *Table {
@@ -257,27 +251,29 @@ func (t *Table) PrimaryKey() (*Column, bool) {
 	return nil, false
 }
 
-// Extend ...
-func (t *Table) Extend(fn ExtendFunc) {
-	fn(t)
-}
+// TableOption configures how we set up the table.
+type TableOption func(*Table)
 
 // WithIfNotExists ...
-func WithIfNotExists() func(*Table) {
+func WithIfNotExists() TableOption {
 	return func(t *Table) {
 		t.IfNotExists = true
 	}
 }
 
-// WithTemporary ...
-func WithTemporary() func(*Table) {
+// WithTemporary specified, the table is created as a temporary table.
+// Temporary tables are automatically dropped at the end of a session, or optionally at the end of the current transaction (see ON COMMIT below).
+// Existing permanent tables with the same name are not visible to the current session while the temporary table exists, unless they are referenced with schema-qualified names.
+// Any indexes created on a temporary table are automatically temporary as well.
+func WithTemporary() TableOption {
 	return func(t *Table) {
 		t.Temporary = true
 	}
 }
 
-// WithTableSpace ...
-func WithTableSpace(s string) func(*Table) {
+// WithTableSpace pass the name of the tablespace in which the new table is to be created.
+// If not specified, default_tablespace is consulted, or temp_tablespaces if the table is temporary.
+func WithTableSpace(s string) TableOption {
 	return func(t *Table) {
 		t.TableSpace = s
 	}
