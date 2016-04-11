@@ -12,6 +12,13 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
+const (
+	modeDefault = iota
+	modeMandatory
+	modeOptional
+	modeCriteria
+)
+
 // Generator ...
 type Generator struct {
 	acronyms map[string]string
@@ -230,55 +237,58 @@ ColumnLoop:
 		code.WriteRune(' ')
 
 		switch c.Type {
-		case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-			code.WriteString("protot.TimestampRange")
 		case pqt.TypeJSON(), pqt.TypeJSONB():
 			code.WriteString("map[string]interface{}")
 		default:
-			g.generateType(code, c, -1)
+			g.generateType(code, c, modeCriteria)
 		}
 		code.WriteRune('\n')
 	}
 	code.WriteString("}\n")
 }
 
-func (g *Generator) generateType(code *bytes.Buffer, c *pqt.Column, m int32) {
-	code.WriteString(g.generateTypeString(c, m))
+func (g *Generator) generateType(code *bytes.Buffer, c *pqt.Column, mode int32) {
+	code.WriteString(g.generateTypeString(c, mode))
 }
 
-func (g *Generator) generateTypeString(c *pqt.Column, m int32) string {
-	var t string
+func (g *Generator) generateTypeString(col *pqt.Column, mode int32) string {
+	var (
+		t         string
+		mandatory bool
+		criteria  bool
+	)
 
-	if str, ok := c.Type.(fmt.Stringer); ok {
+	if str, ok := col.Type.(fmt.Stringer); ok {
 		t = str.String()
 	} else {
 		t = "struct{}"
 	}
 
-	var mandatory bool
-	switch m {
-	case 1:
+	switch mode {
+	case modeCriteria:
+		criteria = true
+	case modeMandatory:
 		mandatory = true
-	case -1:
+	case modeOptional:
 		mandatory = false
 	default:
-		mandatory = c.NotNull || c.PrimaryKey
+		mandatory = col.NotNull || col.PrimaryKey
 	}
 
-	switch tp := c.Type.(type) {
+	switch tp := col.Type.(type) {
 	case pqt.MappableType:
 		for _, mapto := range tp.Mapping {
 			switch mt := mapto.(type) {
 			case BuiltinType:
-				t = generateBuiltinType(mt, mandatory)
+				t = generateBuiltinType(mt, mandatory, criteria)
 			case CustomType:
 				t = mt.String()
 			}
 		}
 	case BuiltinType:
-		t = generateBuiltinType(tp, mandatory)
+		t = generateBuiltinType(tp, mandatory, criteria)
 	case pqt.BaseType:
-		t = generateBaseType(tp, mandatory)
+		t = generateBaseType(tp, mandatory, criteria)
 	}
 
 	return t
@@ -332,7 +342,7 @@ func (g *Generator) generateColumns(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString("Columns = []string{\n")
 
 	for _, name := range sortedColumns(table.Columns) {
-		g.writeColumnNameConstraintTo(code, table.Name, name)
+		g.writeTableNameColumnNameTo(code, table.Name, name)
 		code.WriteRune(',')
 		code.WriteRune('\n')
 	}
@@ -373,24 +383,150 @@ ColumnLoop:
 			continue ColumnLoop
 		}
 
-		switch c.Type {
-		case pqt.TypeTimestampTZ(), pqt.TypeTimestamp():
-			fmt.Fprintf(code, "if c.%s.From != nil {\n", g.private(c.Name))
-			code.WriteString("where.AddExpr(")
-			g.writeColumnNameConstraintTo(code, c.Table.Name, c.Name)
-			fmt.Fprintf(code, ", pqcomp.GT, c.%s.From.Time())", g.private(c.Name))
-			code.WriteString("}\n")
+		columnNamePrivate := g.private(c.Name)
+		columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 
-			fmt.Fprintf(code, "if c.%s.To != nil {\n", g.private(c.Name))
-			code.WriteString("where.AddExpr(")
-			g.writeColumnNameConstraintTo(code, c.Table.Name, c.Name)
-			fmt.Fprintf(code, ", pqcomp.LT, c.%s.To.Time())", g.private(c.Name))
-			code.WriteString("}\n")
+		switch g.generateTypeString(c, modeCriteria) {
+		case "*protot.QueryTimestamp":
+			fmt.Fprintf(code, `
+				if c.%s != nil && c.%s.Valid {
+					%st1 := c.%s.Value()
+					if %st1 != nil {
+						%s1, err := ptypes.Timestamp(%st1 )
+						if err != nil {
+							return nil, err
+						}
+
+						switch c.%s.Type {
+						case protot.NumericQueryType_NOT_A_NUMBER:
+							where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
+						case protot.NumericQueryType_EQUAL:
+							where.AddExpr(%s, pqcomp.E, %s1)
+						case protot.NumericQueryType_NOT_EQUAL:
+							where.AddExpr(%s, pqcomp.NE, %s1)
+						case protot.NumericQueryType_GREATER:
+							where.AddExpr(%s, pqcomp.GT, %s1)
+						case protot.NumericQueryType_GREATER_EQUAL:
+							where.AddExpr(%s, pqcomp.GTE, %s1)
+						case protot.NumericQueryType_LESS:
+							where.AddExpr(%s, pqcomp.LT, %s1)
+						case protot.NumericQueryType_LESS_EQUAL:
+							where.AddExpr(%s, pqcomp.LTE, %s1)
+						case protot.NumericQueryType_IN:
+							where.AddExpr(%s, pqcomp.IN, %s1)
+						case protot.NumericQueryType_BETWEEN:
+							%st2 := c.%s.Values[1]
+							if %st2 != nil {
+								%s2, err := ptypes.Timestamp(%st2)
+								if err != nil {
+									return nil, err
+								}
+
+								where.AddExpr(%s, pqcomp.GT, %s1)
+								where.AddExpr(%s, pqcomp.LT, %s2)
+							}
+						}
+					}
+				}
+			`,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate,
+				columnNameWithTable,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+			)
+		case "*protot.QueryInt64":
+			fmt.Fprintf(code, `
+				if c.%s != nil && c.%s.Valid {
+					switch c.%s.Type {
+					case protot.NumericQueryType_NOT_A_NUMBER:
+						where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
+					case protot.NumericQueryType_EQUAL:
+						where.AddExpr(%s, pqcomp.E, c.%s.Value())
+					case protot.NumericQueryType_NOT_EQUAL:
+						where.AddExpr(%s, pqcomp.NE, c.%s.Value())
+					case protot.NumericQueryType_GREATER:
+						where.AddExpr(%s, pqcomp.GT, c.%s.Value())
+					case protot.NumericQueryType_GREATER_EQUAL:
+						where.AddExpr(%s, pqcomp.GTE, c.%s.Value())
+					case protot.NumericQueryType_LESS:
+						where.AddExpr(%s, pqcomp.LT, c.%s.Value())
+					case protot.NumericQueryType_LESS_EQUAL:
+						where.AddExpr(%s, pqcomp.LTE, c.%s.Value())
+					case protot.NumericQueryType_IN:
+						where.AddExpr(%s, pqcomp.IN, pqt.ArrayInt64(c.%s.Values))
+					case protot.NumericQueryType_BETWEEN:
+						where.AddExpr(%s, pqcomp.GT, c.%s.Values[0])
+						where.AddExpr(%s, pqcomp.LT, c.%s.Values[1])
+					}
+				}
+			`,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate,
+				columnNameWithTable,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, columnNamePrivate,
+			)
+		case "*protot.QueryString":
+			fmt.Fprintf(code, `
+				if c.%s != nil && c.%s.Valid {
+					switch c.%s.Type {
+					case protot.TextQueryType_NOT_A_TEXT:
+						where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
+					case protot.TextQueryType_EXACT:
+						where.AddExpr(%s, pqcomp.E, c.%s.Value())
+					case protot.TextQueryType_SUBSTRING:
+						where.AddExpr(%s, pqcomp.LIKE, "%s"+c.%s.Value()+"%s")
+					}
+				}
+			`,
+				columnNamePrivate, columnNamePrivate,
+				columnNamePrivate,
+				columnNameWithTable,
+				columnNameWithTable, columnNamePrivate,
+				columnNameWithTable, "%", columnNamePrivate, "%",
+			)
 		default:
 			code.WriteString("where.AddExpr(")
-			g.writeColumnNameConstraintTo(code, c.Table.Name, c.Name)
+			g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
 			fmt.Fprintf(code, ", pqcomp.E, c.%s)", g.private(c.Name))
 		}
+		//fmt.Fprintf(code, "if c.%s.From != nil {\n", g.private(c.Name))
+		//code.WriteString("where.AddExpr(")
+		//g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
+		//fmt.Fprintf(code, ", pqcomp.GT, c.%s.From.Time())", g.private(c.Name))
+		//code.WriteString("}\n")
+		//
+		//fmt.Fprintf(code, "if c.%s.To != nil {\n", g.private(c.Name))
+		//code.WriteString("where.AddExpr(")
+		//g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
+		//fmt.Fprintf(code, ", pqcomp.LT, c.%s.To.Time())", g.private(c.Name))
+		//code.WriteString("}\n")
+		//default:
+		//	code.WriteString("where.AddExpr(")
+		//	g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
+		//	fmt.Fprintf(code, ", pqcomp.E, c.%s)", g.private(c.Name))
+		//}
 
 		code.WriteRune('\n')
 	}
@@ -432,7 +568,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 		return
 	}
 
-	fmt.Fprintf(code, `func (r *%sRepository) FindOneBy%s(%s %s) (*%sEntity, error) {`, entityName, g.public(pk.Name), g.private(pk.Name), g.generateTypeString(pk, 1), entityName)
+	fmt.Fprintf(code, `func (r *%sRepository) FindOneBy%s(%s %s) (*%sEntity, error) {`, entityName, g.public(pk.Name), g.private(pk.Name), g.generateTypeString(pk, modeMandatory), entityName)
 	fmt.Fprintf(code, `var (
 		query string
 		entity %sEntity
@@ -481,7 +617,7 @@ ColumnsLoop:
 				continue ColumnsLoop
 			default:
 				code.WriteString("insert.AddExpr(")
-				g.writeColumnNameConstraintTo(code, c.Table.Name, c.Name)
+				g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
 				fmt.Fprintf(code, `, "", e.%s)`, g.public(c.Name))
 				code.WriteRune('\n')
 			}
@@ -511,7 +647,7 @@ func (g *Generator) generateRepositoryUpdateByPrimaryKey(code *bytes.Buffer, tab
 
 	fmt.Fprintf(code, `func (r *%sRepository) UpdateBy%s(`, entityName, g.public(pk.Name))
 	code.WriteRune('\n')
-	fmt.Fprintf(code, `%s %s,`, g.private(pk.Name), g.generateTypeString(pk, 1))
+	fmt.Fprintf(code, `%s %s,`, g.private(pk.Name), g.generateTypeString(pk, modeMandatory))
 	code.WriteRune('\n')
 
 ArgumentsLoop:
@@ -520,7 +656,7 @@ ArgumentsLoop:
 		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 			continue ArgumentsLoop
 		default:
-			fmt.Fprintf(code, `%s %s,`, g.private(c.Name), g.generateTypeString(c, -1))
+			fmt.Fprintf(code, `%s %s,`, g.private(c.Name), g.generateTypeString(c, modeOptional))
 			code.WriteRune('\n')
 		}
 	}
@@ -530,7 +666,7 @@ ArgumentsLoop:
 	`, len(table.Columns))
 
 	code.WriteString("update.AddExpr(")
-	g.writeColumnNameConstraintTo(code, table.Name, pk.Name)
+	g.writeTableNameColumnNameTo(code, table.Name, pk.Name)
 	fmt.Fprintf(code, `, pqcomp.E, %s)`, g.private(pk.Name))
 	code.WriteRune('\n')
 
@@ -549,7 +685,7 @@ ColumnsLoop:
 		}
 
 		code.WriteString("update.AddExpr(")
-		g.writeColumnNameConstraintTo(code, c.Table.Name, c.Name)
+		g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
 		fmt.Fprintf(code, `, pqcomp.E, %s)`, g.private(c.Name))
 		code.WriteRune('\n')
 
@@ -558,7 +694,7 @@ ColumnsLoop:
 			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
 				fmt.Fprintf(code, `} else {`)
 				code.WriteString("update.AddExpr(")
-				g.writeColumnNameConstraintTo(code, c.Table.Name, c.Name)
+				g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
 				fmt.Fprintf(code, `, pqcomp.E, "%s")`, d)
 			}
 		}
@@ -672,11 +808,15 @@ func (g *Generator) public(s string) string {
 	return snake(s, false, g.acronyms)
 }
 
-func nullable(typeA, typeB string, mandatory bool) string {
-	if mandatory {
-		return typeA
+func chooseType(typeMandatory, typeOptional, typeCriteria string, mandatory, criteria bool) string {
+	switch {
+	case criteria:
+		return typeCriteria
+	case mandatory:
+		return typeMandatory
+	default:
+		return typeOptional
 	}
-	return typeB
 }
 
 func tableConstraints(t *pqt.Table) []*pqt.Constraint {
@@ -688,30 +828,30 @@ func tableConstraints(t *pqt.Table) []*pqt.Constraint {
 	return append(constraints, t.Constraints...)
 }
 
-func generateBaseType(t pqt.Type, mandatory bool) string {
+func generateBaseType(t pqt.Type, mandatory, criteria bool) string {
 	switch t {
 	case pqt.TypeText():
-		return nullable("string", "nilt.String", mandatory)
+		return chooseType("string", "nilt.String", "*protot.QueryString", mandatory, criteria)
 	case pqt.TypeBool():
-		return nullable("bool", "nilt.Bool", mandatory)
+		return chooseType("bool", "nilt.Bool", "nilt.Bool", mandatory, criteria)
 	case pqt.TypeIntegerSmall():
 		return "int16"
 	case pqt.TypeInteger():
-		return nullable("int32", "nilt.Int32", mandatory)
+		return chooseType("int32", "nilt.Int32", "nilt.Int32", mandatory, criteria)
 	case pqt.TypeIntegerBig():
-		return nullable("int64", "nilt.Int64", mandatory)
+		return chooseType("int64", "nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
 	case pqt.TypeSerial():
-		return nullable("int32", "nilt.Int32", mandatory)
+		return chooseType("int32", "nilt.Int32", "nilt.Int32", mandatory, criteria)
 	case pqt.TypeSerialSmall():
 		return "int16" // TODO: missing nilt.Int16 type
 	case pqt.TypeSerialBig():
-		return nullable("int64", "nilt.Int64", mandatory)
+		return chooseType("int64", "nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
 	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-		return nullable("time.Time", "*time.Time", mandatory)
+		return chooseType("time.Time", "*time.Time", "*protot.QueryTimestamp", mandatory, criteria)
 	case pqt.TypeReal():
-		return nullable("float32", "nilt.Float32", mandatory)
+		return chooseType("float32", "nilt.Float32", "nilt.Float32", mandatory, criteria)
 	case pqt.TypeDoublePrecision():
-		return nullable("float64", "nilt.Float64", mandatory)
+		return chooseType("float64", "nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
 	case pqt.TypeBytea():
 		return "[]byte"
 	default:
@@ -726,49 +866,49 @@ func generateBaseType(t pqt.Type, mandatory bool) string {
 		case strings.HasPrefix(gt, "TEXT["):
 			return "pqt.ArrayString"
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):
-			return nullable("float32", "nilt.Float32", mandatory)
+			return chooseType("float32", "nilt.Float32", "nilt.Float32", mandatory, criteria)
 		case strings.HasPrefix(gt, "VARCHAR"):
-			return nullable("string", "nilt.String", mandatory)
+			return chooseType("string", "nilt.String", "*protot.QueryString", mandatory, criteria)
 		default:
 			return "struct{}"
 		}
 	}
 }
 
-func generateBuiltinType(t BuiltinType, mandatory bool) (r string) {
+func generateBuiltinType(t BuiltinType, mandatory, criteria bool) (r string) {
 	switch types.BasicKind(t) {
 	case types.Bool:
-		r = nullable("bool", "nilt.Bool", mandatory)
+		r = chooseType("bool", "nilt.Bool", "nilt.Bool", mandatory, criteria)
 	case types.Int:
-		r = nullable("int", "nilt.Int", mandatory)
+		r = chooseType("int", "nilt.Int", "nilt.Int", mandatory, criteria)
 	case types.Int8:
-		r = nullable("int8", "*int8", mandatory)
+		r = chooseType("int8", "*int8", "*int8", mandatory, criteria)
 	case types.Int16:
-		r = nullable("int16", "*int16", mandatory)
+		r = chooseType("int16", "*int16", "*int16", mandatory, criteria)
 	case types.Int32:
-		r = nullable("int32", "nilt.Int32", mandatory)
+		r = chooseType("int32", "nilt.Int32", "nilt.Int32", mandatory, criteria)
 	case types.Int64:
-		r = nullable("int64", "nilt.Int64", mandatory)
+		r = chooseType("int64", "nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
 	case types.Uint:
-		r = nullable("uint", "*uint", mandatory)
+		r = chooseType("uint", "*uint", "*uint", mandatory, criteria)
 	case types.Uint8:
-		r = nullable("uint8", "*uint8", mandatory)
+		r = chooseType("uint8", "*uint8", "*uint8", mandatory, criteria)
 	case types.Uint16:
-		r = nullable("uint16", "*uint16", mandatory)
+		r = chooseType("uint16", "*uint16", "*uint16", mandatory, criteria)
 	case types.Uint32:
-		r = nullable("uint32", "nilt.Uint32", mandatory)
+		r = chooseType("uint32", "nilt.Uint32", "nilt.Uint32", mandatory, criteria)
 	case types.Uint64:
-		r = nullable("uint64", "*uint64", mandatory)
+		r = chooseType("uint64", "*uint64", "*uint64", mandatory, criteria)
 	case types.Float32:
-		r = nullable("float32", "nilt.Float32", mandatory)
+		r = chooseType("float32", "nilt.Float32", "nilt.Float32", mandatory, criteria)
 	case types.Float64:
-		r = nullable("float64", "nilt.Float64", mandatory)
+		r = chooseType("float64", "nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
 	case types.Complex64:
-		r = nullable("complex64", "*complex64", mandatory)
+		r = chooseType("complex64", "*complex64", "*complex64", mandatory, criteria)
 	case types.Complex128:
-		r = nullable("complex128", "*complex128", mandatory)
+		r = chooseType("complex128", "*complex128", "*complex128", mandatory, criteria)
 	case types.String:
-		r = nullable("string", "nilt.String", mandatory)
+		r = chooseType("string", "nilt.String", "*protot.QueryString", mandatory, criteria)
 	default:
 		r = "invalid"
 	}
@@ -776,8 +916,12 @@ func generateBuiltinType(t BuiltinType, mandatory bool) (r string) {
 	return
 }
 
-func (g *Generator) writeColumnNameConstraintTo(w io.Writer, tableName, columnName string) {
+func (g *Generator) writeTableNameColumnNameTo(w io.Writer, tableName, columnName string) {
 	fmt.Fprintf(w, "table%sColumn%s", g.public(tableName), g.public(columnName))
+}
+
+func (g *Generator) columnNameWithTableName(tableName, columnName string) string {
+	return fmt.Sprintf("table%sColumn%s", g.public(tableName), g.public(columnName))
 }
 
 func (g *Generator) shouldBeColumnIgnoredForCriteria(c *pqt.Column) bool {
