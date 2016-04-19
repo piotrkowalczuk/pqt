@@ -467,7 +467,9 @@ ColumnLoop:
 					case protot.NumericQueryType_LESS_EQUAL:
 						where.AddExpr(%s, pqcomp.LTE, c.%s.Value())
 					case protot.NumericQueryType_IN:
-						where.AddExpr(%s, pqcomp.IN, pqt.ArrayInt64(c.%s.Values))
+						for _, v := range c.%s.Values {
+							where.AddExpr(%s, pqcomp.IN, v)
+						}
 					case protot.NumericQueryType_BETWEEN:
 						where.AddExpr(%s, pqcomp.GT, c.%s.Values[0])
 						where.AddExpr(%s, pqcomp.LT, c.%s.Values[1])
@@ -483,7 +485,8 @@ ColumnLoop:
 				columnNameWithTable, columnNamePrivate,
 				columnNameWithTable, columnNamePrivate,
 				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
+				columnNamePrivate,
+				columnNameWithTable,
 				columnNameWithTable, columnNamePrivate,
 				columnNameWithTable, columnNamePrivate,
 			)
