@@ -492,19 +492,31 @@ ColumnLoop:
 				if c.%s != nil && c.%s.Valid {
 					switch c.%s.Type {
 					case protot.TextQueryType_NOT_A_TEXT:
-						where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
+						if c.%s.Negation {
+							where.AddExpr(%s, pqcomp.IS, pqcomp.NOT_NULL)
+						} else {
+							where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
+						}
 					case protot.TextQueryType_EXACT:
 						where.AddExpr(%s, pqcomp.E, c.%s.Value())
 					case protot.TextQueryType_SUBSTRING:
 						where.AddExpr(%s, pqcomp.LIKE, "%s"+c.%s.Value()+"%s")
+					case protot.TextQueryType_HAS_PREFIX:
+						where.AddExpr(%s, pqcomp.LIKE, c.%s.Value()+"%s")
+					case protot.TextQueryType_HAS_SUFFIX:
+						where.AddExpr(%s, pqcomp.LIKE, "%s"+c.%s.Value())
 					}
 				}
 			`,
 				columnNamePrivate, columnNamePrivate,
 				columnNamePrivate,
+				columnNamePrivate,
+				columnNameWithTable,
 				columnNameWithTable,
 				columnNameWithTable, columnNamePrivate,
 				columnNameWithTable, "%", columnNamePrivate, "%",
+				columnNameWithTable, columnNamePrivate, "%",
+				columnNameWithTable, "%", columnNamePrivate,
 			)
 		default:
 			code.WriteString("where.AddExpr(")
