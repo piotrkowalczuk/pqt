@@ -626,17 +626,17 @@ func (g *Generator) generateRepositoryInsert(code *bytes.Buffer, table *pqt.Tabl
 ColumnsLoop:
 	for _, c := range table.Columns {
 		// If column has default value for insert. Value will be provided by postgres.
-		if _, ok := c.DefaultOn(pqt.EventInsert); !ok {
-			switch c.Type {
-			case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
-				continue ColumnsLoop
-			default:
-				code.WriteString("insert.AddExpr(")
-				g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-				fmt.Fprintf(code, `, "", e.%s)`, g.public(c.Name))
-				code.WriteRune('\n')
-			}
+		//if _, ok := c.DefaultOn(pqt.EventInsert); !ok {
+		switch c.Type {
+		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
+			continue ColumnsLoop
+		default:
+			code.WriteString("insert.AddExpr(")
+			g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
+			fmt.Fprintf(code, `, "", e.%s)`, g.public(c.Name))
+			code.WriteRune('\n')
 		}
+		//}
 	}
 	fmt.Fprintf(code, `err := insertQueryComp(r.db, r.table, insert, r.columns).Scan(`)
 
@@ -846,27 +846,27 @@ func tableConstraints(t *pqt.Table) []*pqt.Constraint {
 func generateBaseType(t pqt.Type, mandatory, criteria bool) string {
 	switch t {
 	case pqt.TypeText():
-		return chooseType("string", "nilt.String", "*protot.QueryString", mandatory, criteria)
+		return chooseType("string", "*nilt.String", "*protot.QueryString", mandatory, criteria)
 	case pqt.TypeBool():
-		return chooseType("bool", "nilt.Bool", "nilt.Bool", mandatory, criteria)
+		return chooseType("bool", "*nilt.Bool", "*nilt.Bool", mandatory, criteria)
 	case pqt.TypeIntegerSmall():
 		return "int16"
 	case pqt.TypeInteger():
-		return chooseType("int32", "nilt.Int32", "nilt.Int32", mandatory, criteria)
+		return chooseType("int32", "*nilt.Int32", "*nilt.Int32", mandatory, criteria)
 	case pqt.TypeIntegerBig():
-		return chooseType("int64", "nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
+		return chooseType("int64", "*nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
 	case pqt.TypeSerial():
-		return chooseType("int32", "nilt.Int32", "nilt.Int32", mandatory, criteria)
+		return chooseType("int32", "*nilt.Int32", "*nilt.Int32", mandatory, criteria)
 	case pqt.TypeSerialSmall():
 		return "int16" // TODO: missing nilt.Int16 type
 	case pqt.TypeSerialBig():
-		return chooseType("int64", "nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
+		return chooseType("int64", "*nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
 	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
 		return chooseType("time.Time", "*time.Time", "*protot.QueryTimestamp", mandatory, criteria)
 	case pqt.TypeReal():
-		return chooseType("float32", "nilt.Float32", "nilt.Float32", mandatory, criteria)
+		return chooseType("float32", "*nilt.Float32", "*nilt.Float32", mandatory, criteria)
 	case pqt.TypeDoublePrecision():
-		return chooseType("float64", "nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
+		return chooseType("float64", "*nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
 	case pqt.TypeBytea():
 		return "[]byte"
 	default:
@@ -881,9 +881,9 @@ func generateBaseType(t pqt.Type, mandatory, criteria bool) string {
 		case strings.HasPrefix(gt, "TEXT["):
 			return "pqt.ArrayString"
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):
-			return chooseType("float32", "nilt.Float32", "nilt.Float32", mandatory, criteria)
+			return chooseType("float32", "*nilt.Float32", "*nilt.Float32", mandatory, criteria)
 		case strings.HasPrefix(gt, "VARCHAR"):
-			return chooseType("string", "nilt.String", "*protot.QueryString", mandatory, criteria)
+			return chooseType("string", "*nilt.String", "*protot.QueryString", mandatory, criteria)
 		default:
 			return "struct{}"
 		}
@@ -893,17 +893,17 @@ func generateBaseType(t pqt.Type, mandatory, criteria bool) string {
 func generateBuiltinType(t BuiltinType, mandatory, criteria bool) (r string) {
 	switch types.BasicKind(t) {
 	case types.Bool:
-		r = chooseType("bool", "nilt.Bool", "nilt.Bool", mandatory, criteria)
+		r = chooseType("bool", "*nilt.Bool", "*nilt.Bool", mandatory, criteria)
 	case types.Int:
-		r = chooseType("int", "nilt.Int", "nilt.Int", mandatory, criteria)
+		r = chooseType("int", "*nilt.Int", "*nilt.Int", mandatory, criteria)
 	case types.Int8:
 		r = chooseType("int8", "*int8", "*int8", mandatory, criteria)
 	case types.Int16:
 		r = chooseType("int16", "*int16", "*int16", mandatory, criteria)
 	case types.Int32:
-		r = chooseType("int32", "nilt.Int32", "nilt.Int32", mandatory, criteria)
+		r = chooseType("int32", "*nilt.Int32", "*nilt.Int32", mandatory, criteria)
 	case types.Int64:
-		r = chooseType("int64", "nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
+		r = chooseType("int64", "*nilt.Int64", "*protot.QueryInt64", mandatory, criteria)
 	case types.Uint:
 		r = chooseType("uint", "*uint", "*uint", mandatory, criteria)
 	case types.Uint8:
@@ -911,19 +911,19 @@ func generateBuiltinType(t BuiltinType, mandatory, criteria bool) (r string) {
 	case types.Uint16:
 		r = chooseType("uint16", "*uint16", "*uint16", mandatory, criteria)
 	case types.Uint32:
-		r = chooseType("uint32", "nilt.Uint32", "nilt.Uint32", mandatory, criteria)
+		r = chooseType("uint32", "*nilt.Uint32", "*nilt.Uint32", mandatory, criteria)
 	case types.Uint64:
 		r = chooseType("uint64", "*uint64", "*uint64", mandatory, criteria)
 	case types.Float32:
-		r = chooseType("float32", "nilt.Float32", "nilt.Float32", mandatory, criteria)
+		r = chooseType("float32", "*nilt.Float32", "*nilt.Float32", mandatory, criteria)
 	case types.Float64:
-		r = chooseType("float64", "nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
+		r = chooseType("float64", "*nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
 	case types.Complex64:
 		r = chooseType("complex64", "*complex64", "*complex64", mandatory, criteria)
 	case types.Complex128:
 		r = chooseType("complex128", "*complex128", "*complex128", mandatory, criteria)
 	case types.String:
-		r = chooseType("string", "nilt.String", "*protot.QueryString", mandatory, criteria)
+		r = chooseType("string", "*nilt.String", "*protot.QueryString", mandatory, criteria)
 	default:
 		r = "invalid"
 	}
