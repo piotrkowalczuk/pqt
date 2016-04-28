@@ -394,7 +394,11 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(code *bytes.Buff
 
 						switch c.%s.Type {
 						case protot.NumericQueryType_NOT_A_NUMBER:
-							where.AddExpr(%s, pqcomp.Is, pqcomp.Null)
+							if c.%s.Negation {
+								where.AddExpr(%s, pqcomp.IsNotNull,"")
+							} else {
+								where.AddExpr(%s, pqcomp.IsNull,"")
+							}
 						case protot.NumericQueryType_EQUAL:
 							where.AddExpr(%s, pqcomp.Equal, %s1)
 						case protot.NumericQueryType_NOT_EQUAL:
@@ -427,8 +431,10 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(code *bytes.Buff
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate,
+			columnNamePrivate,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate,
+			columnNameWithTable,
 			columnNameWithTable,
 			columnNameWithTable, columnNamePrivate,
 			columnNameWithTable, columnNamePrivate,
@@ -448,7 +454,11 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(code *bytes.Buff
 				if c.%s != nil && c.%s.Valid {
 					switch c.%s.Type {
 					case protot.NumericQueryType_NOT_A_NUMBER:
-						where.AddExpr(%s, pqcomp.Is, pqcomp.Null)
+						if c.%s.Negation {
+							where.AddExpr(%s, pqcomp.IsNotNull, "")
+						} else {
+							where.AddExpr(%s, pqcomp.IsNull,"")
+						}
 					case protot.NumericQueryType_EQUAL:
 						where.AddExpr(%s, pqcomp.Equal, c.%s.Value())
 					case protot.NumericQueryType_NOT_EQUAL:
@@ -473,6 +483,8 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(code *bytes.Buff
 			`,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate,
+			columnNamePrivate,
+			columnNameWithTable,
 			columnNameWithTable,
 			columnNameWithTable, columnNamePrivate,
 			columnNameWithTable, columnNamePrivate,
@@ -491,9 +503,9 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(code *bytes.Buff
 					switch c.%s.Type {
 					case protot.TextQueryType_NOT_A_TEXT:
 						if c.%s.Negation {
-							where.AddExpr(%s, pqcomp.Is, pqcomp.NotNull)
+							where.AddExpr(%s, pqcomp.IsNotNull, "")
 						} else {
-							where.AddExpr(%s, pqcomp.Is, pqcomp.Null)
+							where.AddExpr(%s, pqcomp.IsNull, "")
 						}
 					case protot.TextQueryType_EXACT:
 						where.AddExpr(%s, pqcomp.Equal, c.%s.Value())
