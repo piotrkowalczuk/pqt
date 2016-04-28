@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/types"
 	"io"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -111,7 +112,9 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 	for _, t := range schema.Tables {
 		for _, c := range t.Columns {
 			if ct, ok := c.Type.(CustomType); ok {
-				imports = append(imports, ct.pkg)
+				imports = append(imports, ct.mandatoryTypeOf.PkgPath())
+				imports = append(imports, ct.mandatoryTypeOf.PkgPath())
+				imports = append(imports, ct.mandatoryTypeOf.PkgPath())
 			}
 		}
 	}
@@ -282,7 +285,7 @@ func (g *Generator) generateTypeString(col *pqt.Column, mode int32) string {
 			case BuiltinType:
 				t = generateBuiltinType(mt, mandatory, criteria)
 			case CustomType:
-				t = mt.String()
+				t = generateCustomType(mt, mandatory, criteria)
 			}
 		}
 	case BuiltinType:
@@ -365,6 +368,160 @@ func (g *Generator) generateRepository(code *bytes.Buffer, table *pqt.Table) {
 	g.generateRepositoryDeleteByPrimaryKey(code, table)
 }
 
+func (g *Generator) generateRepositoryFindPropertyQuery(code *bytes.Buffer, c *pqt.Column) {
+	columnNamePrivate := g.private(c.Name)
+	columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
+
+	if !g.generateRepositoryFindPropertyQueryByGoType(code, c, g.generateTypeString(c, modeCriteria), columnNamePrivate, columnNameWithTable) {
+		code.WriteString("where.AddExpr(")
+		g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
+		fmt.Fprintf(code, ", pqcomp.Equal, c.%s)", g.private(c.Name))
+	}
+}
+
+func (g *Generator) generateRepositoryFindPropertyQueryByGoType(code *bytes.Buffer, col *pqt.Column, goType, columnNamePrivate, columnNameWithTable string) bool {
+	done := true
+	switch goType {
+	case "*protot.QueryTimestamp":
+		fmt.Fprintf(code, `
+				if c.%s != nil && c.%s.Valid {
+					%st1 := c.%s.Value()
+					if %st1 != nil {
+						%s1, err := ptypes.Timestamp(%st1 )
+						if err != nil {
+							return nil, err
+						}
+
+						switch c.%s.Type {
+						case protot.NumericQueryType_NOT_A_NUMBER:
+							where.AddExpr(%s, pqcomp.Is, pqcomp.Null)
+						case protot.NumericQueryType_EQUAL:
+							where.AddExpr(%s, pqcomp.Equal, %s1)
+						case protot.NumericQueryType_NOT_EQUAL:
+							where.AddExpr(%s, pqcomp.NotEqual, %s1)
+						case protot.NumericQueryType_GREATER:
+							where.AddExpr(%s, pqcomp.GreaterThan, %s1)
+						case protot.NumericQueryType_GREATER_EQUAL:
+							where.AddExpr(%s, pqcomp.GreaterThanOrEqual, %s1)
+						case protot.NumericQueryType_LESS:
+							where.AddExpr(%s, pqcomp.LessThan, %s1)
+						case protot.NumericQueryType_LESS_EQUAL:
+							where.AddExpr(%s, pqcomp.LessThanOrEqual, %s1)
+						case protot.NumericQueryType_IN:
+							where.AddExpr(%s, pqcomp.In, %s1)
+						case protot.NumericQueryType_BETWEEN:
+							%st2 := c.%s.Values[1]
+							if %st2 != nil {
+								%s2, err := ptypes.Timestamp(%st2)
+								if err != nil {
+									return nil, err
+								}
+
+								where.AddExpr(%s, pqcomp.GreaterThan, %s1)
+								where.AddExpr(%s, pqcomp.LessThan, %s2)
+							}
+						}
+					}
+				}
+			`,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate,
+			columnNameWithTable,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+		)
+	case "*protot.QueryInt64", "*protot.QueryFloat64":
+		fmt.Fprintf(code, `
+				if c.%s != nil && c.%s.Valid {
+					switch c.%s.Type {
+					case protot.NumericQueryType_NOT_A_NUMBER:
+						where.AddExpr(%s, pqcomp.Is, pqcomp.Null)
+					case protot.NumericQueryType_EQUAL:
+						where.AddExpr(%s, pqcomp.Equal, c.%s.Value())
+					case protot.NumericQueryType_NOT_EQUAL:
+						where.AddExpr(%s, pqcomp.NotEqual, c.%s.Value())
+					case protot.NumericQueryType_GREATER:
+						where.AddExpr(%s, pqcomp.GreaterThan, c.%s.Value())
+					case protot.NumericQueryType_GREATER_EQUAL:
+						where.AddExpr(%s, pqcomp.GreaterThanOrEqual, c.%s.Value())
+					case protot.NumericQueryType_LESS:
+						where.AddExpr(%s, pqcomp.LessThan, c.%s.Value())
+					case protot.NumericQueryType_LESS_EQUAL:
+						where.AddExpr(%s, pqcomp.LessThanOrEqual, c.%s.Value())
+					case protot.NumericQueryType_IN:
+						for _, v := range c.%s.Values {
+							where.AddExpr(%s, pqcomp.In, v)
+						}
+					case protot.NumericQueryType_BETWEEN:
+						where.AddExpr(%s, pqcomp.GreaterThan, c.%s.Values[0])
+						where.AddExpr(%s, pqcomp.LessThan, c.%s.Values[1])
+					}
+				}
+			`,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate,
+			columnNameWithTable,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+			columnNamePrivate,
+			columnNameWithTable,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate,
+		)
+	case "*protot.QueryString":
+		fmt.Fprintf(code, `
+				if c.%s != nil && c.%s.Valid {
+					switch c.%s.Type {
+					case protot.TextQueryType_NOT_A_TEXT:
+						if c.%s.Negation {
+							where.AddExpr(%s, pqcomp.Is, pqcomp.NotNull)
+						} else {
+							where.AddExpr(%s, pqcomp.Is, pqcomp.Null)
+						}
+					case protot.TextQueryType_EXACT:
+						where.AddExpr(%s, pqcomp.Equal, c.%s.Value())
+					case protot.TextQueryType_SUBSTRING:
+						where.AddExpr(%s, pqcomp.Like, "%s"+c.%s.Value()+"%s")
+					case protot.TextQueryType_HAS_PREFIX:
+						where.AddExpr(%s, pqcomp.Like, c.%s.Value()+"%s")
+					case protot.TextQueryType_HAS_SUFFIX:
+						where.AddExpr(%s, pqcomp.Like, "%s"+c.%s.Value())
+					}
+				}
+			`,
+			columnNamePrivate, columnNamePrivate,
+			columnNamePrivate,
+			columnNamePrivate,
+			columnNameWithTable,
+			columnNameWithTable,
+			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, "%", columnNamePrivate, "%",
+			columnNameWithTable, columnNamePrivate, "%",
+			columnNameWithTable, "%", columnNamePrivate,
+		)
+	default:
+		done = false
+	}
+	return done
+}
+
 func (g *Generator) generateRepositoryFind(code *bytes.Buffer, table *pqt.Table) {
 	entityName := g.private(table.Name)
 
@@ -383,165 +540,47 @@ ColumnLoop:
 			continue ColumnLoop
 		}
 
-		columnNamePrivate := g.private(c.Name)
-		columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
+		if mappt, ok := c.Type.(pqt.MappableType); ok {
+			for _, mapptype := range mappt.Mapping {
+				if ct, ok := mapptype.(CustomType); ok {
+					if ct.criteriaTypeOf == nil {
+						fmt.Printf("%s.%s: criteria type of nil\n", table.FullName(), c.Name)
+						continue ColumnLoop
+					}
+					if ct.criteriaTypeOf.Kind() == reflect.Invalid {
+						fmt.Printf("%s.%s: criteria invalid type\n", table.FullName(), c.Name)
+						continue ColumnLoop
+					}
 
-		switch g.generateTypeString(c, modeCriteria) {
-		case "*protot.QueryTimestamp":
-			fmt.Fprintf(code, `
-				if c.%s != nil && c.%s.Valid {
-					%st1 := c.%s.Value()
-					if %st1 != nil {
-						%s1, err := ptypes.Timestamp(%st1 )
-						if err != nil {
-							return nil, err
+					columnNamePrivate := g.private(c.Name)
+					columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
+					zero := reflect.Zero(ct.criteriaTypeOf)
+
+					switch zero.Kind() {
+					case reflect.Map:
+						// TODO: implement
+					case reflect.Struct:
+						for i := 0; i < zero.NumField(); i++ {
+							field := zero.Field(i)
+							fieldName := columnNamePrivate + "." + zero.Type().Field(i).Name
+							fieldJSONName := strings.Split(zero.Type().Field(i).Tag.Get("json"), ",")[0]
+							columnNameWithTableAndJSONSelector := fmt.Sprintf(`%s + " -> %s"`, columnNameWithTable, fieldJSONName)
+
+							// If struct is nil, it's properties should not be accessed.
+							fmt.Fprintf(code, `if c.%s != nil {`, g.private(c.Name))
+							g.generateRepositoryFindPropertyQueryByGoType(code, c, field.Type().String(), fieldName, columnNameWithTableAndJSONSelector)
+							fmt.Fprintf(code, `}`)
+							code.WriteRune('\n')
+
 						}
-
-						switch c.%s.Type {
-						case protot.NumericQueryType_NOT_A_NUMBER:
-							where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
-						case protot.NumericQueryType_EQUAL:
-							where.AddExpr(%s, pqcomp.E, %s1)
-						case protot.NumericQueryType_NOT_EQUAL:
-							where.AddExpr(%s, pqcomp.NE, %s1)
-						case protot.NumericQueryType_GREATER:
-							where.AddExpr(%s, pqcomp.GT, %s1)
-						case protot.NumericQueryType_GREATER_EQUAL:
-							where.AddExpr(%s, pqcomp.GTE, %s1)
-						case protot.NumericQueryType_LESS:
-							where.AddExpr(%s, pqcomp.LT, %s1)
-						case protot.NumericQueryType_LESS_EQUAL:
-							where.AddExpr(%s, pqcomp.LTE, %s1)
-						case protot.NumericQueryType_IN:
-							where.AddExpr(%s, pqcomp.IN, %s1)
-						case protot.NumericQueryType_BETWEEN:
-							%st2 := c.%s.Values[1]
-							if %st2 != nil {
-								%s2, err := ptypes.Timestamp(%st2)
-								if err != nil {
-									return nil, err
-								}
-
-								where.AddExpr(%s, pqcomp.GT, %s1)
-								where.AddExpr(%s, pqcomp.LT, %s2)
-							}
-						}
+					default:
+						fmt.Printf("%s.%s: unhandled criteria for kind: %s\n", table.FullName(), c.Name, ct.criteriaTypeOf.Kind())
 					}
 				}
-			`,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate,
-				columnNameWithTable,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-			)
-		case "*protot.QueryInt64":
-			fmt.Fprintf(code, `
-				if c.%s != nil && c.%s.Valid {
-					switch c.%s.Type {
-					case protot.NumericQueryType_NOT_A_NUMBER:
-						where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
-					case protot.NumericQueryType_EQUAL:
-						where.AddExpr(%s, pqcomp.E, c.%s.Value())
-					case protot.NumericQueryType_NOT_EQUAL:
-						where.AddExpr(%s, pqcomp.NE, c.%s.Value())
-					case protot.NumericQueryType_GREATER:
-						where.AddExpr(%s, pqcomp.GT, c.%s.Value())
-					case protot.NumericQueryType_GREATER_EQUAL:
-						where.AddExpr(%s, pqcomp.GTE, c.%s.Value())
-					case protot.NumericQueryType_LESS:
-						where.AddExpr(%s, pqcomp.LT, c.%s.Value())
-					case protot.NumericQueryType_LESS_EQUAL:
-						where.AddExpr(%s, pqcomp.LTE, c.%s.Value())
-					case protot.NumericQueryType_IN:
-						for _, v := range c.%s.Values {
-							where.AddExpr(%s, pqcomp.IN, v)
-						}
-					case protot.NumericQueryType_BETWEEN:
-						where.AddExpr(%s, pqcomp.GT, c.%s.Values[0])
-						where.AddExpr(%s, pqcomp.LT, c.%s.Values[1])
-					}
-				}
-			`,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate,
-				columnNameWithTable,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-				columnNamePrivate,
-				columnNameWithTable,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, columnNamePrivate,
-			)
-		case "*protot.QueryString":
-			fmt.Fprintf(code, `
-				if c.%s != nil && c.%s.Valid {
-					switch c.%s.Type {
-					case protot.TextQueryType_NOT_A_TEXT:
-						if c.%s.Negation {
-							where.AddExpr(%s, pqcomp.IS, pqcomp.NOT_NULL)
-						} else {
-							where.AddExpr(%s, pqcomp.IS, pqcomp.NULL)
-						}
-					case protot.TextQueryType_EXACT:
-						where.AddExpr(%s, pqcomp.E, c.%s.Value())
-					case protot.TextQueryType_SUBSTRING:
-						where.AddExpr(%s, pqcomp.LIKE, "%s"+c.%s.Value()+"%s")
-					case protot.TextQueryType_HAS_PREFIX:
-						where.AddExpr(%s, pqcomp.LIKE, c.%s.Value()+"%s")
-					case protot.TextQueryType_HAS_SUFFIX:
-						where.AddExpr(%s, pqcomp.LIKE, "%s"+c.%s.Value())
-					}
-				}
-			`,
-				columnNamePrivate, columnNamePrivate,
-				columnNamePrivate,
-				columnNamePrivate,
-				columnNameWithTable,
-				columnNameWithTable,
-				columnNameWithTable, columnNamePrivate,
-				columnNameWithTable, "%", columnNamePrivate, "%",
-				columnNameWithTable, columnNamePrivate, "%",
-				columnNameWithTable, "%", columnNamePrivate,
-			)
-		default:
-			code.WriteString("where.AddExpr(")
-			g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-			fmt.Fprintf(code, ", pqcomp.E, c.%s)", g.private(c.Name))
+			}
+		} else {
+			g.generateRepositoryFindPropertyQuery(code, c)
 		}
-		//fmt.Fprintf(code, "if c.%s.From != nil {\n", g.private(c.Name))
-		//code.WriteString("where.AddExpr(")
-		//g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-		//fmt.Fprintf(code, ", pqcomp.GT, c.%s.From.Time())", g.private(c.Name))
-		//code.WriteString("}\n")
-		//
-		//fmt.Fprintf(code, "if c.%s.To != nil {\n", g.private(c.Name))
-		//code.WriteString("where.AddExpr(")
-		//g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-		//fmt.Fprintf(code, ", pqcomp.LT, c.%s.To.Time())", g.private(c.Name))
-		//code.WriteString("}\n")
-		//default:
-		//	code.WriteString("where.AddExpr(")
-		//	g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-		//	fmt.Fprintf(code, ", pqcomp.E, c.%s)", g.private(c.Name))
-		//}
 
 		code.WriteRune('\n')
 	}
@@ -560,7 +599,7 @@ ColumnLoop:
 	for _, c := range table.Columns {
 		fmt.Fprintf(code, "&entity.%s,\n", g.public(c.Name))
 	}
-	fmt.Fprintf(code, `)
+	fmt.Fprint(code, `)
 			if err != nil {
 				return nil, err
 			}
@@ -625,32 +664,68 @@ func (g *Generator) generateRepositoryInsert(code *bytes.Buffer, table *pqt.Tabl
 
 ColumnsLoop:
 	for _, c := range table.Columns {
-		// If column has default value for insert. Value will be provided by postgres.
-		//if _, ok := c.DefaultOn(pqt.EventInsert); !ok {
 		switch c.Type {
 		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 			continue ColumnsLoop
 		default:
-			code.WriteString("insert.AddExpr(")
-			g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-			fmt.Fprintf(code, `, "", e.%s)`, g.public(c.Name))
-			code.WriteRune('\n')
+			if g.isStruct(c, modeOptional) {
+				fmt.Fprintf(code, `
+					if e.%s != nil {
+						insert.AddExpr(%s, "", e.%s)
+					}
+				`,
+					g.public(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name),
+					g.public(c.Name),
+				)
+			} else {
+				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name))
+			}
+			fmt.Fprintln(code, "")
 		}
-		//}
 	}
-	fmt.Fprintf(code, `err := insertQueryComp(r.db, r.table, insert, r.columns).Scan(`)
+	fmt.Fprint(code, `
+		b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+		if insert.Len() != 0 {
+			b.WriteString(" (")
+			for insert.Next() {
+				if !insert.First() {
+					b.WriteString(", ")
+				}
+
+				fmt.Fprintf(b, "%s", insert.Key())
+			}
+			insert.Reset()
+			b.WriteString(") VALUES (")
+			for insert.Next() {
+				if !insert.First() {
+					b.WriteString(", ")
+				}
+
+				fmt.Fprintf(b, "%s", insert.PlaceHolder())
+			}
+			b.WriteString(")")
+			if len(r.columns) > 0 {
+				b.WriteString("RETURNING ")
+				b.WriteString(strings.Join(r.columns, ","))
+			}
+		}
+
+		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+	`)
 
 	for _, c := range table.Columns {
 		fmt.Fprintf(code, "&e.%s,\n", g.public(c.Name))
 	}
-	fmt.Fprintf(code, `)
+	fmt.Fprint(code, `)
 		if err != nil {
 			return nil, err
 		}
 
 		return e, nil
-	}
-	`)
+	}`)
+	fmt.Fprintln(code, "")
 }
 
 func (g *Generator) generateRepositoryUpdateByPrimaryKey(code *bytes.Buffer, table *pqt.Table) {
@@ -680,9 +755,19 @@ ArgumentsLoop:
 			update := pqcomp.New(0, %d)
 	`, len(table.Columns))
 
-	code.WriteString("update.AddExpr(")
-	g.writeTableNameColumnNameTo(code, table.Name, pk.Name)
-	fmt.Fprintf(code, `, pqcomp.E, %s)`, g.private(pk.Name))
+	if g.isStruct(pk, modeOptional) {
+		fmt.Fprintf(code, `
+					if e.%s != nil {
+						update.AddExpr(%s, pqcomp.Equal, %s)
+					}
+				`,
+			g.private(pk.Name),
+			g.columnNameWithTableName(table.Name, pk.Name),
+			g.private(pk.Name),
+		)
+	} else {
+		fmt.Fprintf(code, `update.AddExpr(%s, pqcomp.Equal, %s)`, g.columnNameWithTableName(table.Name, pk.Name), g.private(pk.Name))
+	}
 	code.WriteRune('\n')
 
 ColumnsLoop:
@@ -701,7 +786,7 @@ ColumnsLoop:
 
 		code.WriteString("update.AddExpr(")
 		g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-		fmt.Fprintf(code, `, pqcomp.E, %s)`, g.private(c.Name))
+		fmt.Fprintf(code, `, pqcomp.Equal, %s)`, g.private(c.Name))
 		code.WriteRune('\n')
 
 		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
@@ -710,7 +795,7 @@ ColumnsLoop:
 				fmt.Fprintf(code, `} else {`)
 				code.WriteString("update.AddExpr(")
 				g.writeTableNameColumnNameTo(code, c.Table.Name, c.Name)
-				fmt.Fprintf(code, `, pqcomp.E, "%s")`, d)
+				fmt.Fprintf(code, `, pqcomp.Equal, "%s")`, d)
 			}
 		}
 		if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
@@ -823,6 +908,26 @@ func (g *Generator) public(s string) string {
 	return snake(s, false, g.acronyms)
 }
 
+func (g *Generator) isStruct(c *pqt.Column, m int) bool {
+	if tp, ok := c.Type.(pqt.MappableType); ok {
+		for _, mapto := range tp.Mapping {
+			if ct, ok := mapto.(CustomType); ok {
+				switch m {
+				case modeMandatory:
+					return ct.mandatoryTypeOf.Kind() == reflect.Struct
+				case modeOptional:
+					return ct.optionalTypeOf.Kind() == reflect.Struct
+				case modeCriteria:
+					return ct.criteriaTypeOf.Kind() == reflect.Struct
+				default:
+					return false
+				}
+			}
+		}
+	}
+	return false
+}
+
 func chooseType(typeMandatory, typeOptional, typeCriteria string, mandatory, criteria bool) string {
 	switch {
 	case criteria:
@@ -873,15 +978,15 @@ func generateBaseType(t pqt.Type, mandatory, criteria bool) string {
 		gt := t.String()
 		switch {
 		case strings.HasPrefix(gt, "SMALLINT["):
-			return "pqt.ArrayInt64"
+			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*protot.QueryInt64", mandatory, criteria)
 		case strings.HasPrefix(gt, "INTEGER["):
-			return "pqt.ArrayInt64"
+			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*protot.QueryInt64", mandatory, criteria)
 		case strings.HasPrefix(gt, "BIGINT["):
-			return "pqt.ArrayInt64"
+			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*protot.QueryInt64", mandatory, criteria)
 		case strings.HasPrefix(gt, "TEXT["):
 			return "pqt.ArrayString"
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):
-			return chooseType("float32", "*nilt.Float32", "*nilt.Float32", mandatory, criteria)
+			return chooseType("float64", "*nilt.Float64", "*protot.QueryFloat64", mandatory, criteria)
 		case strings.HasPrefix(gt, "VARCHAR"):
 			return chooseType("string", "*nilt.String", "*protot.QueryString", mandatory, criteria)
 		default:
@@ -931,6 +1036,22 @@ func generateBuiltinType(t BuiltinType, mandatory, criteria bool) (r string) {
 	return
 }
 
+func generateCustomType(t CustomType, mandatory, criteria bool) string {
+	goType := func(tp reflect.Type) string {
+		if tp.Kind() == reflect.Struct {
+			return "*" + tp.String()
+		}
+		return tp.String()
+	}
+	return chooseType(
+		goType(t.mandatoryTypeOf),
+		goType(t.optionalTypeOf),
+		goType(t.criteriaTypeOf),
+		mandatory,
+		criteria,
+	)
+}
+
 func (g *Generator) writeTableNameColumnNameTo(w io.Writer, tableName, columnName string) {
 	fmt.Fprintf(w, "table%sColumn%s", g.public(tableName), g.public(columnName))
 }
@@ -940,12 +1061,27 @@ func (g *Generator) columnNameWithTableName(tableName, columnName string) string
 }
 
 func (g *Generator) shouldBeColumnIgnoredForCriteria(c *pqt.Column) bool {
-	if mt, ok := c.Type.(pqt.MappableType); ok {
-		switch mt.From {
-		case pqt.TypeJSON(), pqt.TypeJSONB():
-			return true
-		}
-	}
-
 	return false
+	//if mt, ok := c.Type.(pqt.MappableType); ok {
+	//	switch mt.From {
+	//	case pqt.TypeJSON(), pqt.TypeJSONB():
+	//		for _, to := range mt.Mapping {
+	//			if ct, ok := to.(*CustomType); ok {
+	//				switch ct.valueOf.Kind() {
+	//				case reflect.Struct:
+	//					return false
+	//				case reflect.Map:
+	//					return false
+	//				case reflect.Slice:
+	//					return false
+	//				case reflect.Slice:
+	//					return false
+	//				}
+	//			}
+	//		}
+	//		return true
+	//	}
+	//}
+	//
+	//return false
 }

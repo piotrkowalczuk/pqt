@@ -3,6 +3,7 @@ package pqtgo
 import (
 	"fmt"
 	"go/types"
+	"reflect"
 )
 
 // BuiltinType ...
@@ -54,23 +55,33 @@ func (bt BuiltinType) Fingerprint() string {
 
 // CustomType ...
 type CustomType struct {
-	name, pkg string
+	src                                             interface{}
+	mandatory, optional, criteria                   interface{}
+	mandatoryTypeOf, optionalTypeOf, criteriaTypeOf reflect.Type
 }
 
 // String implements Stringer interface.
-func (st CustomType) String() string {
-	return st.name
+func (ct CustomType) String() string {
+	return fmt.Sprintf("%s/%s/%s", ct.mandatoryTypeOf.String(), ct.optionalTypeOf.String(), ct.criteriaTypeOf.String())
 }
 
 // Fingerprint implements Type interface.
-func (st CustomType) Fingerprint() string {
-	return fmt.Sprintf("gocustomtype: %v", st)
+func (ct CustomType) Fingerprint() string {
+	return fmt.Sprintf("gocustomtype: %v", ct)
 }
 
 // TypeCustom ...
-func TypeCustom(pkg, name string) CustomType {
+func TypeCustom(m, o, c interface{}) CustomType {
+	mandatoryTypeOf := reflect.ValueOf(m).Type()
+	optionalTypeOf := reflect.ValueOf(o).Type()
+	criteriaTypeOf := reflect.ValueOf(c).Type()
+
 	return CustomType{
-		name: name,
-		pkg:  pkg,
+		mandatory:       m,
+		criteria:        c,
+		optional:        o,
+		mandatoryTypeOf: mandatoryTypeOf,
+		optionalTypeOf:  optionalTypeOf,
+		criteriaTypeOf:  criteriaTypeOf,
 	}
 }
