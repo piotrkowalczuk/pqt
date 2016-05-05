@@ -21,7 +21,7 @@ func BenchmarkPlaceholderWriter_WriteTo(b *testing.B) {
 }
 
 func TestPlaceholderWriter_WriteTo(t *testing.T) {
-	expected := "$1$2$3"
+	expected := "$1 $2 $3 "
 	buf := bytes.NewBuffer(nil)
 	pw := NewPlaceholderWriter()
 	pw.WriteTo(buf)
@@ -38,13 +38,13 @@ func TestPlaceholderWriter_Count(t *testing.T) {
 	pw := NewPlaceholderWriter()
 	expected := 100
 
-	for i := 0; i < expected; i++ {
+	for i := 1; i < expected; i++ {
 		if _, err := pw.WriteTo(buf); err != nil {
 			t.Fatal("unexpected error: %s", err.Error())
 		}
 	}
 
 	if pw.Count() != int64(expected) {
-		t.Error("count value, expected %d got %d", expected, pw.Count())
+		t.Errorf("count value, expected %d got %d", expected, pw.Count())
 	}
 }
