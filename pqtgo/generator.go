@@ -376,7 +376,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 				if c.%s != nil && c.%s.Valid {
 					%st1 := c.%s.Value()
 					if %st1 != nil {
-						%s1, err := ptypes.Timestamp(%st1 )
+						%s1, err := ptypes.Timestamp(%st1)
 						if err != nil {
 							return nil, err
 						}
@@ -395,43 +395,45 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 							wbuf.WriteString(%s)
 							wbuf.WriteString("=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							args = append(args, c.%s.Value())
 						case qtypes.NumericQueryType_NOT_EQUAL:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString("!=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							args = append(args, c.%s.Value())
 						case qtypes.NumericQueryType_GREATER:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString(">")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							args = append(args, c.%s.Value())
 						case qtypes.NumericQueryType_GREATER_EQUAL:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString(">=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							args = append(args, c.%s.Value())
 						case qtypes.NumericQueryType_LESS:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString("<")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							args = append(args, c.%s.Value())
 						case qtypes.NumericQueryType_LESS_EQUAL:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString("<=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							args = append(args, c.%s.Value())
 						case qtypes.NumericQueryType_IN:
-							%s
-							wbuf.WriteString(%s)
-							wbuf.WriteString(" IN ")
-							pw.WriteTo(wbuf)
-							args = append(args, c.%s)
+							if len(c.%s.Values) >0 {
+								%s
+								wbuf.WriteString(%s)
+								wbuf.WriteString(" IN ")
+								pw.WriteTo(wbuf)
+								args = append(args, c.%s.Value())
+							}
 						case qtypes.NumericQueryType_BETWEEN:
 							%s
 							%st2 := c.%s.Values[1]
@@ -445,6 +447,8 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 								wbuf.WriteString(" > ")
 								pw.WriteTo(wbuf)
 								args = append(args, %s1)
+
+								wbuf.WriteString(" AND ")
 
 								wbuf.WriteString(%s)
 								wbuf.WriteString(" > ")
@@ -483,6 +487,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 			dirtyAnd,
 			columnNameWithTable, columnNamePrivate,
 			// IN
+			columnNamePrivate,
 			dirtyAnd,
 			columnNameWithTable, columnNamePrivate,
 			// BETWEEN
@@ -510,25 +515,25 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						wbuf.WriteString(%s)
 						wbuf.WriteString("=")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s)
+						args = append(args, c.%s.Value())
 					case qtypes.NumericQueryType_NOT_EQUAL:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" <> ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s)
+						args = append(args, c.%s.Value())
 					case qtypes.NumericQueryType_GREATER:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" > ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s)
+						args = append(args, c.%s.Value())
 					case qtypes.NumericQueryType_GREATER_EQUAL:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" >= ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s)
+						args = append(args, c.%s.Value())
 					case qtypes.NumericQueryType_LESS:
 						%s
 						wbuf.WriteString(%s)
@@ -540,14 +545,16 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" >= ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s)
+						args = append(args, c.%s.Value())
 					case qtypes.NumericQueryType_IN:
-						%s
-						wbuf.WriteString(%s)
-						wbuf.WriteString(" IN ")
-						for _, v := range c.%s.Values {
-							pw.WriteTo(wbuf)
-							args = append(args, v)
+						if len(c.%s.Values) >0 {
+							%s
+							wbuf.WriteString(%s)
+							wbuf.WriteString(" IN ")
+							for _, v := range c.%s.Values {
+								pw.WriteTo(wbuf)
+								args = append(args, v)
+							}
 						}
 					case qtypes.NumericQueryType_BETWEEN:
 						%s
@@ -555,6 +562,8 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						wbuf.WriteString(" > ")
 						pw.WriteTo(wbuf)
 						args = append(args, c.%s.Values[0])
+
+						wbuf.WriteString(" AND ")
 
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" > ")
@@ -588,6 +597,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 			dirtyAnd,
 			columnNameWithTable, columnNamePrivate,
 			// IN
+			columnNamePrivate,
 			dirtyAnd,
 			columnNameWithTable,
 			columnNamePrivate,
@@ -680,7 +690,6 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 		for _, mt := range mappt.Mapping {
 			switch mtt := mt.(type) {
 			case CustomType:
-				fmt.Println(c.Name, generateCustomType(mtt, modeCriteria))
 				if gct := generateCustomType(mtt, modeCriteria); strings.HasPrefix(gct, "*qtypes.") {
 					break MappingLoop
 				}
