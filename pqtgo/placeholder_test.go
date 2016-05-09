@@ -1,4 +1,4 @@
-package pqt
+package pqtgo
 
 import (
 	"bytes"

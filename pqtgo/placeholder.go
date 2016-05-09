@@ -1,14 +1,16 @@
-package pqt
+package pqtgo
 
 import (
 	"bytes"
 	"strconv"
 )
 
+// PlaceholderWriter ...
 type PlaceholderWriter struct {
 	counter int64
 }
 
+// NewPlaceholderWriter ...
 func NewPlaceholderWriter() *PlaceholderWriter {
 	return &PlaceholderWriter{counter: 1}
 }

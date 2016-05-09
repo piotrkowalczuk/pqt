@@ -126,6 +126,7 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 	}
 
 	code.WriteString("import (\n")
+	code.WriteString(`"github.com/go-kit/kit/log"`)
 	for _, imp := range imports {
 		fmt.Fprintf(code, `"%s"`, imp)
 	}
@@ -240,16 +241,6 @@ func (g *Generator) generateColumnType(w io.Writer, c *pqt.Column, m int32) {
 }
 
 func (g *Generator) generateColumnTypeString(c *pqt.Column, m int32) string {
-	//var (
-	//	t         string
-	//)
-	//
-	//if str, ok := c.Type.(fmt.Stringer); ok {
-	//	t = str.String()
-	//} else {
-	//	t = "struct{}"
-	//}
-
 	switch m {
 	case modeCriteria:
 	case modeMandatory:
@@ -343,6 +334,8 @@ func (g *Generator) generateRepository(code *bytes.Buffer, table *pqt.Table) {
 			table string
 			columns []string
 			db *sql.DB
+			dbg bool
+			log log.Logger
 		}
 	`, g.private(table.Name))
 	g.generateRepositoryFind(code, table)
@@ -364,7 +357,7 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 		fmt.Fprintf(w, `wbuf.WriteString("=")
 		`)
 		fmt.Fprintln(w, `pw.WriteTo(wbuf)`)
-		fmt.Fprintf(w, `args = append(args, c.%s)
+		fmt.Fprintf(w, `args.Add(c.%s)
 		}`, g.private(c.Name))
 	}
 }
@@ -395,44 +388,50 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 							wbuf.WriteString(%s)
 							wbuf.WriteString("=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s.Value())
+							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_NOT_EQUAL:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString("!=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s.Value())
+							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_GREATER:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString(">")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s.Value())
+							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_GREATER_EQUAL:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString(">=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s.Value())
+							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_LESS:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString("<")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s.Value())
+							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_LESS_EQUAL:
 							%s
 							wbuf.WriteString(%s)
 							wbuf.WriteString("<=")
 							pw.WriteTo(wbuf)
-							args = append(args, c.%s.Value())
+							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_IN:
 							if len(c.%s.Values) >0 {
 								%s
 								wbuf.WriteString(%s)
-								wbuf.WriteString(" IN ")
-								pw.WriteTo(wbuf)
-								args = append(args, c.%s.Value())
+								wbuf.WriteString(" IN (")
+								for i, v := range c.%s.Values {
+									if i != 0 {
+										wbuf.WriteString(",")
+									}
+									pw.WriteTo(wbuf)
+									args.Add(v)
+								}
+								wbuf.WriteString(") ")
 							}
 						case qtypes.NumericQueryType_BETWEEN:
 							%s
@@ -446,14 +445,14 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 								wbuf.WriteString(%s)
 								wbuf.WriteString(" > ")
 								pw.WriteTo(wbuf)
-								args = append(args, %s1)
+								args.Add(%s1)
 
 								wbuf.WriteString(" AND ")
 
 								wbuf.WriteString(%s)
-								wbuf.WriteString(" > ")
+								wbuf.WriteString(" < ")
 								pw.WriteTo(wbuf)
-								args = append(args, %s2)
+								args.Add(%s2)
 							}
 						}
 					}
@@ -515,60 +514,64 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						wbuf.WriteString(%s)
 						wbuf.WriteString("=")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Value())
+						args.Add(c.%s.Value())
 					case qtypes.NumericQueryType_NOT_EQUAL:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" <> ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Value())
+						args.Add(c.%s.Value())
 					case qtypes.NumericQueryType_GREATER:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" > ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Value())
+						args.Add(c.%s.Value())
 					case qtypes.NumericQueryType_GREATER_EQUAL:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" >= ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Value())
+						args.Add(c.%s.Value())
 					case qtypes.NumericQueryType_LESS:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" < ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s)
+						args.Add(c.%s)
 					case qtypes.NumericQueryType_LESS_EQUAL:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" >= ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Value())
+						args.Add(c.%s.Value())
 					case qtypes.NumericQueryType_IN:
 						if len(c.%s.Values) >0 {
 							%s
 							wbuf.WriteString(%s)
-							wbuf.WriteString(" IN ")
-							for _, v := range c.%s.Values {
+							wbuf.WriteString(" IN (")
+							for i, v := range c.%s.Values {
+								if i != 0 {
+									wbuf.WriteString(",")
+								}
 								pw.WriteTo(wbuf)
-								args = append(args, v)
+								args.Add(v)
 							}
+							wbuf.WriteString(") ")
 						}
 					case qtypes.NumericQueryType_BETWEEN:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" > ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Values[0])
+						args.Add(c.%s.Values[0])
 
 						wbuf.WriteString(" AND ")
 
 						wbuf.WriteString(%s)
-						wbuf.WriteString(" > ")
+						wbuf.WriteString(" < ")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Values[1])
+						args.Add(c.%s.Values[1])
 					}
 				}
 			`,
@@ -625,25 +628,25 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						wbuf.WriteString(%s)
 						wbuf.WriteString("=")
 						pw.WriteTo(wbuf)
-						args = append(args, c.%s.Value())
+						args.Add(c.%s.Value())
 					case qtypes.TextQueryType_SUBSTRING:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" LIKE ")
 						pw.WriteTo(wbuf)
-						args = append(args, fmt.Sprintf("%%%%%%s%%%%", c.%s.Value()))
+						args.Add(fmt.Sprintf("%%%%%%s%%%%", c.%s.Value()))
 					case qtypes.TextQueryType_HAS_PREFIX:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" LIKE ")
 						pw.WriteTo(wbuf)
-						args = append(args, fmt.Sprintf("%%s%%%%", c.%s.Value()))
+						args.Add(fmt.Sprintf("%%s%%%%", c.%s.Value()))
 					case qtypes.TextQueryType_HAS_SUFFIX:
 						%s
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" LIKE ")
 						pw.WriteTo(wbuf)
-						args = append(args, fmt.Sprintf("%%%%%%s", c.%s.Value()))
+						args.Add(fmt.Sprintf("%%%%%%s", c.%s.Value()))
 					}
 				}
 			`,
@@ -674,7 +677,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 			fmt.Fprintf(w, `wbuf.WriteString("=")
 		`)
 			fmt.Fprintln(w, `pw.WriteTo(wbuf)`)
-			fmt.Fprintf(w, `args = append(args, c.%s)
+			fmt.Fprintf(w, `args.Add(c.%s)
 		}`, columnNamePrivate)
 
 			return true
@@ -706,6 +709,22 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 				columnNamePrivate := g.private(c.Name)
 				columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 				zero := reflect.Zero(mtt.criteriaTypeOf)
+
+				// Checks if custom type implements Criterion interface.
+				// If it's true then just use it.
+				if zero.CanInterface() {
+					if _, ok := zero.Interface().(Criterion); ok {
+						fmt.Fprintf(w, `
+							if _, err := c.%s.Criteria(wbuf, pw, args, %s); err != nil {
+								return nil, err
+							}
+							if args.Len() != 0 {
+								dirty = true
+							}
+						`, columnNamePrivate, columnNameWithTable)
+						return
+					}
+				}
 
 				switch zero.Kind() {
 				case reflect.Map:
@@ -748,8 +767,8 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 	 		qbuf.WriteString(" FROM ")
 	 		qbuf.WriteString(r.table)
 
-			pw := pqt.NewPlaceholderWriter()
-			args := make([]interface{}, 0)
+			pw := pqtgo.NewPlaceholderWriter()
+			args := pqtgo.NewArguments(0)
 			dirty := false
 	`)
 
@@ -773,12 +792,18 @@ ColumnLoop:
 
 	qbuf.WriteString(" OFFSET ")
 	pw.WriteTo(qbuf)
-	args = append(args, c.offset)
+	args.Add(c.offset)
 	qbuf.WriteString(" LIMIT ")
 	pw.WriteTo(qbuf)
-	args = append(args, c.limit)
+	args.Add(c.limit)
 
-	rows, err := r.db.Query(qbuf.String(), args...)
+	if r.dbg {
+		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+			return nil, err
+		}
+	}
+
+	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
 	if err != nil {
 		return nil, err
 	}
@@ -863,7 +888,7 @@ ColumnsLoop:
 		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 			continue ColumnsLoop
 		default:
-			if g.isStruct(c, modeOptional) {
+			if g.canBeNil(c, modeOptional) {
 				fmt.Fprintf(code, `
 					if e.%s != nil {
 						insert.AddExpr(%s, "", e.%s)
@@ -950,7 +975,7 @@ ArgumentsLoop:
 			update := pqcomp.New(0, %d)
 	`, len(table.Columns))
 
-	if g.isStruct(pk, modeOptional) {
+	if g.canBeNil(pk, modeOptional) {
 		fmt.Fprintf(code, `
 					if e.%s != nil {
 						update.AddExpr(%s, pqcomp.Equal, %s)
@@ -1115,6 +1140,26 @@ func (g *Generator) isStruct(c *pqt.Column, m int) bool {
 					return ct.optionalTypeOf.Kind() == reflect.Struct
 				case modeCriteria:
 					return ct.criteriaTypeOf.Kind() == reflect.Struct
+				default:
+					return false
+				}
+			}
+		}
+	}
+	return false
+}
+
+func (g *Generator) canBeNil(c *pqt.Column, m int) bool {
+	if tp, ok := c.Type.(pqt.MappableType); ok {
+		for _, mapto := range tp.Mapping {
+			if ct, ok := mapto.(CustomType); ok {
+				switch m {
+				case modeMandatory:
+					return ct.mandatoryTypeOf.Kind() == reflect.Ptr || ct.mandatoryTypeOf.Kind() == reflect.Map
+				case modeOptional:
+					return ct.optionalTypeOf.Kind() == reflect.Ptr || ct.optionalTypeOf.Kind() == reflect.Map
+				case modeCriteria:
+					return ct.criteriaTypeOf.Kind() == reflect.Ptr || ct.criteriaTypeOf.Kind() == reflect.Map
 				default:
 					return false
 				}
