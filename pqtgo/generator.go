@@ -790,12 +790,16 @@ ColumnLoop:
 		}
 	}
 
-	qbuf.WriteString(" OFFSET ")
-	pw.WriteTo(qbuf)
-	args.Add(c.offset)
-	qbuf.WriteString(" LIMIT ")
-	pw.WriteTo(qbuf)
-	args.Add(c.limit)
+	if c.offset > 0 {
+		qbuf.WriteString(" OFFSET ")
+		pw.WriteTo(qbuf)
+		args.Add(c.offset)
+	}
+	if c.limit > 0 {
+		qbuf.WriteString(" LIMIT ")
+		pw.WriteTo(qbuf)
+		args.Add(c.limit)
+	}
 
 	if r.dbg {
 		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
