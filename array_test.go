@@ -175,3 +175,86 @@ func TestArrayString_Scan_nil(t *testing.T) {
 
 	}
 }
+
+func TestArrayFloat64_Value(t *testing.T) {
+	success := map[string]pqt.ArrayFloat64{
+		"{1.1,2.2,3.5,4.65}": pqt.ArrayFloat64{0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
+		"{}":       				 pqt.ArrayFloat64{},
+	}
+
+SuccessLoop:
+	for expected, array := range success {
+		got, err := array.Value()
+		if err != nil {
+			t.Errorf("unexpected error: %s", err.Error())
+			continue SuccessLoop
+		}
+
+		gots, ok := got.([]byte)
+		if !ok {
+			t.Errorf("wrong output type, expected slice of bytes, got %T", got)
+			continue SuccessLoop
+		}
+
+		if expected != string(gots) {
+			t.Errorf("wrong output, expected %s but got %s", expected, gots)
+		}
+	}
+}
+
+func TestArrayFloat64_Scan(t *testing.T) {
+	success := map[string]pqt.ArrayFloat64{
+		"{1.1,2.2,3.5,4.65}": pqt.ArrayFloat64{0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
+		"{}":       					pqt.ArrayFloat64{},
+	}
+
+SuccessLoop:
+	for src, expected := range success {
+		var got pqt.ArrayFloat64
+
+		err := got.Scan(src)
+		if err != nil {
+			t.Errorf("unexpected error: %s", err.Error())
+			continue SuccessLoop
+		}
+
+		if !reflect.DeepEqual(expected, got) {
+			t.Errorf("wrong output, expected %s but got %s", expected, got)
+		}
+	}
+
+	fail := map[string]interface{}{
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got string1 at index 0`: 			"{string1,string2}",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got }`:                  			"}",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got {`:                  			"{",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got 12412s at index 0`:  			"{12412s}",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got [1.1,2.2,3.5]`:            "[1.1,2.2,3.5]",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got (1.1,2.2,3.5)`:            "(1.1,2.2,3.5)",
+	}
+
+FailLoop:
+	for expected, src := range fail {
+		var got pqt.ArrayFloat64
+
+		err := got.Scan(src)
+		if err == nil {
+			t.Errorf("expected error, got nil")
+			continue FailLoop
+		}
+		if expected != err.Error() {
+			t.Errorf("undexpected error, got:\n	%s\nbut expected:\n	%s", err.Error(), expected)
+		}
+	}
+}
+
+func TestArrayFloat64_Scan_nil(t *testing.T) {
+	var got pqt.ArrayFloat64
+
+	if err := got.Scan(nil); err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+	if got != nil {
+		t.Errorf("unexpected output, expected: %T\n	%s\n	but got: %T\n	%s,", nil, nil, got, got)
+
+	}
+}

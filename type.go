@@ -95,6 +95,14 @@ func TypeIntegerSmallArray(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("SMALLINT[%d]", l)}
 }
 
+// TypeDoubleArray ...
+func TypeDoubleArray(l int) BaseType {
+	if l == 0 {
+		return BaseType{name: "DOUBLE[]"}
+	}
+	return BaseType{name: fmt.Sprintf("DOUBLE[%d]", l)}
+}
+
 // TypeNumeric ...
 func TypeNumeric(precision, scale int) BaseType {
 	switch {
