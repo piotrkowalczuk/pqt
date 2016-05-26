@@ -113,7 +113,10 @@ func (g *Generator) generatePackage(code *bytes.Buffer) {
 }
 
 func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
-	imports := []string{}
+	imports := []string{
+		"github.com/go-kit/kit/log",
+		"github.com/m4rw3r/uuid",
+	}
 
 	for _, t := range schema.Tables {
 		for _, c := range t.Columns {
@@ -126,9 +129,8 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 	}
 
 	code.WriteString("import (\n")
-	code.WriteString(`"github.com/go-kit/kit/log"`)
 	for _, imp := range imports {
-		fmt.Fprintf(code, `"%s"`, imp)
+		fmt.Fprintf(code, `"%s" \n`, imp)
 	}
 	code.WriteString(")\n")
 }
@@ -1223,6 +1225,8 @@ func generateBaseType(t pqt.Type, m int32) string {
 		return chooseType("float64", "*ntypes.Float64", "*qtypes.Float64", m)
 	case pqt.TypeBytea():
 		return "[]byte"
+	case pqt.TypeUUID():
+		return "uuid.UUID"
 	default:
 		gt := t.String()
 		switch {
