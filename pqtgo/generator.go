@@ -1249,6 +1249,8 @@ func generateBaseType(t pqt.Type, m int32) string {
 			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*qtypes.Int64", m)
 		case strings.HasPrefix(gt, "BIGINT["):
 			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*qtypes.Int64", m)
+		case strings.HasPrefix(gt, "DOUBLE["):
+			return chooseType("pqt.ArrayFloat64", "pqt.ArrayFloat64", "*qtypes.Float64", m)
 		case strings.HasPrefix(gt, "TEXT["):
 			return "pqt.ArrayString"
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):

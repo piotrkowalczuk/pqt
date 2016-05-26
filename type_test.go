@@ -90,6 +90,20 @@ func TestTypeNumeric(t *testing.T) {
 	assertType(t, expected, got)
 }
 
+func TestTypeDoubleArray_zero(t *testing.T) {
+	expected := "DOUBLE[]"
+	got := pqt.TypeDoubleArray(0)
+
+	assertType(t, expected, got)
+}
+
+func TestTypeDoubleArray(t *testing.T) {
+	expected := "DOUBLE[100]"
+	got := pqt.TypeDoubleArray(100)
+
+	assertType(t, expected, got)
+}
+
 func assertType(t *testing.T, expected string, got pqt.Type) {
 	if got.String() != expected {
 		t.Errorf("unexpected sql representation, expected %s got %s", expected, got.String())
