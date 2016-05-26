@@ -94,10 +94,10 @@ func TestTable_AddRelationship_oneToOneUnidirectional(t *testing.T) {
 	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 	userDetail := pqt.NewTable("user_detail").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey())).
 		AddRelationship(pqt.OneToOne(
-		user,
-		pqt.WithInversedName("user"),
-		pqt.WithOwnerName("details"),
-	))
+			user,
+			pqt.WithInversedName("user"),
+			pqt.WithOwnerName("details"),
+		))
 
 	if len(user.InversedRelationships) != 0 {
 		t.Fatalf("user should have 0 relationship, but has %d", len(user.InversedRelationships))

@@ -130,7 +130,10 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 
 	code.WriteString("import (\n")
 	for _, imp := range imports {
-		fmt.Fprintf(code, `"%s" \n`, imp)
+		code.WriteRune('"')
+		fmt.Fprint(code, imp)
+		code.WriteRune('"')
+		code.WriteRune('\n')
 	}
 	code.WriteString(")\n")
 }
@@ -366,6 +369,16 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 
 func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col *pqt.Column, goType, columnNamePrivate, columnNameWithTable string) (done bool) {
 	switch goType {
+	case "uuid.UUID":
+		fmt.Fprintf(w, `
+			if !c.%s.IsZero() {
+				%s
+				wbuf.WriteString(%s)
+				wbuf.WriteString("!=")
+				pw.WriteTo(wbuf)
+				args.Add(c.%s)
+			}
+		`, columnNamePrivate, dirtyAnd, columnNameWithTable, columnNamePrivate)
 	case "*qtypes.Timestamp":
 		fmt.Fprintf(w, `
 				if c.%s != nil && c.%s.Valid {
