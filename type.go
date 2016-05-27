@@ -98,9 +98,9 @@ func TypeIntegerSmallArray(l int) BaseType {
 // TypeDoubleArray ...
 func TypeDoubleArray(l int) BaseType {
 	if l == 0 {
-		return BaseType{name: "DOUBLE[]"}
+		return BaseType{name: "DOUBLE PRECISION[]"}
 	}
-	return BaseType{name: fmt.Sprintf("DOUBLE[%d]", l)}
+	return BaseType{name: fmt.Sprintf("DOUBLE PRECISION[%d]", l)}
 }
 
 // TypeNumeric ...

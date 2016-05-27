@@ -91,14 +91,14 @@ func TestTypeNumeric(t *testing.T) {
 }
 
 func TestTypeDoubleArray_zero(t *testing.T) {
-	expected := "DOUBLE[]"
+	expected := "DOUBLE PRECISION[]"
 	got := pqt.TypeDoubleArray(0)
 
 	assertType(t, expected, got)
 }
 
 func TestTypeDoubleArray(t *testing.T) {
-	expected := "DOUBLE[100]"
+	expected := "DOUBLE PRECISION[100]"
 	got := pqt.TypeDoubleArray(100)
 
 	assertType(t, expected, got)
