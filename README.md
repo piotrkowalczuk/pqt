@@ -13,14 +13,18 @@ It relies to a large degree on packages:
 - __sql generation__
 - __go generation__ - it includes:
 	- `entity` - struct that reflects single row within the database
-	- `criteria` - object that can be passed to the `Find` method, it allow to create complex queries
+	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
+	- `patch` - structure used by `UpdateBy<primary-key>` methods to modify existing entity
+	- `constants`:
+		- `table names`
+		- `column names`
+		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `pqt.ErrorConstraint` helper function.
 	- `repository` - data access layer that expose API to manipulate entities:
 		- `Find` - returns collection of entities that match given criteria
 		- `Insert` - saves given entity into the database
 		- `FindOneBy<primary-key>` - retrieves single entity
 		- `UpdateBy<primary-key>` - modifies single entity
 		- `DeleteBy<primary-key>` - modifies single entity
-	- `patch` - structure used by `UpdateBy<primary-key>` methods to modify existing entity
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
 	- `tables`
@@ -31,7 +35,7 @@ It relies to a large degree on packages:
 
 ## Example
 
-```
+```go
 s := pqt.Schema("custom")
 u := pqt.NewTable("user", pqt.WithIfNotExists()).
 	AddColumn(pqt.NewColumn("password", pqt.TypeBytea(), pqt.WithNotNull())).
