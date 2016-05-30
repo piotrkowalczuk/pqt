@@ -179,7 +179,7 @@ func TestArrayString_Scan_nil(t *testing.T) {
 func TestArrayFloat64_Value(t *testing.T) {
 	success := map[string]pqt.ArrayFloat64{
 		"{1.1,2.2,3.5,4.65}": pqt.ArrayFloat64{0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
-		"{}":       				 pqt.ArrayFloat64{},
+		"{}":                 pqt.ArrayFloat64{},
 	}
 
 SuccessLoop:
@@ -205,7 +205,7 @@ SuccessLoop:
 func TestArrayFloat64_Scan(t *testing.T) {
 	success := map[string]pqt.ArrayFloat64{
 		"{1.1,2.2,3.5,4.65}": pqt.ArrayFloat64{0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
-		"{}":       					pqt.ArrayFloat64{},
+		"{}":                 pqt.ArrayFloat64{},
 	}
 
 SuccessLoop:
@@ -224,12 +224,12 @@ SuccessLoop:
 	}
 
 	fail := map[string]interface{}{
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got string1 at index 0`: 			"{string1,string2}",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got }`:                  			"}",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got {`:                  			"{",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got 12412s at index 0`:  			"{12412s}",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got [1.1,2.2,3.5]`:            "[1.1,2.2,3.5]",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got (1.1,2.2,3.5)`:            "(1.1,2.2,3.5)",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got string1 at index 0`: "{string1,string2}",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got }`:                  "}",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got {`:                  "{",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got 12412s at index 0`:  "{12412s}",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got [1.1,2.2,3.5]`:      "[1.1,2.2,3.5]",
+		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got (1.1,2.2,3.5)`:      "(1.1,2.2,3.5)",
 	}
 
 FailLoop:

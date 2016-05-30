@@ -137,6 +137,7 @@ func ForeignKey(table *Table, columns, references Columns, opts ...ConstraintOpt
 	fk := &Constraint{
 		Type:             ConstraintTypeForeignKey,
 		Columns:          columns,
+		Table:            columns[0].Table,
 		ReferenceColumns: references,
 		ReferenceTable:   references[0].Table,
 	}
