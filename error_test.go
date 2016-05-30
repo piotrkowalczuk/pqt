@@ -2,10 +2,29 @@ package pqt
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/lib/pq"
 )
+
+func ExampleErrorConstraint() {
+	expected := "pq: something goes wrong"
+	err := &pq.Error{
+		Table:      "user",
+		Constraint: expected,
+	}
+
+	switch ErrorConstraint(err) {
+	case expected:
+		fmt.Println("expected constraint")
+	default:
+		fmt.Println("unknown constraint")
+	}
+
+	// Output:
+	// expected constraint
+}
 
 func TestErrorConstraint(t *testing.T) {
 	expected := "something"
