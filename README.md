@@ -10,6 +10,10 @@ It relies to a large degree on packages:
 
 ## Features:
 
+- __array support__ - golang postgres driver do not support arrays natively, pqt comes with help:
+	- `pqt.ArrayInt64` - wrapper for []int64
+	- `pqt.ArrayFloat64` - wrapper for []float64
+	- `pqt.ArrayString` - wrapper for []string
 - __sql generation__
 - __go generation__ - it includes:
 	- `entity` - struct that reflects single row within the database
@@ -18,7 +22,7 @@ It relies to a large degree on packages:
 	- `constants`:
 		- `table names`
 		- `column names`
-		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `pqt.ErrorConstraint` helper function.
+		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `pqt.ErrorConstraint` helper function
 	- `repository` - data access layer that expose API to manipulate entities:
 		- `Find` - returns collection of entities that match given criteria
 		- `Insert` - saves given entity into the database
@@ -35,6 +39,7 @@ It relies to a large degree on packages:
 
 ## Example
 
+### Table
 ```go
 s := pqt.Schema("custom")
 u := pqt.NewTable("user", pqt.WithIfNotExists()).
@@ -51,6 +56,7 @@ u := pqt.NewTable("user", pqt.WithIfNotExists()).
 s.AddTable(u)
 ```
 
+### Generation
 Package itself do not provide any command line application that would generate output out of given input.
 Instead it encourage to write local generation application next to the proper package.
 ```go
