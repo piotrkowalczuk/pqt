@@ -404,7 +404,6 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						if err != nil {
 							return nil, err
 						}
-
 						switch c.%s.Type {
 						case qtypes.NumericQueryType_NOT_A_NUMBER:
 							%s
@@ -472,14 +471,11 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 								if err != nil {
 									return nil, err
 								}
-
 								wbuf.WriteString(%s)
 								wbuf.WriteString(" > ")
 								pw.WriteTo(wbuf)
 								args.Add(%s1)
-
 								wbuf.WriteString(" AND ")
-
 								wbuf.WriteString(%s)
 								wbuf.WriteString(" < ")
 								pw.WriteTo(wbuf)
@@ -488,7 +484,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						}
 					}
 				}
-			`,
+`,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate,
@@ -596,16 +592,14 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						wbuf.WriteString(" > ")
 						pw.WriteTo(wbuf)
 						args.Add(c.%s.Values[0])
-
 						wbuf.WriteString(" AND ")
-
 						wbuf.WriteString(%s)
 						wbuf.WriteString(" < ")
 						pw.WriteTo(wbuf)
 						args.Add(c.%s.Values[1])
 					}
 				}
-			`,
+`,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate,
 			// NOT A NUMBER
@@ -680,7 +674,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						args.Add(fmt.Sprintf("%%%%%%s", c.%s.Value()))
 					}
 				}
-			`,
+`,
 			columnNamePrivate, columnNamePrivate,
 			columnNamePrivate,
 			// NOT A TEXT
@@ -914,7 +908,7 @@ func (g *Generator) generateRepositoryInsert(code *bytes.Buffer,
 
 	fmt.Fprintf(code, `func (r *%sRepositoryBase) Insert(e *%sEntity) (*%sEntity, error) {`, entityName, entityName, entityName)
 	fmt.Fprintf(code, `
-			insert := pqcomp.New(0, %d)
+		insert := pqcomp.New(0, %d)
 	`, len(table.Columns))
 
 ColumnsLoop:
@@ -1064,14 +1058,13 @@ ColumnsLoop:
 		fmt.Fprintf(w, "&e.%s,\n", g.public(c.Name))
 	}
 	fmt.Fprintf(w, `)
-			if err != nil {
-				return nil, err
-			}
+if err != nil {
+	return nil, err
+}
 
 
-		return &e, nil
-	}
-	`)
+return &e, nil
+}`)
 }
 
 func (g *Generator) generateRepositoryDeleteByPrimaryKey(code *bytes.Buffer,

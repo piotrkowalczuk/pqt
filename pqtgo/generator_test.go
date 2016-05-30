@@ -46,6 +46,8 @@ import (
 			schema: pqt.NewSchema("text").AddTable(
 				pqt.NewTable("first").AddColumn(
 					pqt.NewColumn("id", pqt.TypeSerialBig()),
+				).AddColumn(
+					pqt.NewColumn("name", pqt.TypeText()),
 				),
 			),
 			generator: pqtgo.NewGenerator().
@@ -58,19 +60,23 @@ import (
 const (
 tableFirst = "text.first"
 tableFirstColumnId = "id"
+tableFirstColumnName = "name"
 )
 var (
 tableFirstColumns = []string{
 tableFirstColumnId,
+tableFirstColumnName,
 })
 type firstEntity struct{
 Id *ntypes.Int64
+Name *ntypes.String
 }
 
 type firstCriteria struct {
 offset, limit int64
 sort map[string]bool
 id *qtypes.Int64
+name *qtypes.String
 }
 
 
@@ -195,16 +201,72 @@ id *qtypes.Int64
 						wbuf.WriteString(" > ")
 						pw.WriteTo(wbuf)
 						args.Add(c.id.Values[0])
-
 						wbuf.WriteString(" AND ")
-
 						wbuf.WriteString(tableFirstColumnId)
 						wbuf.WriteString(" < ")
 						pw.WriteTo(wbuf)
 						args.Add(c.id.Values[1])
 					}
 				}
-			
+
+
+				if c.name != nil && c.name.Valid {
+					switch c.name.Type {
+					case qtypes.TextQueryType_NOT_A_TEXT:
+						if dirty {
+		wbuf.WriteString(" AND ")
+	}
+	dirty = true
+	
+						wbuf.WriteString(tableFirstColumnName)
+						if c.name.Negation {
+							wbuf.WriteString(" IS NOT NULL ")
+						} else {
+							wbuf.WriteString(" IS NULL ")
+						}
+					case qtypes.TextQueryType_EXACT:
+						if dirty {
+		wbuf.WriteString(" AND ")
+	}
+	dirty = true
+	
+						wbuf.WriteString(tableFirstColumnName)
+						wbuf.WriteString("=")
+						pw.WriteTo(wbuf)
+						args.Add(c.name.Value())
+					case qtypes.TextQueryType_SUBSTRING:
+						if dirty {
+		wbuf.WriteString(" AND ")
+	}
+	dirty = true
+	
+						wbuf.WriteString(tableFirstColumnName)
+						wbuf.WriteString(" LIKE ")
+						pw.WriteTo(wbuf)
+						args.Add(fmt.Sprintf("%%%s%%", c.name.Value()))
+					case qtypes.TextQueryType_HAS_PREFIX:
+						if dirty {
+		wbuf.WriteString(" AND ")
+	}
+	dirty = true
+	
+						wbuf.WriteString(tableFirstColumnName)
+						wbuf.WriteString(" LIKE ")
+						pw.WriteTo(wbuf)
+						args.Add(fmt.Sprintf("%s%%", c.name.Value()))
+					case qtypes.TextQueryType_HAS_SUFFIX:
+						if dirty {
+		wbuf.WriteString(" AND ")
+	}
+	dirty = true
+	
+						wbuf.WriteString(tableFirstColumnName)
+						wbuf.WriteString(" LIKE ")
+						pw.WriteTo(wbuf)
+						args.Add(fmt.Sprintf("%%%s", c.name.Value()))
+					}
+				}
+
 
 	if dirty {
 		if _, err := qbuf.WriteString(" WHERE "); err != nil {
@@ -243,6 +305,7 @@ id *qtypes.Int64
 		var entity firstEntity
 		err = rows.Scan(
 	&entity.Id,
+&entity.Name,
 )
 			if err != nil {
 				return nil, err
@@ -257,8 +320,9 @@ id *qtypes.Int64
 		return entities, nil
 	}
 	func (r *firstRepositoryBase) Insert(e *firstEntity) (*firstEntity, error) {
-			insert := pqcomp.New(0, 1)
-	
+		insert := pqcomp.New(0, 2)
+	insert.AddExpr(tableFirstColumnName, "", e.Name)
+
 		b := bytes.NewBufferString("INSERT INTO " + r.table)
 
 		if insert.Len() != 0 {
@@ -288,6 +352,7 @@ id *qtypes.Int64
 
 		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
 	&e.Id,
+&e.Name,
 )
 		if err != nil {
 			return nil, err
