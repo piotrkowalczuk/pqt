@@ -2,6 +2,7 @@ language: go
 go:
 - tip
 install:
+- go get github.com/aryann/difflib
 - go get ./...
 script:
 - ./test.sh
