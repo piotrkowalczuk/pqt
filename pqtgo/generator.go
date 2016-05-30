@@ -110,7 +110,7 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 }
 
 func (g *Generator) generatePackage(code *bytes.Buffer) {
-	fmt.Fprintf(code, "package %s \n", g.pkg)
+	fmt.Fprintf(code, "package %s\n", g.pkg)
 }
 
 func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
@@ -118,7 +118,7 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 		"github.com/go-kit/kit/log",
 		"github.com/m4rw3r/uuid",
 	}
-
+	imports = append(imports, g.imports...)
 	for _, t := range schema.Tables {
 		for _, c := range t.Columns {
 			if ct, ok := c.Type.(CustomType); ok {
@@ -143,7 +143,7 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, "type %sEntity struct{\n", g.private(t.Name))
 
 	for _, c := range t.Columns {
-		fmt.Fprintf(w, "%s %s \n", g.public(c.Name), g.generateColumnTypeString(c, modeDefault))
+		fmt.Fprintf(w, "%s %s\n", g.public(c.Name), g.generateColumnTypeString(c, modeDefault))
 	}
 
 	for _, r := range t.OwnedRelationships {
@@ -154,28 +154,28 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 			} else {
 				fmt.Fprintf(w, "%ss", g.public(r.InversedTable.Name))
 			}
-			fmt.Fprintf(w, " []*%sEntity \n", g.private(r.InversedTable.Name))
+			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.InversedTable.Name))
 		case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
 			if r.InversedName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.InversedName))
 			} else {
 				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
 			}
-			fmt.Fprintf(w, " []*%sEntity \n", g.private(r.InversedTable.Name))
+			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.InversedTable.Name))
 		case pqt.RelationshipTypeManyToMany:
 			if r.OwnerName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
 			} else {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerTable.Name))
 			}
-			fmt.Fprintf(w, " *%sEntity \n", g.private(r.OwnerTable.Name))
+			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
 
 			if r.InversedName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.InversedName))
 			} else {
 				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
 			}
-			fmt.Fprintf(w, " *%sEntity \n", g.private(r.InversedTable.Name))
+			fmt.Fprintf(w, " *%sEntity\n", g.private(r.InversedTable.Name))
 		}
 	}
 
@@ -187,14 +187,14 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 			} else {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerTable.Name))
 			}
-			fmt.Fprintf(w, " *%sEntity \n", g.private(r.OwnerTable.Name))
+			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
 		case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
 			if r.OwnerName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
 			} else {
 				fmt.Fprintf(w, "%ss", g.public(r.OwnerTable.Name))
 			}
-			fmt.Fprintf(w, " []*%sEntity \n", g.private(r.OwnerTable.Name))
+			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.OwnerTable.Name))
 		}
 	}
 
@@ -210,14 +210,14 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 			} else {
 				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
 			}
-			fmt.Fprintf(w, " []*%sEntity \n", g.private(r.InversedTable.Name))
+			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.InversedTable.Name))
 		case r.InversedTable == t:
 			if r.OwnerName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
 			} else {
 				fmt.Fprintf(w, "%ss", g.public(r.OwnerTable.Name))
 			}
-			fmt.Fprintf(w, " []*%sEntity \n", g.private(r.OwnerTable.Name))
+			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.OwnerTable.Name))
 		}
 	}
 
@@ -225,7 +225,7 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "type %sCriteria struct { \n", g.private(t.Name))
+	fmt.Fprintf(w, "type %sCriteria struct {\n", g.private(t.Name))
 	fmt.Fprintln(w, "offset, limit int64")
 	fmt.Fprintln(w, "sort map[string]bool")
 
@@ -336,8 +336,6 @@ func (g *Generator) generateConstantsConstraints(code *bytes.Buffer, table *pqt.
 
 func (g *Generator) generateColumns(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString("var (\n")
-	code.WriteRune('\n')
-
 	code.WriteString("table")
 	code.WriteString(g.public(table.Name))
 	code.WriteString("Columns = []string{\n")
@@ -794,11 +792,11 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 	fmt.Fprintf(w, `func (r *%sRepositoryBase) Find(c *%sCriteria) ([]*%sEntity, error) {
 	`, entityName, entityName, entityName)
 	fmt.Fprintf(w, `wbuf := bytes.NewBuffer(nil)
-	 		qbuf := bytes.NewBuffer(nil)
+			qbuf := bytes.NewBuffer(nil)
 			qbuf.WriteString("SELECT ")
 			qbuf.WriteString(strings.Join(r.columns, ", "))
-	 		qbuf.WriteString(" FROM ")
-	 		qbuf.WriteString(r.table)
+			qbuf.WriteString(" FROM ")
+			qbuf.WriteString(r.table)
 
 			pw := pqtgo.NewPlaceholderWriter()
 			args := pqtgo.NewArguments(0)
@@ -991,7 +989,7 @@ func (g *Generator) generateRepositoryUpdateByPrimaryKey(w io.Writer, table *pqt
 		return
 	}
 
-	fmt.Fprintf(w, "func (r *%sRepositoryBase) UpdateBy%s(patch *%sPatch) (*%sEntity, error) { \n", entityName, g.public(pk.Name), entityName, entityName)
+	fmt.Fprintf(w, "func (r *%sRepositoryBase) UpdateBy%s(patch *%sPatch) (*%sEntity, error) {\n", entityName, g.public(pk.Name), entityName, entityName)
 	fmt.Fprintf(w, "update := pqcomp.New(0, %d)\n", len(table.Columns))
 
 	if g.canBeNil(pk, modeOptional) {
