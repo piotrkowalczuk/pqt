@@ -11,9 +11,9 @@ It relies to a large degree on packages:
 ## Features:
 
 - __array support__ - golang postgres driver do not support arrays natively, pqt comes with help:
-	- `pqt.ArrayInt64` - wrapper for []int64
-	- `pqt.ArrayFloat64` - wrapper for []float64
-	- `pqt.ArrayString` - wrapper for []string
+	- [pqt.ArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayInt64) - wrapper for []int64
+	- [pqt.ArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayFloat64) - wrapper for []float64
+	- [pqt.ArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayString) - wrapper for []string
 - __sql generation__
 - __go generation__ - it includes:
 	- `entity` - struct that reflects single row within the database
