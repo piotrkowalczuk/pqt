@@ -1208,7 +1208,7 @@ func generateBaseType(t pqt.Type, m int32) string {
 	case pqt.TypeBool():
 		return chooseType("bool", "*ntypes.Bool", "*ntypes.Bool", m)
 	case pqt.TypeIntegerSmall():
-		return "int16"
+		return chooseType("int16", "*int16", "*int16", m)
 	case pqt.TypeInteger():
 		return chooseType("int32", "*ntypes.Int32", "*ntypes.Int32", m)
 	case pqt.TypeIntegerBig():
@@ -1216,7 +1216,7 @@ func generateBaseType(t pqt.Type, m int32) string {
 	case pqt.TypeSerial():
 		return chooseType("int32", "*ntypes.Int32", "*ntypes.Int32", m)
 	case pqt.TypeSerialSmall():
-		return "int16" // TODO: missing ntypes.Int16 type
+		return chooseType("int16", "*int16", "*int16", m)
 	case pqt.TypeSerialBig():
 		return chooseType("int64", "*ntypes.Int64", "*qtypes.Int64", m)
 	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
