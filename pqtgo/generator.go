@@ -608,10 +608,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 			columnNamePrivate,
 			// EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
-			// NOT EQUAL
-			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnNamePrivate, columnNamePrivate,
 			// GREATER
 			dirtyAnd,
 			columnNameWithTable, columnNamePrivate,
