@@ -23,7 +23,7 @@ It relies to a large degree on packages:
 	- `constants`:
 		- `table names`
 		- `column names`
-		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `pqt.ErrorConstraint` helper function
+		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using [ErrorConstraint](https://godoc.org/github.com/piotrkowalczuk/pqt#ErrorConstraint) helper function
 	- `repository` - data access layer that expose API to manipulate entities:
 		- `Count` - returns number of entities for given criteria
 		- `Find` - returns collection of entities that match given criteria
