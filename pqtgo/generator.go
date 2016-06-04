@@ -23,7 +23,7 @@ const (
 		wbuf.WriteString(" AND ")
 	}
 	dirty = true
-	`
+`
 )
 
 // Generator ...
@@ -101,6 +101,9 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateConstants(b, t)
 		g.generateColumns(b, t)
 		g.generateEntity(b, t)
+		g.generateEntityProp(b, t)
+		g.generateEntityProps(b, t)
+		g.generateIterator(b, t)
 		g.generateCriteria(b, t)
 		g.generateCriteriaWriteSQL(b, t)
 		g.generatePatch(b, t)
@@ -223,6 +226,94 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	}
 
 	fmt.Fprintln(w, "}\n")
+}
+
+func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, "func (e *%sEntity) Prop(cn string) (interface{}, bool) {\n", g.private(t.Name))
+	fmt.Fprintln(w, "switch cn {")
+	for _, c := range t.Columns {
+		fmt.Fprintf(w, "case %s:\n", g.columnNameWithTableName(t.Name, c.Name))
+		if g.canBeNil(c, modeDefault) {
+			fmt.Fprintf(w, "return e.%s, true\n", g.public(c.Name))
+		} else {
+			fmt.Fprintf(w, "return &e.%s, true\n", g.public(c.Name))
+		}
+	}
+	fmt.Fprint(w, "default:\n")
+	fmt.Fprint(w, "return nil, false\n")
+	fmt.Fprint(w, "}\n}\n")
+}
+
+func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, "func (e *%sEntity) Props(cns ...string) ([]interface{}, error) {\n", g.private(t.Name))
+	fmt.Fprintf(w, `
+		res := make([]interface{}, 0, len(cns))
+		for _, cn := range cns {
+			if prop, ok := e.Prop(cn); ok {
+				res = append(res, prop)
+			} else {
+				return nil, fmt.Errorf("unexpected column provided: %%s", cn)
+			}
+		}
+		return res, nil`)
+	fmt.Fprint(w, "\n}\n")
+}
+func (g *Generator) generateIterator(w io.Writer, t *pqt.Table) {
+	entityName := g.private(t.Name)
+	fmt.Fprintf(w, `
+
+// %sIterator is not thread safe.
+type %sIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *%sIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *%sIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *%sIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *%sIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper arround %s method that makes iterator more generic.
+func (i *%sIterator) Ent() (interface{}, error) {
+	return i.%s()
+}
+
+func (i *%sIterator) %s() (*%sEntity, error) {
+	var ent %sEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+`, entityName, entityName, entityName, entityName, entityName, entityName, entityName, entityName, g.public(t.Name), entityName, g.public(t.Name), entityName, entityName)
 }
 
 func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
@@ -360,9 +451,10 @@ func (g *Generator) generateRepository(b *bytes.Buffer, t *pqt.Table) {
 			log log.Logger
 		}
 	`, g.private(t.Name))
-	g.generateRepositoryRowsMapping(b, t)
+	g.generateRepositoryScanRows(b, t)
 	g.generateRepositoryCount(b, t)
 	g.generateRepositoryFind(b, t)
+	g.generateRepositoryFindIter(b, t)
 	g.generateRepositoryFindOneByPrimaryKey(b, t)
 	g.generateRepositoryInsert(b, t)
 	g.generateRepositoryUpdateByPrimaryKey(b, t)
@@ -851,7 +943,7 @@ func (g *Generator) generateCriteriaWriteSQL(w io.Writer, t *pqt.Table) {
 		)
 
 		wbuf := bytes.NewBuffer(nil)
-	`, entityName)
+`, entityName)
 	for _, c := range t.Columns {
 		if g.shouldBeColumnIgnoredForCriteria(c) {
 			continue
@@ -893,7 +985,7 @@ func (g *Generator) generateCriteriaWriteSQL(w io.Writer, t *pqt.Table) {
 `)
 }
 
-func (g *Generator) generateRepositoryRowsMapping(w io.Writer, t *pqt.Table) {
+func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	entityName := g.private(t.Name)
 	fmt.Fprintf(w, `func Scan%sRows(rows *sql.Rows) ([]*%sEntity, error) {
 	`, g.public(t.Name), entityName)
@@ -924,11 +1016,7 @@ func (g *Generator) generateRepositoryRowsMapping(w io.Writer, t *pqt.Table) {
 
 	`)
 }
-func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
-
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) Find(c *%sCriteria) ([]*%sEntity, error) {
-	`, entityName, entityName, entityName)
+func (g *Generator) generateRepositoryFindBody(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 	qbuf := bytes.NewBuffer(nil)
 	qbuf.WriteString("SELECT ")
@@ -953,6 +1041,16 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 	if err != nil {
 		return nil, err
 	}
+`)
+}
+
+func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
+	entityName := g.private(t.Name)
+
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) Find(c *%sCriteria) ([]*%sEntity, error) {
+`, entityName, entityName, entityName)
+	g.generateRepositoryFindBody(w, t)
+	fmt.Fprintf(w, `
 	defer rows.Close()
 
 	return Scan%sRows(rows)
@@ -960,11 +1058,24 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 `, g.public(t.Name))
 }
 
+func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
+	entityName := g.private(t.Name)
+
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) FindIter(c *%sCriteria) (*%sIterator, error) {
+`, entityName, entityName, entityName)
+	g.generateRepositoryFindBody(w, t)
+	fmt.Fprintf(w, `
+
+	return &%sIterator{rows: rows}, nil
+}
+`, g.private(t.Name))
+}
+
 func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {
 	entityName := g.private(t.Name)
 
 	fmt.Fprintf(w, `func (r *%sRepositoryBase) Count(c *%sCriteria) (int64, error) {
-	`, entityName, entityName)
+`, entityName, entityName)
 	fmt.Fprintf(w, `
 	qbuf := bytes.NewBuffer(nil)
 	qbuf.WriteString("SELECT COUNT(*) FROM ")

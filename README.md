@@ -19,6 +19,7 @@ It relies to a large degree on packages:
 	- `entity` - struct that reflects single row within the database
 	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
 	- `patch` - structure used by `UpdateBy<primary-key>` methods to modify existing entity
+	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
 		- `table names`
 		- `column names`
@@ -26,6 +27,7 @@ It relies to a large degree on packages:
 	- `repository` - data access layer that expose API to manipulate entities:
 		- `Count` - returns number of entities for given criteria
 		- `Find` - returns collection of entities that match given criteria
+		- `FindIter` - works like `Find` by returns `iterator`
 		- `Insert` - saves given entity into the database
 		- `FindOneBy<primary-key>` - retrieves single entity
 		- `UpdateBy<primary-key>` - modifies single entity
