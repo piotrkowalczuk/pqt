@@ -24,11 +24,13 @@ It relies to a large degree on packages:
 		- `column names`
 		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `pqt.ErrorConstraint` helper function
 	- `repository` - data access layer that expose API to manipulate entities:
+		- `Count` - returns number of entities for given criteria
 		- `Find` - returns collection of entities that match given criteria
 		- `Insert` - saves given entity into the database
 		- `FindOneBy<primary-key>` - retrieves single entity
 		- `UpdateBy<primary-key>` - modifies single entity
 		- `DeleteBy<primary-key>` - modifies single entity
+	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<entity>Entity, error) {` helper function
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
 	- `tables`
@@ -59,6 +61,7 @@ s.AddTable(u)
 ### Generation
 Package itself do not provide any command line application that would generate output out of given input.
 Instead it encourage to write local generation application next to the proper package.
+
 ```go
 package main
 
