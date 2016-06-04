@@ -530,13 +530,11 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 						case qtypes.NumericQueryType_EQUAL:
 							%s
 							wbuf.WriteString(%s)
-							wbuf.WriteString("=")
-							pw.WriteTo(wbuf)
-							args.Add(c.%s.Value())
-						case qtypes.NumericQueryType_NOT_EQUAL:
-							%s
-							wbuf.WriteString(%s)
-							wbuf.WriteString("!=")
+							if c.%s.Negation {
+								wbuf.WriteString("<>")
+							} else {
+								wbuf.WriteString("=")
+							}
 							pw.WriteTo(wbuf)
 							args.Add(c.%s.Value())
 						case qtypes.NumericQueryType_GREATER:
