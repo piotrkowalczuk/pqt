@@ -28,12 +28,18 @@ func TestTable_AddColumn(t *testing.T) {
 	c3 := &pqt.Column{Name: "c3"}
 
 	tbl := pqt.NewTable("test").
+		AddColumn(pqt.NewColumn("c0", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(c1).
 		AddColumn(c2).
-		AddColumn(c3)
+		AddColumn(c3).
+		AddRelationship(pqt.ManyToOne(pqt.SelfReference()))
 
-	if len(tbl.Columns) != 3 {
-		t.Errorf("wrong number of colums, expected %d but got %d", 3, len(tbl.Columns))
+	if len(tbl.Columns) != 5 {
+		t.Errorf("wrong number of colums, expected %d but got %d", 5, len(tbl.Columns))
+	}
+
+	if len(tbl.OwnedRelationships) != 1 {
+		t.Errorf("wrong number of owned relationships, expected %d but got %d", 1, len(tbl.OwnedRelationships))
 	}
 
 	for i, c := range tbl.Columns {
