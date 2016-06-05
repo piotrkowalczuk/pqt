@@ -40,8 +40,9 @@ func TestTable_AddColumn(t *testing.T) {
 		t.Errorf("wrong number of colums, expected %d but got %d", 6, len(tbl.Columns))
 	}
 
-	if len(tbl.OwnedRelationships) != 2 {
-		t.Errorf("wrong number of owned relationships, expected %d but got %d", 2, len(tbl.OwnedRelationships))
+	if len(tbl.OwnedRelationships) != 1 {
+		// Reference is not a relationship
+		t.Errorf("wrong number of owned relationships, expected %d but got %d", 1, len(tbl.OwnedRelationships))
 	}
 
 	for i, c := range tbl.Columns {
