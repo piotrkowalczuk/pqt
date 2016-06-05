@@ -60,3 +60,12 @@ To run it simply call:
 $ make gen // not necessary, since generated code is already part of the repo
 $ make run
 ```
+
+## Contribution
+
+Very welcome in general. Especially in fields like:
+
+* postgres types better support
+* support for functions
+* better control over if generated code is private or public
+ 
