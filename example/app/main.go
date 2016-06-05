@@ -81,8 +81,9 @@ func main() {
 	nb := 20
 	for i := 0; i < nb; i++ {
 		_, err = repo.comment.Insert(&commentEntity{
-			NewsID:  news.ID,
-			Content: "Etiam eget nunc vel tellus placerat accumsan. Quisque dictum commodo orci, a eleifend nulla viverra malesuada. Etiam dui purus, dapibus a risus sed, porta scelerisque lorem. Sed vehicula mauris tellus, at dapibus risus facilisis vitae. Sed at lacus mollis, cursus sapien eu, egestas ligula. Cras blandit, arcu quis aliquam dictum, nibh purus pulvinar turpis, in dapibus est nibh et enim. Donec ex arcu, iaculis eget euismod id, lobortis nec enim. Quisque sed massa vel dui convallis ultrices. Nulla rutrum sed lacus vel ornare. Aliquam vulputate condimentum elit at pellentesque. Curabitur vitae sem tincidunt, volutpat urna ut, consequat turpis. Pellentesque varius justo libero, a volutpat lacus vulputate at. Integer tristique pharetra urna vel pharetra. In porttitor tincidunt eros, vel eleifend quam elementum a.",
+			NewsID:    news.ID,
+			NewsTitle: news.Title,
+			Content:   "Etiam eget nunc vel tellus placerat accumsan. Quisque dictum commodo orci, a eleifend nulla viverra malesuada. Etiam dui purus, dapibus a risus sed, porta scelerisque lorem. Sed vehicula mauris tellus, at dapibus risus facilisis vitae. Sed at lacus mollis, cursus sapien eu, egestas ligula. Cras blandit, arcu quis aliquam dictum, nibh purus pulvinar turpis, in dapibus est nibh et enim. Donec ex arcu, iaculis eget euismod id, lobortis nec enim. Quisque sed massa vel dui convallis ultrices. Nulla rutrum sed lacus vel ornare. Aliquam vulputate condimentum elit at pellentesque. Curabitur vitae sem tincidunt, volutpat urna ut, consequat turpis. Pellentesque varius justo libero, a volutpat lacus vulputate at. Integer tristique pharetra urna vel pharetra. In porttitor tincidunt eros, vel eleifend quam elementum a.",
 		})
 		if err != nil {
 			sklog.Fatal(log, err)

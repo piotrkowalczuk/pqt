@@ -20,14 +20,15 @@ import (
 )
 
 const (
-	tableNews                     = "example.news"
-	tableNewsColumnContent        = "content"
-	tableNewsColumnCreatedAt      = "created_at"
-	tableNewsColumnID             = "id"
-	tableNewsColumnLead           = "lead"
-	tableNewsColumnTitle          = "title"
-	tableNewsColumnUpdatedAt      = "updated_at"
-	tableNewsConstraintPrimaryKey = "example.news_id_pkey"
+	tableNews                      = "example.news"
+	tableNewsColumnContent         = "content"
+	tableNewsColumnCreatedAt       = "created_at"
+	tableNewsColumnID              = "id"
+	tableNewsColumnLead            = "lead"
+	tableNewsColumnTitle           = "title"
+	tableNewsColumnUpdatedAt       = "updated_at"
+	tableNewsConstraintPrimaryKey  = "example.news_id_pkey"
+	tableNewsConstraintTitleUnique = "example.news_title_key"
 )
 
 var (
@@ -1029,13 +1030,15 @@ func (r *newsRepositoryBase) DeleteByID(id int64) (int64, error) {
 }
 
 const (
-	tableComment                           = "example.comment"
-	tableCommentColumnContent              = "content"
-	tableCommentColumnCreatedAt            = "created_at"
-	tableCommentColumnID                   = "id"
-	tableCommentColumnNewsID               = "news_id"
-	tableCommentColumnUpdatedAt            = "updated_at"
-	tableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
+	tableComment                              = "example.comment"
+	tableCommentColumnContent                 = "content"
+	tableCommentColumnCreatedAt               = "created_at"
+	tableCommentColumnID                      = "id"
+	tableCommentColumnNewsID                  = "news_id"
+	tableCommentColumnNewsTitle               = "news_title"
+	tableCommentColumnUpdatedAt               = "updated_at"
+	tableCommentConstraintNewsIDForeignKey    = "example.comment_news_id_fkey"
+	tableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
 )
 
 var (
@@ -1044,6 +1047,7 @@ var (
 		tableCommentColumnCreatedAt,
 		tableCommentColumnID,
 		tableCommentColumnNewsID,
+		tableCommentColumnNewsTitle,
 		tableCommentColumnUpdatedAt,
 	}
 )
@@ -1053,6 +1057,7 @@ type commentEntity struct {
 	CreatedAt time.Time
 	ID        *ntypes.Int64
 	NewsID    int64
+	NewsTitle string
 	UpdatedAt *time.Time
 	News      *newsEntity
 }
@@ -1067,6 +1072,8 @@ func (e *commentEntity) Prop(cn string) (interface{}, bool) {
 		return &e.ID, true
 	case tableCommentColumnNewsID:
 		return &e.NewsID, true
+	case tableCommentColumnNewsTitle:
+		return &e.NewsTitle, true
 	case tableCommentColumnUpdatedAt:
 		return &e.UpdatedAt, true
 	default:
@@ -1145,6 +1152,7 @@ type commentCriteria struct {
 	createdAt     *qtypes.Timestamp
 	id            *qtypes.Int64
 	newsID        *qtypes.Int64
+	newsTitle     *qtypes.String
 	updatedAt     *qtypes.Timestamp
 }
 
@@ -1612,6 +1620,79 @@ func (c *commentCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter,
 		}
 	}
 
+	if c.newsTitle != nil && c.newsTitle.Valid {
+		switch c.newsTitle.Type {
+		case qtypes.TextQueryType_NOT_A_TEXT:
+			if dirty {
+				wbuf.WriteString(" AND ")
+			}
+			dirty = true
+
+			wbuf.WriteString(tableCommentColumnNewsTitle)
+			if c.newsTitle.Negation {
+				wbuf.WriteString(" IS NOT NULL ")
+			} else {
+				wbuf.WriteString(" IS NULL ")
+			}
+		case qtypes.TextQueryType_EXACT:
+			if dirty {
+				wbuf.WriteString(" AND ")
+			}
+			dirty = true
+
+			wbuf.WriteString(tableCommentColumnNewsTitle)
+			if c.newsTitle.Negation {
+				wbuf.WriteString(" <> ")
+			} else {
+				wbuf.WriteString(" = ")
+			}
+			pw.WriteTo(wbuf)
+			args.Add(c.newsTitle.Value())
+		case qtypes.TextQueryType_SUBSTRING:
+			if dirty {
+				wbuf.WriteString(" AND ")
+			}
+			dirty = true
+
+			wbuf.WriteString(tableCommentColumnNewsTitle)
+			if c.newsTitle.Negation {
+				wbuf.WriteString(" NOT LIKE ")
+			} else {
+				wbuf.WriteString(" LIKE ")
+			}
+			pw.WriteTo(wbuf)
+			args.Add(fmt.Sprintf("%%%s%%", c.newsTitle.Value()))
+		case qtypes.TextQueryType_HAS_PREFIX:
+			if dirty {
+				wbuf.WriteString(" AND ")
+			}
+			dirty = true
+
+			wbuf.WriteString(tableCommentColumnNewsTitle)
+			if c.newsTitle.Negation {
+				wbuf.WriteString(" NOT LIKE ")
+			} else {
+				wbuf.WriteString(" LIKE ")
+			}
+			pw.WriteTo(wbuf)
+			args.Add(fmt.Sprintf("%s%%", c.newsTitle.Value()))
+		case qtypes.TextQueryType_HAS_SUFFIX:
+			if dirty {
+				wbuf.WriteString(" AND ")
+			}
+			dirty = true
+
+			wbuf.WriteString(tableCommentColumnNewsTitle)
+			if c.newsTitle.Negation {
+				wbuf.WriteString(" NOT LIKE ")
+			} else {
+				wbuf.WriteString(" LIKE ")
+			}
+			pw.WriteTo(wbuf)
+			args.Add(fmt.Sprintf("%%%s", c.newsTitle.Value()))
+		}
+	}
+
 	if c.updatedAt != nil && c.updatedAt.Valid {
 		updatedAtt1 := c.updatedAt.Value()
 		if updatedAtt1 != nil {
@@ -1781,6 +1862,7 @@ func ScanCommentRows(rows *sql.Rows) ([]*commentEntity, error) {
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.NewsID,
+			&ent.NewsTitle,
 			&ent.UpdatedAt,
 		)
 		if err != nil {
@@ -1879,10 +1961,11 @@ func (r *commentRepositoryBase) FindIter(c *commentCriteria) (*commentIterator, 
 	return &commentIterator{rows: rows}, nil
 }
 func (r *commentRepositoryBase) Insert(e *commentEntity) (*commentEntity, error) {
-	insert := pqcomp.New(0, 5)
+	insert := pqcomp.New(0, 6)
 	insert.AddExpr(tableCommentColumnContent, "", e.Content)
 	insert.AddExpr(tableCommentColumnCreatedAt, "", e.CreatedAt)
 	insert.AddExpr(tableCommentColumnNewsID, "", e.NewsID)
+	insert.AddExpr(tableCommentColumnNewsTitle, "", e.NewsTitle)
 	insert.AddExpr(tableCommentColumnUpdatedAt, "", e.UpdatedAt)
 
 	b := bytes.NewBufferString("INSERT INTO " + r.table)
@@ -1917,6 +2000,7 @@ func (r *commentRepositoryBase) Insert(e *commentEntity) (*commentEntity, error)
 		&e.CreatedAt,
 		&e.ID,
 		&e.NewsID,
+		&e.NewsTitle,
 		&e.UpdatedAt,
 	)
 	if err != nil {
@@ -3009,7 +3093,8 @@ CREATE TABLE IF NOT EXISTS example.news (
 	title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,
 
-	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id)
+	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id),
+	CONSTRAINT "example.news_title_key" UNIQUE (title)
 );
 
 CREATE TABLE IF NOT EXISTS example.comment (
@@ -3017,9 +3102,11 @@ CREATE TABLE IF NOT EXISTS example.comment (
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 	id BIGSERIAL,
 	news_id BIGINT NOT NULL,
+	news_title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,
 
-	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id)
+	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id),
+	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title)
 );
 
 CREATE TABLE IF NOT EXISTS example.category (

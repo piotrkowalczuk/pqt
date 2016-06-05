@@ -23,23 +23,25 @@ func TestNewTable(t *testing.T) {
 }
 
 func TestTable_AddColumn(t *testing.T) {
+	c0 := pqt.NewColumn("c0", pqt.TypeSerialBig(), pqt.WithPrimaryKey())
 	c1 := &pqt.Column{Name: "c1"}
 	c2 := &pqt.Column{Name: "c2"}
 	c3 := &pqt.Column{Name: "c3"}
 
 	tbl := pqt.NewTable("test").
-		AddColumn(pqt.NewColumn("c0", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(c0).
 		AddColumn(c1).
 		AddColumn(c2).
 		AddColumn(c3).
+		AddColumn(pqt.NewColumn("c4", pqt.TypeIntegerBig(), pqt.WithReference(c0))).
 		AddRelationship(pqt.ManyToOne(pqt.SelfReference()))
 
-	if len(tbl.Columns) != 5 {
-		t.Errorf("wrong number of colums, expected %d but got %d", 5, len(tbl.Columns))
+	if len(tbl.Columns) != 6 {
+		t.Errorf("wrong number of colums, expected %d but got %d", 6, len(tbl.Columns))
 	}
 
-	if len(tbl.OwnedRelationships) != 1 {
-		t.Errorf("wrong number of owned relationships, expected %d but got %d", 1, len(tbl.OwnedRelationships))
+	if len(tbl.OwnedRelationships) != 2 {
+		t.Errorf("wrong number of owned relationships, expected %d but got %d", 2, len(tbl.OwnedRelationships))
 	}
 
 	for i, c := range tbl.Columns {

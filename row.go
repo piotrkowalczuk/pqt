@@ -237,10 +237,10 @@ func WithNotNull() ColumnOption {
 }
 
 // WithReference ...
-func WithReference(r *Column, opts ...ColumnOption) ColumnOption {
+func WithReference(r *Column, opts ...RelationshipOption) ColumnOption {
 	return func(c *Column) {
 		c.Reference = r
-		//		c.ReferenceOptions = opts
+		c.ReferenceOptions = opts
 	}
 }
 
