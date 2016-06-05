@@ -44,7 +44,8 @@ It relies to a large degree on packages:
 
 * [wiki](https://github.com/piotrkowalczuk/pqt/wiki)
 * godoc [pqt](http://godoc.org/github.com/piotrkowalczuk/pqt)
-* godoc [pqtgo](http://godoc.org/github.com/piotrkowalczuk/pqt)
+* godoc [pqtgo](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo)
+* godoc [pqtsql](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtsql)
 
 ## Example
 
