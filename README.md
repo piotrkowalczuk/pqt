@@ -52,3 +52,11 @@ It relies to a large degree on packages:
 Package itself do not provide any command line application that would generate output out of given input.
 Instead it encourage to write local generation application next to the proper package.
 Good example how such application could be structured can be found in [examples](https://github.com/piotrkowalczuk/pqt/tree/master/example).
+
+By default example is trying to connect to local `test` database on default port.
+To run it simply call:
+
+```bash
+$ make gen // not necessary, since generated code is already part of the repo
+$ make run
+```
