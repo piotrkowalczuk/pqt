@@ -2,7 +2,7 @@ package pqt
 
 import "sort"
 
-// Table ...
+// Table is partially implemented postgres table synopsis.
 type Table struct {
 	self                      bool
 	Name, Collate, TableSpace string
@@ -15,7 +15,7 @@ type Table struct {
 	ManyToManyRelationships   []*Relationship
 }
 
-// NewTable ...
+// NewTable allocates new table using given name and options.
 func NewTable(name string, opts ...TableOption) *Table {
 	t := &Table{
 		Name:                  name,
@@ -40,7 +40,7 @@ func SelfReference() *Table {
 	}
 }
 
-// FullName ...
+// FullName if schema is defined returns name in format <schema>.<name> or just <name> if not set.
 func (t *Table) FullName() string {
 	if t.Schema != nil && t.Schema.Name != "" {
 		return t.Schema.Name + "." + t.Name
@@ -49,7 +49,7 @@ func (t *Table) FullName() string {
 	return t.Name
 }
 
-// AddColumn ...
+// AddColumn adds column to the table.
 func (t *Table) AddColumn(c *Column) *Table {
 	if c.Reference != nil {
 		t.AddConstraint(&Constraint{
@@ -88,7 +88,7 @@ func (t *Table) addColumn(c *Column) *Table {
 	return t
 }
 
-// AddRelationship ...
+// AddRelationship adds relationship to the table.
 func (t *Table) AddRelationship(r *Relationship, opts ...ColumnOption) *Table {
 	if r == nil {
 		return t
@@ -197,7 +197,7 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	return t
 }
 
-// AddConstraint ...
+// AddConstraint adds constraint to the table.
 func (t *Table) AddConstraint(c *Constraint) *Table {
 	if t.Constraints == nil {
 		t.Constraints = make([]*Constraint, 0, 1)
@@ -214,23 +214,23 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 	return t
 }
 
-// AddCheck ...
+// AddCheck adds check constraint to the table.
 func (t *Table) AddCheck(check string, columns ...*Column) *Table {
 	return t.AddConstraint(Check(t, check, columns...))
 }
 
-// AddUnique ...
+// AddUnique adds unique constraint to the table.
 func (t *Table) AddUnique(columns ...*Column) *Table {
 	return t.AddConstraint(Unique(t, columns...))
 }
 
-// SetIfNotExists ...
+// SetIfNotExists sets IfNotExists flag.
 func (t *Table) SetIfNotExists(ine bool) *Table {
 	t.IfNotExists = ine
 	return t
 }
 
-// SetSchema ...
+// SetSchema sets schema name table belongs to.
 func (t *Table) SetSchema(s *Schema) *Table {
 	if t.Schema == nil {
 		t.Schema = s
@@ -255,7 +255,7 @@ func (t *Table) PrimaryKey() (*Column, bool) {
 // TableOption configures how we set up the table.
 type TableOption func(*Table)
 
-// WithIfNotExists ...
+// WithIfNotExists is table option that sets IfNotExists flag to true.
 func WithIfNotExists() TableOption {
 	return func(t *Table) {
 		t.IfNotExists = true
