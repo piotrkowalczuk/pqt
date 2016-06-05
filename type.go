@@ -56,17 +56,17 @@ func TypeSerialBig() BaseType {
 	return BaseType{name: "BIGSERIAL"}
 }
 
-// TypeInteger ...
+// TypeInteger is the common choice, as it offers the best balance between range, storage size, and performance.
 func TypeInteger() BaseType {
 	return BaseType{name: "INTEGER"}
 }
 
-// TypeIntegerSmall ...
+// TypeIntegerSmall is generally only used if disk space is at a premium.
 func TypeIntegerSmall() BaseType {
 	return BaseType{name: "SMALLINT"}
 }
 
-// TypeIntegerBig ...
+// TypeIntegerBig is designed to be used when the range of the TypeInteger is insufficient.
 func TypeIntegerBig() BaseType {
 	return BaseType{name: "BIGINT"}
 }
@@ -103,7 +103,10 @@ func TypeDoubleArray(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("DOUBLE PRECISION[%d]", l)}
 }
 
-// TypeNumeric ...
+// TypeNumeric can store numbers with a very large number of digits.
+// It is especially recommended for storing monetary amounts and other quantities where exactness is required.
+// Calculations with numeric values yield exact results where possible, e.g. addition, subtraction, multiplication.
+// However, calculations on numeric values are very slow compared to the integer types, or to the floating-point types described in the next section.
 func TypeNumeric(precision, scale int) BaseType {
 	switch {
 	case precision == 0:
