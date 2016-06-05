@@ -165,7 +165,7 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 			} else {
 				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
 			}
-			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.InversedTable.Name))
+			fmt.Fprintf(w, " *%sEntity\n", g.private(r.InversedTable.Name))
 		case pqt.RelationshipTypeManyToMany:
 			if r.OwnerName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
@@ -192,7 +192,14 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerTable.Name))
 			}
 			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
-		case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
+		case pqt.RelationshipTypeOneToOne:
+			if r.OwnerName != "" {
+				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
+			} else {
+				fmt.Fprintf(w, "%ss", g.public(r.OwnerTable.Name))
+			}
+			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
+		case pqt.RelationshipTypeManyToOne:
 			if r.OwnerName != "" {
 				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
 			} else {

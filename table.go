@@ -32,7 +32,8 @@ func NewTable(name string, opts ...TableOption) *Table {
 	return t
 }
 
-// SelfReference returns almost empty table that express self reference. Should be used with relationships.
+// SelfReference returns almost empty table that express self reference.
+// Should be used with relationships.
 func SelfReference() *Table {
 	return &Table{
 		self: true,
