@@ -50,4 +50,4 @@ It relies to a large degree on packages:
 
 Package itself do not provide any command line application that would generate output out of given input.
 Instead it encourage to write local generation application next to the proper package.
-Good example how such application could be structured can be found in examples.
+Good example how such application could be structured can be found in [examples](https://github.com/piotrkowalczuk/pqt/tree/master/example).
