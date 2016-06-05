@@ -115,12 +115,12 @@ func TypeNumeric(precision, scale int) BaseType {
 	}
 }
 
-// TypeDoublePrecision ...
+// TypeDoublePrecision is a numeric type with 15 decimal digits precision.
 func TypeDoublePrecision() BaseType {
 	return BaseType{name: "DOUBLE PRECISION"}
 }
 
-// TypeBool ...
+// TypeBool is a state of true or false.
 func TypeBool() BaseType {
 	return BaseType{name: "BOOL"}
 }
@@ -138,7 +138,7 @@ func TypeCharacter(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("CHARACTER[%d]", l)}
 }
 
-// TypeText ...
+// TypeText is variable-length character string.
 func TypeText() BaseType {
 	return BaseType{name: "TEXT"}
 }
@@ -165,27 +165,32 @@ func TypeBytea() BaseType {
 	return BaseType{name: "BYTEA"}
 }
 
-// TypeTimestamp ...
+// TypeTimestamp is a date and time (no time zone).
 func TypeTimestamp() BaseType {
 	return BaseType{name: "TIMESTAMP"}
 }
 
-// TypeTimestampTZ ...
+// TypeTimestampTZ is a date and time, including time zone
 func TypeTimestampTZ() BaseType {
 	return BaseType{name: "TIMESTAMPTZ"}
 }
 
-// TypeJSON ...
+// TypeJSON is for storing JSON (JavaScript Object Notation) data, as specified in RFC 7159.
+// Such data can also be stored as text, but the JSON data types have the advantage of enforcing that each stored value is valid according to the JSON rules.
 func TypeJSON() BaseType {
 	return BaseType{name: "JSON"}
 }
 
-// TypeJSONB ...
+// TypeJSONB in compare to TypeJSON is stored in a decomposed binary format that makes it slightly slower to input due to added conversion overhead, but significantly faster to process, since no reparsing is needed.
+// JSONB also supports indexing, which can be a significant advantage.
 func TypeJSONB() BaseType {
 	return BaseType{name: "JSONB"}
 }
 
-// CompositeType ...
+// CompositeType represents the structure of a row or record.
+// It is essentially just a list of field names and their data types.
+// PostgreSQL allows composite types to be used in many of the same ways that simple types can be used.
+// For example, a column of a table can be declared to be of a composite type.
 type CompositeType struct {
 	name       string
 	Attributes []*Attribute
@@ -201,7 +206,7 @@ func (ct CompositeType) Fingerprint() string {
 	return fmt.Sprintf("composite: %v", ct)
 }
 
-// TypeComposite ...
+// TypeComposite allocates CompositeType with given name and attributes.
 func TypeComposite(name string, attributes ...*Attribute) CompositeType {
 	return CompositeType{
 		name:       name,

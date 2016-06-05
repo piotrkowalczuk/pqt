@@ -3,44 +3,25 @@ package main
 import "github.com/piotrkowalczuk/pqt"
 
 func schema(sn string) *pqt.Schema {
-	news := tableNews()
-	comment := tableComment()
-	category := tableCategory()
+	title := pqt.NewColumn("title", pqt.TypeText(), pqt.WithNotNull(), pqt.WithUnique())
 
-	comment.AddRelationship(pqt.ManyToOne(news, pqt.WithBidirectional()), pqt.WithNotNull())
-
-	pqt.ManyToMany(category, news, pqt.WithBidirectional())
-
-	return pqt.NewSchema(sn).
-		AddTable(news).
-		AddTable(comment).
-		AddTable(category)
-}
-
-func tableNews() *pqt.Table {
-	t := pqt.NewTable("news", pqt.WithIfNotExists()).
+	news := pqt.NewTable("news", pqt.WithIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
-		AddColumn(pqt.NewColumn("title", pqt.TypeText(), pqt.WithNotNull())).
+		AddColumn(title).
 		AddColumn(pqt.NewColumn("lead", pqt.TypeText())).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull()))
 
-	timestampable(t)
-
-	return t
-}
-
-func tableComment() *pqt.Table {
-	t := pqt.NewTable("comment", pqt.WithIfNotExists()).
+	comment := pqt.NewTable("comment", pqt.WithIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig())).
-		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull()))
+		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
+		AddColumn(pqt.NewColumn(
+			"news_title",
+			pqt.TypeText(),
+			pqt.WithNotNull(),
+			pqt.WithReference(title),
+		))
 
-	timestampable(t)
-
-	return t
-}
-
-func tableCategory() *pqt.Table {
-	t := pqt.NewTable("category", pqt.WithIfNotExists()).
+	category := pqt.NewTable("category", pqt.WithIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull())).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
@@ -53,10 +34,18 @@ func tableCategory() *pqt.Table {
 				pqt.WithColumnName("parent_id"),
 			),
 		)
+	timestampable(news)
+	timestampable(comment)
+	timestampable(category)
 
-	timestampable(t)
+	comment.AddRelationship(pqt.ManyToOne(news, pqt.WithBidirectional()), pqt.WithNotNull())
 
-	return t
+	pqt.ManyToMany(category, news, pqt.WithBidirectional())
+
+	return pqt.NewSchema(sn).
+		AddTable(news).
+		AddTable(comment).
+		AddTable(category)
 }
 
 func timestampable(t *pqt.Table) {
