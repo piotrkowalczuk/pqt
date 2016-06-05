@@ -27,7 +27,7 @@ It relies to a large degree on packages:
 	- `repository` - data access layer that expose API to manipulate entities:
 		- `Count` - returns number of entities for given criteria
 		- `Find` - returns collection of entities that match given criteria
-		- `FindIter` - works like `Find` by returns `iterator`
+		- `FindIter` - works like `Find` but returns `iterator`
 		- `Insert` - saves given entity into the database
 		- `FindOneBy<primary-key>` - retrieves single entity
 		- `UpdateBy<primary-key>` - modifies single entity
