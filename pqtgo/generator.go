@@ -1467,7 +1467,7 @@ func generateBaseType(t pqt.Type, m int32) string {
 		return chooseType("float32", "*ntypes.Float32", "*ntypes.Float32", m)
 	case pqt.TypeDoublePrecision():
 		return chooseType("float64", "*ntypes.Float64", "*qtypes.Float64", m)
-	case pqt.TypeBytea():
+	case pqt.TypeBytea(), pqt.TypeJSON(), pqt.TypeJSONB():
 		return "[]byte"
 	case pqt.TypeUUID():
 		return "uuid.UUID"
