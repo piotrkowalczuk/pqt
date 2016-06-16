@@ -640,7 +640,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 			columnNameWithTable, columnNamePrivate,
 			columnNameWithTable, columnNamePrivate,
 		)
-	case "*qtypes.Int64", "*qtypes.Float64":
+	case "*qtypes.Int64", "*qtypes.Int32", "*qtypes.Float64":
 		fmt.Fprintf(w, `
 				if c.%s != nil && c.%s.Valid {
 					switch c.%s.Type {
