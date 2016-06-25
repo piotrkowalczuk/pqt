@@ -10,6 +10,9 @@ const (
 	RelationshipTypeOneToMany
 	// RelationshipTypeManyToOne works like one to many, but it points to another owner.
 	RelationshipTypeManyToOne
+
+	// RelationshipTypeManyToMany is combination of two many to one relationships.
+	// Needs proxy table.
 	RelationshipTypeManyToMany
 
 	// NoAction produce an error indicating that the deletion or update would create a foreign key constraint violation.

@@ -9,10 +9,10 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
-func TestArrayInt64_Value(t *testing.T) {
-	success := map[string]pqt.ArrayInt64{
-		"{1,2,3,4}": {0: 1, 1: 2, 2: 3, 3: 4},
-		"{}":        {},
+func TestJSONArrayInt64_Value(t *testing.T) {
+	success := map[string]pqt.JSONArrayInt64{
+		"[1,2,3,4]": {0: 1, 1: 2, 2: 3, 3: 4},
+		"[]":        {},
 	}
 
 SuccessLoop:
@@ -35,15 +35,15 @@ SuccessLoop:
 	}
 }
 
-func TestArrayInt64_Scan(t *testing.T) {
-	success := map[string]pqt.ArrayInt64{
-		"{1,2,3,4}": {0: 1, 1: 2, 2: 3, 3: 4},
-		"{}":        {},
+func TestJSONArrayInt64_Scan(t *testing.T) {
+	success := map[string]pqt.JSONArrayInt64{
+		"[1,2,3,4]": {0: 1, 1: 2, 2: 3, 3: 4},
+		"[]":        {},
 	}
 
 SuccessLoop:
 	for src, expected := range success {
-		var got pqt.ArrayInt64
+		var got pqt.JSONArrayInt64
 
 		err := got.Scan(src)
 		if err != nil {
@@ -57,21 +57,21 @@ SuccessLoop:
 	}
 
 	fail := map[string]interface{}{
-		`pqt: expected to get source argument in format "{1,2,...,N}", but got string1 at index 0`: "{string1,string2}",
-		`pqt: expected to get source argument in format "{1,2,...,N}", but got }`:                  "}",
-		`pqt: expected to get source argument in format "{1,2,...,N}", but got {`:                  "{",
-		`pqt: expected to get source argument in format "{1,2,...,N}", but got 12412s at index 0`:  "{12412s}",
-		`pqt: expected to get source argument in format "{1,2,...,N}", but got [1,2,3]`:            "[1,2,3]",
-		`pqt: expected to get source argument in format "{1,2,...,N}", but got (1,2,3)`:            "(1,2,3)",
+		`pqt: expected to get source argument in format "[1,2,...,N]", but got string1 at index 0`: "[string1,string2]",
+		`pqt: expected to get source argument in format "[1,2,...,N]", but got ]`:                  "]",
+		`pqt: expected to get source argument in format "[1,2,...,N]", but got [`:                  "[",
+		`pqt: expected to get source argument in format "[1,2,...,N]", but got 12412s at index 0`:  "[12412s]",
+		`pqt: expected to get source argument in format "[1,2,...,N]", but got {1,2,3}`:            "{1,2,3}",
+		`pqt: expected to get source argument in format "[1,2,...,N]", but got (1,2,3)`:            "(1,2,3)",
 	}
 
 FailLoop:
 	for expected, src := range fail {
-		var got pqt.ArrayInt64
+		var got pqt.JSONArrayInt64
 
 		err := got.Scan(src)
 		if err == nil {
-			t.Errorf("expected error, got nil")
+			t.Error("expected error, got nil")
 			continue FailLoop
 		}
 		if expected != err.Error() {
@@ -80,8 +80,8 @@ FailLoop:
 	}
 }
 
-func TestArrayInt64_Scan_nil(t *testing.T) {
-	var got pqt.ArrayInt64
+func TestJSONArrayInt64_Scan_nil(t *testing.T) {
+	var got pqt.JSONArrayInt64
 
 	if err := got.Scan(nil); err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
@@ -92,11 +92,11 @@ func TestArrayInt64_Scan_nil(t *testing.T) {
 	}
 }
 
-func TestArrayString_Value(t *testing.T) {
-	success := map[string]pqt.ArrayString{
-		"{1,2,3,4}":             {0: "1", 1: "2", 2: "3", 3: "4"},
-		"{hehe1,string,some,'}": {0: "hehe1", 1: "string", 2: "some", 3: "'"},
-		"{}": {},
+func TestJSONArrayString_Value(t *testing.T) {
+	success := map[string]pqt.JSONArrayString{
+		"[1,2,3,4]":             {0: "1", 1: "2", 2: "3", 3: "4"},
+		"[hehe1,string,some,']": {0: "hehe1", 1: "string", 2: "some", 3: "'"},
+		"[]": {},
 	}
 
 SuccessLoop:
@@ -119,14 +119,14 @@ SuccessLoop:
 	}
 }
 
-func TestArrayString_Scan(t *testing.T) {
-	success := map[string]pqt.ArrayString{
-		"{1,2,3,4}": {0: "1", 1: "2", 2: "3", 3: "4"},
+func TestJSONArrayString_Scan(t *testing.T) {
+	success := map[string]pqt.JSONArrayString{
+		"[1,2,3,4]": {0: "1", 1: "2", 2: "3", 3: "4"},
 	}
 
 SuccessLoop:
 	for src, expected := range success {
-		var got pqt.ArrayString
+		var got pqt.JSONArrayString
 		if err := got.Scan(src); err != nil {
 			t.Errorf("unexpected error: %s", err.Error())
 			continue SuccessLoop
@@ -142,15 +142,15 @@ SuccessLoop:
 		`pqt: expected slice of bytes or string as a source argument in Scan, not bool`:                         false,
 		`pqt: expected slice of bytes or string as a source argument in Scan, not float64`:                      float64(12.2),
 		`pqt: expected slice of bytes or string as a source argument in Scan, not time.Time`:                    time.Now(),
-		`pqt: expected to get source argument in format "{text1,text2,...,textN}", but got {`:                   "{",
-		`pqt: expected to get source argument in format "{text1,text2,...,textN}", but got }`:                   "}",
-		`pqt: expected to get source argument in format "{text1,text2,...,textN}", but got [text1,text2,text3]`: "[text1,text2,text3]",
-		`pqt: expected to get source argument in format "{text1,text2,...,textN}", but got (text1,text2,text3)`: "(text1,text2,text3)",
+		`pqt: expected to get source argument in format "[text1,text2,...,textN]", but got [`:                   "[",
+		`pqt: expected to get source argument in format "[text1,text2,...,textN]", but got ]`:                   "]",
+		`pqt: expected to get source argument in format "[text1,text2,...,textN]", but got {text1,text2,text3}`: "{text1,text2,text3}",
+		`pqt: expected to get source argument in format "[text1,text2,...,textN]", but got (text1,text2,text3)`: "(text1,text2,text3)",
 	}
 
 FailLoop:
 	for expected, src := range fail {
-		var got pqt.ArrayString
+		var got pqt.JSONArrayString
 
 		err := got.Scan(src)
 		if err == nil {
@@ -163,8 +163,8 @@ FailLoop:
 	}
 }
 
-func TestArrayString_Scan_nil(t *testing.T) {
-	var got, expected pqt.ArrayString
+func TestJSONArrayString_Scan_nil(t *testing.T) {
+	var got, expected pqt.JSONArrayString
 	err := got.Scan(nil)
 
 	if err != nil {
@@ -176,10 +176,10 @@ func TestArrayString_Scan_nil(t *testing.T) {
 	}
 }
 
-func TestArrayFloat64_Value(t *testing.T) {
-	success := map[string]pqt.ArrayFloat64{
-		"{1.1,2.2,3.5,4.65}": {0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
-		"{}":                 {},
+func TestJSONArrayFloat64_Value(t *testing.T) {
+	success := map[string]pqt.JSONArrayFloat64{
+		"[1.1,2.2,3.5,4.65]": {0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
+		"[]":                 {},
 	}
 
 SuccessLoop:
@@ -202,15 +202,15 @@ SuccessLoop:
 	}
 }
 
-func TestArrayFloat64_Scan(t *testing.T) {
-	success := map[string]pqt.ArrayFloat64{
-		"{1.1,2.2,3.5,4.65}": {0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
-		"{}":                 {},
+func TestJSONArrayFloat64_Scan(t *testing.T) {
+	success := map[string]pqt.JSONArrayFloat64{
+		"[1.1,2.2,3.5,4.65]": {0: 1.1, 1: 2.2, 2: 3.5, 3: 4.65},
+		"[]":                 {},
 	}
 
 SuccessLoop:
 	for src, expected := range success {
-		var got pqt.ArrayFloat64
+		var got pqt.JSONArrayFloat64
 
 		err := got.Scan(src)
 		if err != nil {
@@ -224,17 +224,17 @@ SuccessLoop:
 	}
 
 	fail := map[string]interface{}{
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got string1 at index 0`: "{string1,string2}",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got }`:                  "}",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got {`:                  "{",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got 12412s at index 0`:  "{12412s}",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got [1.1,2.2,3.5]`:      "[1.1,2.2,3.5]",
-		`pqt: expected to get source argument in format "{1.3,2.4,...,N.M}", but got (1.1,2.2,3.5)`:      "(1.1,2.2,3.5)",
+		`pqt: expected to get source argument in format "[1.3,2.4,...,N.M]", but got string1 at index 0`: "[string1,string2]",
+		`pqt: expected to get source argument in format "[1.3,2.4,...,N.M]", but got ]`:                  "]",
+		`pqt: expected to get source argument in format "[1.3,2.4,...,N.M]", but got [`:                  "[",
+		`pqt: expected to get source argument in format "[1.3,2.4,...,N.M]", but got 12412s at index 0`:  "[12412s]",
+		`pqt: expected to get source argument in format "[1.3,2.4,...,N.M]", but got {1.1,2.2,3.5}`:      "{1.1,2.2,3.5}",
+		`pqt: expected to get source argument in format "[1.3,2.4,...,N.M]", but got (1.1,2.2,3.5)`:      "(1.1,2.2,3.5)",
 	}
 
 FailLoop:
 	for expected, src := range fail {
-		var got pqt.ArrayFloat64
+		var got pqt.JSONArrayFloat64
 
 		err := got.Scan(src)
 		if err == nil {
@@ -247,8 +247,8 @@ FailLoop:
 	}
 }
 
-func TestArrayFloat64_Scan_nil(t *testing.T) {
-	var got pqt.ArrayFloat64
+func TestJSONArrayFloat64_Scan_nil(t *testing.T) {
+	var got pqt.JSONArrayFloat64
 
 	if err := got.Scan(nil); err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())

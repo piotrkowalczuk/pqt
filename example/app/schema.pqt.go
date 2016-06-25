@@ -146,629 +146,301 @@ type newsCriteria struct {
 	updatedAt     *qtypes.Timestamp
 }
 
-func (c *newsCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter, args *pqtgo.Arguments) (wr int64, err error) {
-	var (
-		wrt   int
-		wrt64 int64
-		dirty bool
-	)
-
-	wbuf := bytes.NewBuffer(nil)
-
-	if c.content != nil && c.content.Valid {
-		switch c.content.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.content.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.content.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.content.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.content.Value()))
-		}
+func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
+	if _, err = com.WriteString(" WHERE "); err != nil {
+		return
 	}
+
+	if c.content != nil && c.content.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	pqtgo.WriteCompositionQueryString(c.content, tableNewsColumnContent, com, pqtgo.And)
 
 	if c.createdAt != nil && c.createdAt.Valid {
 		createdAtt1 := c.createdAt.Value()
 		if createdAtt1 != nil {
 			createdAt1, err := ptypes.Timestamp(createdAtt1)
 			if err != nil {
-				return wr, err
+				return err
 			}
 			switch c.createdAt.Type {
-			case qtypes.NumericQueryType_NOT_A_NUMBER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnCreatedAt)
+				com.WriteString(tableNewsColumnCreatedAt)
 				if c.createdAt.Negation {
-					wbuf.WriteString(" IS NOT NULL ")
+					com.WriteString(" IS NOT NULL ")
 				} else {
-					wbuf.WriteString(" IS NULL ")
+					com.WriteString(" IS NULL ")
 				}
-			case qtypes.NumericQueryType_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnCreatedAt)
+				com.WriteString(tableNewsColumnCreatedAt)
 				if c.createdAt.Negation {
-					wbuf.WriteString("<>")
+					com.WriteString("<>")
 				} else {
-					wbuf.WriteString("=")
+					com.WriteString("=")
 				}
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_GREATER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnCreatedAt)
-				wbuf.WriteString(">")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_GREATER_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableNewsColumnCreatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnCreatedAt)
-				wbuf.WriteString(">=")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_LESS:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableNewsColumnCreatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnCreatedAt)
-				wbuf.WriteString("<")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_LESS_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableNewsColumnCreatedAt)
+				com.WriteString("<")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnCreatedAt)
-				wbuf.WriteString("<=")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_IN:
+				com.WriteString(tableNewsColumnCreatedAt)
+				com.WriteString("<=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_IN:
 				if len(c.createdAt.Values) > 0 {
-					if dirty {
-						wbuf.WriteString(" AND ")
+					if com.Dirty {
+						com.WriteString(" AND ")
 					}
-					dirty = true
+					com.Dirty = true
 
-					wbuf.WriteString(tableNewsColumnCreatedAt)
-					wbuf.WriteString(" IN (")
+					com.WriteString(tableNewsColumnCreatedAt)
+					com.WriteString(" IN (")
 					for i, v := range c.createdAt.Values {
 						if i != 0 {
-							wbuf.WriteString(",")
+							com.WriteString(",")
 						}
-						pw.WriteTo(wbuf)
-						args.Add(v)
+						com.WritePlaceholder()
+						com.Add(v)
 					}
-					wbuf.WriteString(") ")
+					com.WriteString(") ")
 				}
-			case qtypes.NumericQueryType_BETWEEN:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
 				createdAtt2 := c.createdAt.Values[1]
 				if createdAtt2 != nil {
 					createdAt2, err := ptypes.Timestamp(createdAtt2)
 					if err != nil {
-						return wr, err
+						return err
 					}
-					wbuf.WriteString(tableNewsColumnCreatedAt)
-					wbuf.WriteString(" > ")
-					pw.WriteTo(wbuf)
-					args.Add(createdAt1)
-					wbuf.WriteString(" AND ")
-					wbuf.WriteString(tableNewsColumnCreatedAt)
-					wbuf.WriteString(" < ")
-					pw.WriteTo(wbuf)
-					args.Add(createdAt2)
+					com.WriteString(tableNewsColumnCreatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(createdAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tableNewsColumnCreatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(createdAt2)
 				}
 			}
 		}
 	}
 
-	if c.id != nil && c.id.Valid {
-		switch c.id.Type {
-		case qtypes.NumericQueryType_NOT_A_NUMBER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.NumericQueryType_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString("=")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_GREATER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_GREATER_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" < ")
-			} else {
-				wbuf.WriteString(" >= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_LESS:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id)
-		case qtypes.NumericQueryType_LESS_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" > ")
-			} else {
-				wbuf.WriteString(" <= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_IN:
-			if len(c.id.Values) > 0 {
-				if dirty {
-					wbuf.WriteString(" AND ")
-				}
-				dirty = true
-
-				wbuf.WriteString(tableNewsColumnID)
-				if c.id.Negation {
-					wbuf.WriteString(" NOT IN (")
-				} else {
-					wbuf.WriteString(" IN (")
-				}
-				for i, v := range c.id.Values {
-					if i != 0 {
-						wbuf.WriteString(",")
-					}
-					pw.WriteTo(wbuf)
-					args.Add(v)
-				}
-				wbuf.WriteString(") ")
-			}
-		case qtypes.NumericQueryType_BETWEEN:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Values[0])
-			wbuf.WriteString(" AND ")
-			wbuf.WriteString(tableNewsColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Values[1])
-		}
+	if c.id != nil && c.id.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableNewsColumnID, com, pqtgo.And); err != nil {
+		return
 	}
 
-	if c.lead != nil && c.lead.Valid {
-		switch c.lead.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnLead)
-			if c.lead.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnLead)
-			if c.lead.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.lead.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnLead)
-			if c.lead.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.lead.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnLead)
-			if c.lead.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.lead.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnLead)
-			if c.lead.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.lead.Value()))
-		}
+	if c.lead != nil && c.lead.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
 	}
+	pqtgo.WriteCompositionQueryString(c.lead, tableNewsColumnLead, com, pqtgo.And)
 
-	if c.title != nil && c.title.Valid {
-		switch c.title.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnTitle)
-			if c.title.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnTitle)
-			if c.title.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.title.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnTitle)
-			if c.title.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.title.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnTitle)
-			if c.title.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.title.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableNewsColumnTitle)
-			if c.title.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.title.Value()))
-		}
+	if c.title != nil && c.title.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
 	}
+	pqtgo.WriteCompositionQueryString(c.title, tableNewsColumnTitle, com, pqtgo.And)
 
 	if c.updatedAt != nil && c.updatedAt.Valid {
 		updatedAtt1 := c.updatedAt.Value()
 		if updatedAtt1 != nil {
 			updatedAt1, err := ptypes.Timestamp(updatedAtt1)
 			if err != nil {
-				return wr, err
+				return err
 			}
 			switch c.updatedAt.Type {
-			case qtypes.NumericQueryType_NOT_A_NUMBER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnUpdatedAt)
+				com.WriteString(tableNewsColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					wbuf.WriteString(" IS NOT NULL ")
+					com.WriteString(" IS NOT NULL ")
 				} else {
-					wbuf.WriteString(" IS NULL ")
+					com.WriteString(" IS NULL ")
 				}
-			case qtypes.NumericQueryType_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnUpdatedAt)
+				com.WriteString(tableNewsColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					wbuf.WriteString("<>")
+					com.WriteString("<>")
 				} else {
-					wbuf.WriteString("=")
+					com.WriteString("=")
 				}
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_GREATER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnUpdatedAt)
-				wbuf.WriteString(">")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_GREATER_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableNewsColumnUpdatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnUpdatedAt)
-				wbuf.WriteString(">=")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_LESS:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableNewsColumnUpdatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnUpdatedAt)
-				wbuf.WriteString("<")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_LESS_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableNewsColumnUpdatedAt)
+				com.WriteString("<")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableNewsColumnUpdatedAt)
-				wbuf.WriteString("<=")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_IN:
+				com.WriteString(tableNewsColumnUpdatedAt)
+				com.WriteString("<=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_IN:
 				if len(c.updatedAt.Values) > 0 {
-					if dirty {
-						wbuf.WriteString(" AND ")
+					if com.Dirty {
+						com.WriteString(" AND ")
 					}
-					dirty = true
+					com.Dirty = true
 
-					wbuf.WriteString(tableNewsColumnUpdatedAt)
-					wbuf.WriteString(" IN (")
+					com.WriteString(tableNewsColumnUpdatedAt)
+					com.WriteString(" IN (")
 					for i, v := range c.updatedAt.Values {
 						if i != 0 {
-							wbuf.WriteString(",")
+							com.WriteString(",")
 						}
-						pw.WriteTo(wbuf)
-						args.Add(v)
+						com.WritePlaceholder()
+						com.Add(v)
 					}
-					wbuf.WriteString(") ")
+					com.WriteString(") ")
 				}
-			case qtypes.NumericQueryType_BETWEEN:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
 				updatedAtt2 := c.updatedAt.Values[1]
 				if updatedAtt2 != nil {
 					updatedAt2, err := ptypes.Timestamp(updatedAtt2)
 					if err != nil {
-						return wr, err
+						return err
 					}
-					wbuf.WriteString(tableNewsColumnUpdatedAt)
-					wbuf.WriteString(" > ")
-					pw.WriteTo(wbuf)
-					args.Add(updatedAt1)
-					wbuf.WriteString(" AND ")
-					wbuf.WriteString(tableNewsColumnUpdatedAt)
-					wbuf.WriteString(" < ")
-					pw.WriteTo(wbuf)
-					args.Add(updatedAt2)
+					com.WriteString(tableNewsColumnUpdatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(updatedAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tableNewsColumnUpdatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(updatedAt2)
 				}
 			}
 		}
 	}
 
-	if dirty {
-		if wrt, err = b.WriteString(" WHERE "); err != nil {
-			return
-		}
-		wr += int64(wrt)
-		if wrt64, err = wbuf.WriteTo(b); err != nil {
-			return
-		}
-		wr += wrt64
+	if !com.Dirty {
+		com.ResetBuf()
 	}
-
 	if c.offset > 0 {
-		b.WriteString(" OFFSET ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.offset)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.offset)
 	}
 	if c.limit > 0 {
-		b.WriteString(" LIMIT ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" LIMIT "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.limit)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.limit)
 	}
+	com.Dirty = false
 
 	return
 }
@@ -820,50 +492,59 @@ func ScanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
 
 func (r *newsRepositoryBase) Count(c *newsCriteria) (int64, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT COUNT(*) FROM ")
-	qbuf.WriteString(r.table)
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
+	com := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+	buf.WriteString(r.table)
 
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return 0, err
 	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Count"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Count"); err != nil {
 			return 0, err
 		}
 	}
 
 	var count int64
-	err := r.db.QueryRow(qbuf.String(), args.Slice()...).Scan(&count)
-	if err != nil {
+	if err := r.db.QueryRow(buf.String(), com.Args()...).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
+
 func (r *newsRepositoryBase) Find(c *newsCriteria) ([]*newsEntity, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -874,26 +555,30 @@ func (r *newsRepositoryBase) Find(c *newsCriteria) ([]*newsEntity, error) {
 }
 func (r *newsRepositoryBase) FindIter(c *newsCriteria) (*newsIterator, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -975,9 +660,9 @@ func (r *newsRepositoryBase) Insert(e *newsEntity) (*newsEntity, error) {
 
 	return e, nil
 }
-func (r *newsRepositoryBase) UpdateByID(patch *newsPatch) (*newsEntity, error) {
+func (r *newsRepositoryBase) UpdateOneByID(id int64, patch *newsPatch) (*newsEntity, error) {
 	update := pqcomp.New(0, 6)
-	update.AddExpr(tableNewsColumnID, pqcomp.Equal, patch.id)
+	update.AddExpr(tableNewsColumnID, pqcomp.Equal, id)
 	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
 	if patch.createdAt != nil {
 		update.AddExpr(tableNewsColumnCreatedAt, pqcomp.Equal, patch.createdAt)
@@ -992,7 +677,7 @@ func (r *newsRepositoryBase) UpdateByID(patch *newsPatch) (*newsEntity, error) {
 	}
 
 	if update.Len() == 0 {
-		return nil, errors.New("main: news update failure, nothing to update")
+		return nil, errors.New("news update failure, nothing to update")
 	}
 	query := "UPDATE example.news SET "
 	for update.Next() {
@@ -1018,7 +703,7 @@ func (r *newsRepositoryBase) UpdateByID(patch *newsPatch) (*newsEntity, error) {
 
 	return &e, nil
 }
-func (r *newsRepositoryBase) DeleteByID(id int64) (int64, error) {
+func (r *newsRepositoryBase) DeleteOneByID(id int64) (int64, error) {
 	query := "DELETE FROM example.news WHERE id = $1"
 
 	res, err := r.db.Exec(query, id)
@@ -1156,688 +841,303 @@ type commentCriteria struct {
 	updatedAt     *qtypes.Timestamp
 }
 
-func (c *commentCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter, args *pqtgo.Arguments) (wr int64, err error) {
-	var (
-		wrt   int
-		wrt64 int64
-		dirty bool
-	)
-
-	wbuf := bytes.NewBuffer(nil)
-
-	if c.content != nil && c.content.Valid {
-		switch c.content.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.content.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.content.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.content.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.content.Value()))
-		}
+func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
+	if _, err = com.WriteString(" WHERE "); err != nil {
+		return
 	}
+
+	if c.content != nil && c.content.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	pqtgo.WriteCompositionQueryString(c.content, tableCommentColumnContent, com, pqtgo.And)
 
 	if c.createdAt != nil && c.createdAt.Valid {
 		createdAtt1 := c.createdAt.Value()
 		if createdAtt1 != nil {
 			createdAt1, err := ptypes.Timestamp(createdAtt1)
 			if err != nil {
-				return wr, err
+				return err
 			}
 			switch c.createdAt.Type {
-			case qtypes.NumericQueryType_NOT_A_NUMBER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnCreatedAt)
+				com.WriteString(tableCommentColumnCreatedAt)
 				if c.createdAt.Negation {
-					wbuf.WriteString(" IS NOT NULL ")
+					com.WriteString(" IS NOT NULL ")
 				} else {
-					wbuf.WriteString(" IS NULL ")
+					com.WriteString(" IS NULL ")
 				}
-			case qtypes.NumericQueryType_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnCreatedAt)
+				com.WriteString(tableCommentColumnCreatedAt)
 				if c.createdAt.Negation {
-					wbuf.WriteString("<>")
+					com.WriteString("<>")
 				} else {
-					wbuf.WriteString("=")
+					com.WriteString("=")
 				}
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_GREATER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnCreatedAt)
-				wbuf.WriteString(">")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_GREATER_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCommentColumnCreatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnCreatedAt)
-				wbuf.WriteString(">=")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_LESS:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCommentColumnCreatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnCreatedAt)
-				wbuf.WriteString("<")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_LESS_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCommentColumnCreatedAt)
+				com.WriteString("<")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnCreatedAt)
-				wbuf.WriteString("<=")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_IN:
+				com.WriteString(tableCommentColumnCreatedAt)
+				com.WriteString("<=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_IN:
 				if len(c.createdAt.Values) > 0 {
-					if dirty {
-						wbuf.WriteString(" AND ")
+					if com.Dirty {
+						com.WriteString(" AND ")
 					}
-					dirty = true
+					com.Dirty = true
 
-					wbuf.WriteString(tableCommentColumnCreatedAt)
-					wbuf.WriteString(" IN (")
+					com.WriteString(tableCommentColumnCreatedAt)
+					com.WriteString(" IN (")
 					for i, v := range c.createdAt.Values {
 						if i != 0 {
-							wbuf.WriteString(",")
+							com.WriteString(",")
 						}
-						pw.WriteTo(wbuf)
-						args.Add(v)
+						com.WritePlaceholder()
+						com.Add(v)
 					}
-					wbuf.WriteString(") ")
+					com.WriteString(") ")
 				}
-			case qtypes.NumericQueryType_BETWEEN:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
 				createdAtt2 := c.createdAt.Values[1]
 				if createdAtt2 != nil {
 					createdAt2, err := ptypes.Timestamp(createdAtt2)
 					if err != nil {
-						return wr, err
+						return err
 					}
-					wbuf.WriteString(tableCommentColumnCreatedAt)
-					wbuf.WriteString(" > ")
-					pw.WriteTo(wbuf)
-					args.Add(createdAt1)
-					wbuf.WriteString(" AND ")
-					wbuf.WriteString(tableCommentColumnCreatedAt)
-					wbuf.WriteString(" < ")
-					pw.WriteTo(wbuf)
-					args.Add(createdAt2)
+					com.WriteString(tableCommentColumnCreatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(createdAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tableCommentColumnCreatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(createdAt2)
 				}
 			}
 		}
 	}
 
-	if c.id != nil && c.id.Valid {
-		switch c.id.Type {
-		case qtypes.NumericQueryType_NOT_A_NUMBER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.NumericQueryType_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString("=")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_GREATER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_GREATER_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" < ")
-			} else {
-				wbuf.WriteString(" >= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_LESS:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id)
-		case qtypes.NumericQueryType_LESS_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" > ")
-			} else {
-				wbuf.WriteString(" <= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_IN:
-			if len(c.id.Values) > 0 {
-				if dirty {
-					wbuf.WriteString(" AND ")
-				}
-				dirty = true
-
-				wbuf.WriteString(tableCommentColumnID)
-				if c.id.Negation {
-					wbuf.WriteString(" NOT IN (")
-				} else {
-					wbuf.WriteString(" IN (")
-				}
-				for i, v := range c.id.Values {
-					if i != 0 {
-						wbuf.WriteString(",")
-					}
-					pw.WriteTo(wbuf)
-					args.Add(v)
-				}
-				wbuf.WriteString(") ")
-			}
-		case qtypes.NumericQueryType_BETWEEN:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Values[0])
-			wbuf.WriteString(" AND ")
-			wbuf.WriteString(tableCommentColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Values[1])
-		}
+	if c.id != nil && c.id.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCommentColumnID, com, pqtgo.And); err != nil {
+		return
 	}
 
-	if c.newsID != nil && c.newsID.Valid {
-		switch c.newsID.Type {
-		case qtypes.NumericQueryType_NOT_A_NUMBER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.NumericQueryType_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString("=")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID.Value())
-		case qtypes.NumericQueryType_GREATER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID.Value())
-		case qtypes.NumericQueryType_GREATER_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" < ")
-			} else {
-				wbuf.WriteString(" >= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID.Value())
-		case qtypes.NumericQueryType_LESS:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID)
-		case qtypes.NumericQueryType_LESS_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" > ")
-			} else {
-				wbuf.WriteString(" <= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID.Value())
-		case qtypes.NumericQueryType_IN:
-			if len(c.newsID.Values) > 0 {
-				if dirty {
-					wbuf.WriteString(" AND ")
-				}
-				dirty = true
-
-				wbuf.WriteString(tableCommentColumnNewsID)
-				if c.newsID.Negation {
-					wbuf.WriteString(" NOT IN (")
-				} else {
-					wbuf.WriteString(" IN (")
-				}
-				for i, v := range c.newsID.Values {
-					if i != 0 {
-						wbuf.WriteString(",")
-					}
-					pw.WriteTo(wbuf)
-					args.Add(v)
-				}
-				wbuf.WriteString(") ")
-			}
-		case qtypes.NumericQueryType_BETWEEN:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID.Values[0])
-			wbuf.WriteString(" AND ")
-			wbuf.WriteString(tableCommentColumnNewsID)
-			if c.newsID.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsID.Values[1])
-		}
+	if c.newsID != nil && c.newsID.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	if err = pqtgo.WriteCompositionQueryInt64(c.newsID, tableCommentColumnNewsID, com, pqtgo.And); err != nil {
+		return
 	}
 
-	if c.newsTitle != nil && c.newsTitle.Valid {
-		switch c.newsTitle.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsTitle)
-			if c.newsTitle.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsTitle)
-			if c.newsTitle.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.newsTitle.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsTitle)
-			if c.newsTitle.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.newsTitle.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsTitle)
-			if c.newsTitle.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.newsTitle.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCommentColumnNewsTitle)
-			if c.newsTitle.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.newsTitle.Value()))
-		}
+	if c.newsTitle != nil && c.newsTitle.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
 	}
+	pqtgo.WriteCompositionQueryString(c.newsTitle, tableCommentColumnNewsTitle, com, pqtgo.And)
 
 	if c.updatedAt != nil && c.updatedAt.Valid {
 		updatedAtt1 := c.updatedAt.Value()
 		if updatedAtt1 != nil {
 			updatedAt1, err := ptypes.Timestamp(updatedAtt1)
 			if err != nil {
-				return wr, err
+				return err
 			}
 			switch c.updatedAt.Type {
-			case qtypes.NumericQueryType_NOT_A_NUMBER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnUpdatedAt)
+				com.WriteString(tableCommentColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					wbuf.WriteString(" IS NOT NULL ")
+					com.WriteString(" IS NOT NULL ")
 				} else {
-					wbuf.WriteString(" IS NULL ")
+					com.WriteString(" IS NULL ")
 				}
-			case qtypes.NumericQueryType_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnUpdatedAt)
+				com.WriteString(tableCommentColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					wbuf.WriteString("<>")
+					com.WriteString("<>")
 				} else {
-					wbuf.WriteString("=")
+					com.WriteString("=")
 				}
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_GREATER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnUpdatedAt)
-				wbuf.WriteString(">")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_GREATER_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCommentColumnUpdatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnUpdatedAt)
-				wbuf.WriteString(">=")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_LESS:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCommentColumnUpdatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnUpdatedAt)
-				wbuf.WriteString("<")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_LESS_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCommentColumnUpdatedAt)
+				com.WriteString("<")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCommentColumnUpdatedAt)
-				wbuf.WriteString("<=")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_IN:
+				com.WriteString(tableCommentColumnUpdatedAt)
+				com.WriteString("<=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_IN:
 				if len(c.updatedAt.Values) > 0 {
-					if dirty {
-						wbuf.WriteString(" AND ")
+					if com.Dirty {
+						com.WriteString(" AND ")
 					}
-					dirty = true
+					com.Dirty = true
 
-					wbuf.WriteString(tableCommentColumnUpdatedAt)
-					wbuf.WriteString(" IN (")
+					com.WriteString(tableCommentColumnUpdatedAt)
+					com.WriteString(" IN (")
 					for i, v := range c.updatedAt.Values {
 						if i != 0 {
-							wbuf.WriteString(",")
+							com.WriteString(",")
 						}
-						pw.WriteTo(wbuf)
-						args.Add(v)
+						com.WritePlaceholder()
+						com.Add(v)
 					}
-					wbuf.WriteString(") ")
+					com.WriteString(") ")
 				}
-			case qtypes.NumericQueryType_BETWEEN:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
 				updatedAtt2 := c.updatedAt.Values[1]
 				if updatedAtt2 != nil {
 					updatedAt2, err := ptypes.Timestamp(updatedAtt2)
 					if err != nil {
-						return wr, err
+						return err
 					}
-					wbuf.WriteString(tableCommentColumnUpdatedAt)
-					wbuf.WriteString(" > ")
-					pw.WriteTo(wbuf)
-					args.Add(updatedAt1)
-					wbuf.WriteString(" AND ")
-					wbuf.WriteString(tableCommentColumnUpdatedAt)
-					wbuf.WriteString(" < ")
-					pw.WriteTo(wbuf)
-					args.Add(updatedAt2)
+					com.WriteString(tableCommentColumnUpdatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(updatedAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tableCommentColumnUpdatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(updatedAt2)
 				}
 			}
 		}
 	}
 
-	if dirty {
-		if wrt, err = b.WriteString(" WHERE "); err != nil {
-			return
-		}
-		wr += int64(wrt)
-		if wrt64, err = wbuf.WriteTo(b); err != nil {
-			return
-		}
-		wr += wrt64
+	if !com.Dirty {
+		com.ResetBuf()
 	}
-
 	if c.offset > 0 {
-		b.WriteString(" OFFSET ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.offset)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.offset)
 	}
 	if c.limit > 0 {
-		b.WriteString(" LIMIT ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" LIMIT "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.limit)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.limit)
 	}
+	com.Dirty = false
 
 	return
 }
@@ -1880,50 +1180,59 @@ func ScanCommentRows(rows *sql.Rows) ([]*commentEntity, error) {
 
 func (r *commentRepositoryBase) Count(c *commentCriteria) (int64, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT COUNT(*) FROM ")
-	qbuf.WriteString(r.table)
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
+	com := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+	buf.WriteString(r.table)
 
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return 0, err
 	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Count"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Count"); err != nil {
 			return 0, err
 		}
 	}
 
 	var count int64
-	err := r.db.QueryRow(qbuf.String(), args.Slice()...).Scan(&count)
-	if err != nil {
+	if err := r.db.QueryRow(buf.String(), com.Args()...).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
+
 func (r *commentRepositoryBase) Find(c *commentCriteria) ([]*commentEntity, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -1934,26 +1243,30 @@ func (r *commentRepositoryBase) Find(c *commentCriteria) ([]*commentEntity, erro
 }
 func (r *commentRepositoryBase) FindIter(c *commentCriteria) (*commentIterator, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -2138,541 +1451,155 @@ type categoryCriteria struct {
 	updatedAt     *qtypes.Timestamp
 }
 
-func (c *categoryCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter, args *pqtgo.Arguments) (wr int64, err error) {
-	var (
-		wrt   int
-		wrt64 int64
-		dirty bool
-	)
-
-	wbuf := bytes.NewBuffer(nil)
-
-	if c.content != nil && c.content.Valid {
-		switch c.content.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.content.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.content.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.content.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnContent)
-			if c.content.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.content.Value()))
-		}
+func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
+	if _, err = com.WriteString(" WHERE "); err != nil {
+		return
 	}
+
+	if c.content != nil && c.content.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	pqtgo.WriteCompositionQueryString(c.content, tableCategoryColumnContent, com, pqtgo.And)
 
 	if c.createdAt != nil && c.createdAt.Valid {
 		createdAtt1 := c.createdAt.Value()
 		if createdAtt1 != nil {
 			createdAt1, err := ptypes.Timestamp(createdAtt1)
 			if err != nil {
-				return wr, err
+				return err
 			}
 			switch c.createdAt.Type {
-			case qtypes.NumericQueryType_NOT_A_NUMBER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnCreatedAt)
+				com.WriteString(tableCategoryColumnCreatedAt)
 				if c.createdAt.Negation {
-					wbuf.WriteString(" IS NOT NULL ")
+					com.WriteString(" IS NOT NULL ")
 				} else {
-					wbuf.WriteString(" IS NULL ")
+					com.WriteString(" IS NULL ")
 				}
-			case qtypes.NumericQueryType_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnCreatedAt)
+				com.WriteString(tableCategoryColumnCreatedAt)
 				if c.createdAt.Negation {
-					wbuf.WriteString("<>")
+					com.WriteString("<>")
 				} else {
-					wbuf.WriteString("=")
+					com.WriteString("=")
 				}
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_GREATER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnCreatedAt)
-				wbuf.WriteString(">")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_GREATER_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCategoryColumnCreatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnCreatedAt)
-				wbuf.WriteString(">=")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_LESS:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCategoryColumnCreatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnCreatedAt)
-				wbuf.WriteString("<")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_LESS_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCategoryColumnCreatedAt)
+				com.WriteString("<")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnCreatedAt)
-				wbuf.WriteString("<=")
-				pw.WriteTo(wbuf)
-				args.Add(c.createdAt.Value())
-			case qtypes.NumericQueryType_IN:
+				com.WriteString(tableCategoryColumnCreatedAt)
+				com.WriteString("<=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_IN:
 				if len(c.createdAt.Values) > 0 {
-					if dirty {
-						wbuf.WriteString(" AND ")
+					if com.Dirty {
+						com.WriteString(" AND ")
 					}
-					dirty = true
+					com.Dirty = true
 
-					wbuf.WriteString(tableCategoryColumnCreatedAt)
-					wbuf.WriteString(" IN (")
+					com.WriteString(tableCategoryColumnCreatedAt)
+					com.WriteString(" IN (")
 					for i, v := range c.createdAt.Values {
 						if i != 0 {
-							wbuf.WriteString(",")
+							com.WriteString(",")
 						}
-						pw.WriteTo(wbuf)
-						args.Add(v)
+						com.WritePlaceholder()
+						com.Add(v)
 					}
-					wbuf.WriteString(") ")
+					com.WriteString(") ")
 				}
-			case qtypes.NumericQueryType_BETWEEN:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
 				createdAtt2 := c.createdAt.Values[1]
 				if createdAtt2 != nil {
 					createdAt2, err := ptypes.Timestamp(createdAtt2)
 					if err != nil {
-						return wr, err
+						return err
 					}
-					wbuf.WriteString(tableCategoryColumnCreatedAt)
-					wbuf.WriteString(" > ")
-					pw.WriteTo(wbuf)
-					args.Add(createdAt1)
-					wbuf.WriteString(" AND ")
-					wbuf.WriteString(tableCategoryColumnCreatedAt)
-					wbuf.WriteString(" < ")
-					pw.WriteTo(wbuf)
-					args.Add(createdAt2)
+					com.WriteString(tableCategoryColumnCreatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(createdAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tableCategoryColumnCreatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(createdAt2)
 				}
 			}
 		}
 	}
 
-	if c.id != nil && c.id.Valid {
-		switch c.id.Type {
-		case qtypes.NumericQueryType_NOT_A_NUMBER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.NumericQueryType_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString("=")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_GREATER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_GREATER_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" < ")
-			} else {
-				wbuf.WriteString(" >= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_LESS:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id)
-		case qtypes.NumericQueryType_LESS_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" > ")
-			} else {
-				wbuf.WriteString(" <= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Value())
-		case qtypes.NumericQueryType_IN:
-			if len(c.id.Values) > 0 {
-				if dirty {
-					wbuf.WriteString(" AND ")
-				}
-				dirty = true
-
-				wbuf.WriteString(tableCategoryColumnID)
-				if c.id.Negation {
-					wbuf.WriteString(" NOT IN (")
-				} else {
-					wbuf.WriteString(" IN (")
-				}
-				for i, v := range c.id.Values {
-					if i != 0 {
-						wbuf.WriteString(",")
-					}
-					pw.WriteTo(wbuf)
-					args.Add(v)
-				}
-				wbuf.WriteString(") ")
-			}
-		case qtypes.NumericQueryType_BETWEEN:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Values[0])
-			wbuf.WriteString(" AND ")
-			wbuf.WriteString(tableCategoryColumnID)
-			if c.id.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.id.Values[1])
-		}
+	if c.id != nil && c.id.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCategoryColumnID, com, pqtgo.And); err != nil {
+		return
 	}
 
-	if c.name != nil && c.name.Valid {
-		switch c.name.Type {
-		case qtypes.TextQueryType_NOT_A_TEXT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnName)
-			if c.name.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.TextQueryType_EXACT:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnName)
-			if c.name.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString(" = ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.name.Value())
-		case qtypes.TextQueryType_SUBSTRING:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnName)
-			if c.name.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s%%", c.name.Value()))
-		case qtypes.TextQueryType_HAS_PREFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnName)
-			if c.name.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%s%%", c.name.Value()))
-		case qtypes.TextQueryType_HAS_SUFFIX:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnName)
-			if c.name.Negation {
-				wbuf.WriteString(" NOT LIKE ")
-			} else {
-				wbuf.WriteString(" LIKE ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(fmt.Sprintf("%%%s", c.name.Value()))
-		}
+	if c.name != nil && c.name.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
 	}
+	pqtgo.WriteCompositionQueryString(c.name, tableCategoryColumnName, com, pqtgo.And)
 
-	if c.parentID != nil && c.parentID.Valid {
-		switch c.parentID.Type {
-		case qtypes.NumericQueryType_NOT_A_NUMBER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" IS NOT NULL ")
-			} else {
-				wbuf.WriteString(" IS NULL ")
-			}
-		case qtypes.NumericQueryType_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" <> ")
-			} else {
-				wbuf.WriteString("=")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID.Value())
-		case qtypes.NumericQueryType_GREATER:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID.Value())
-		case qtypes.NumericQueryType_GREATER_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" < ")
-			} else {
-				wbuf.WriteString(" >= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID.Value())
-		case qtypes.NumericQueryType_LESS:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID)
-		case qtypes.NumericQueryType_LESS_EQUAL:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" > ")
-			} else {
-				wbuf.WriteString(" <= ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID.Value())
-		case qtypes.NumericQueryType_IN:
-			if len(c.parentID.Values) > 0 {
-				if dirty {
-					wbuf.WriteString(" AND ")
-				}
-				dirty = true
-
-				wbuf.WriteString(tableCategoryColumnParentID)
-				if c.parentID.Negation {
-					wbuf.WriteString(" NOT IN (")
-				} else {
-					wbuf.WriteString(" IN (")
-				}
-				for i, v := range c.parentID.Values {
-					if i != 0 {
-						wbuf.WriteString(",")
-					}
-					pw.WriteTo(wbuf)
-					args.Add(v)
-				}
-				wbuf.WriteString(") ")
-			}
-		case qtypes.NumericQueryType_BETWEEN:
-			if dirty {
-				wbuf.WriteString(" AND ")
-			}
-			dirty = true
-
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" <= ")
-			} else {
-				wbuf.WriteString(" > ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID.Values[0])
-			wbuf.WriteString(" AND ")
-			wbuf.WriteString(tableCategoryColumnParentID)
-			if c.parentID.Negation {
-				wbuf.WriteString(" >= ")
-			} else {
-				wbuf.WriteString(" < ")
-			}
-			pw.WriteTo(wbuf)
-			args.Add(c.parentID.Values[1])
-		}
+	if c.parentID != nil && c.parentID.Valid && com.Dirty {
+		com.WriteString(" AND ")
+		com.Dirty = false
+	}
+	if err = pqtgo.WriteCompositionQueryInt64(c.parentID, tableCategoryColumnParentID, com, pqtgo.And); err != nil {
+		return
 	}
 
 	if c.updatedAt != nil && c.updatedAt.Valid {
@@ -2680,146 +1607,147 @@ func (c *categoryCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter
 		if updatedAtt1 != nil {
 			updatedAt1, err := ptypes.Timestamp(updatedAtt1)
 			if err != nil {
-				return wr, err
+				return err
 			}
 			switch c.updatedAt.Type {
-			case qtypes.NumericQueryType_NOT_A_NUMBER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnUpdatedAt)
+				com.WriteString(tableCategoryColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					wbuf.WriteString(" IS NOT NULL ")
+					com.WriteString(" IS NOT NULL ")
 				} else {
-					wbuf.WriteString(" IS NULL ")
+					com.WriteString(" IS NULL ")
 				}
-			case qtypes.NumericQueryType_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnUpdatedAt)
+				com.WriteString(tableCategoryColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					wbuf.WriteString("<>")
+					com.WriteString("<>")
 				} else {
-					wbuf.WriteString("=")
+					com.WriteString("=")
 				}
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_GREATER:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnUpdatedAt)
-				wbuf.WriteString(">")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_GREATER_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCategoryColumnUpdatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnUpdatedAt)
-				wbuf.WriteString(">=")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_LESS:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCategoryColumnUpdatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnUpdatedAt)
-				wbuf.WriteString("<")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_LESS_EQUAL:
-				if dirty {
-					wbuf.WriteString(" AND ")
+				com.WriteString(tableCategoryColumnUpdatedAt)
+				com.WriteString("<")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
-				wbuf.WriteString(tableCategoryColumnUpdatedAt)
-				wbuf.WriteString("<=")
-				pw.WriteTo(wbuf)
-				args.Add(c.updatedAt.Value())
-			case qtypes.NumericQueryType_IN:
+				com.WriteString(tableCategoryColumnUpdatedAt)
+				com.WriteString("<=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_IN:
 				if len(c.updatedAt.Values) > 0 {
-					if dirty {
-						wbuf.WriteString(" AND ")
+					if com.Dirty {
+						com.WriteString(" AND ")
 					}
-					dirty = true
+					com.Dirty = true
 
-					wbuf.WriteString(tableCategoryColumnUpdatedAt)
-					wbuf.WriteString(" IN (")
+					com.WriteString(tableCategoryColumnUpdatedAt)
+					com.WriteString(" IN (")
 					for i, v := range c.updatedAt.Values {
 						if i != 0 {
-							wbuf.WriteString(",")
+							com.WriteString(",")
 						}
-						pw.WriteTo(wbuf)
-						args.Add(v)
+						com.WritePlaceholder()
+						com.Add(v)
 					}
-					wbuf.WriteString(") ")
+					com.WriteString(") ")
 				}
-			case qtypes.NumericQueryType_BETWEEN:
-				if dirty {
-					wbuf.WriteString(" AND ")
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
 				}
-				dirty = true
+				com.Dirty = true
 
 				updatedAtt2 := c.updatedAt.Values[1]
 				if updatedAtt2 != nil {
 					updatedAt2, err := ptypes.Timestamp(updatedAtt2)
 					if err != nil {
-						return wr, err
+						return err
 					}
-					wbuf.WriteString(tableCategoryColumnUpdatedAt)
-					wbuf.WriteString(" > ")
-					pw.WriteTo(wbuf)
-					args.Add(updatedAt1)
-					wbuf.WriteString(" AND ")
-					wbuf.WriteString(tableCategoryColumnUpdatedAt)
-					wbuf.WriteString(" < ")
-					pw.WriteTo(wbuf)
-					args.Add(updatedAt2)
+					com.WriteString(tableCategoryColumnUpdatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(updatedAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tableCategoryColumnUpdatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(updatedAt2)
 				}
 			}
 		}
 	}
 
-	if dirty {
-		if wrt, err = b.WriteString(" WHERE "); err != nil {
-			return
-		}
-		wr += int64(wrt)
-		if wrt64, err = wbuf.WriteTo(b); err != nil {
-			return
-		}
-		wr += wrt64
+	if !com.Dirty {
+		com.ResetBuf()
 	}
-
 	if c.offset > 0 {
-		b.WriteString(" OFFSET ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.offset)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.offset)
 	}
 	if c.limit > 0 {
-		b.WriteString(" LIMIT ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" LIMIT "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.limit)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.limit)
 	}
+	com.Dirty = false
 
 	return
 }
@@ -2871,50 +1799,59 @@ func ScanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
 
 func (r *categoryRepositoryBase) Count(c *categoryCriteria) (int64, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT COUNT(*) FROM ")
-	qbuf.WriteString(r.table)
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
+	com := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+	buf.WriteString(r.table)
 
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return 0, err
 	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Count"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Count"); err != nil {
 			return 0, err
 		}
 	}
 
 	var count int64
-	err := r.db.QueryRow(qbuf.String(), args.Slice()...).Scan(&count)
-	if err != nil {
+	if err := r.db.QueryRow(buf.String(), com.Args()...).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
+
 func (r *categoryRepositoryBase) Find(c *categoryCriteria) ([]*categoryEntity, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -2925,26 +1862,30 @@ func (r *categoryRepositoryBase) Find(c *categoryCriteria) ([]*categoryEntity, e
 }
 func (r *categoryRepositoryBase) FindIter(c *categoryCriteria) (*categoryIterator, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -3026,9 +1967,9 @@ func (r *categoryRepositoryBase) Insert(e *categoryEntity) (*categoryEntity, err
 
 	return e, nil
 }
-func (r *categoryRepositoryBase) UpdateByID(patch *categoryPatch) (*categoryEntity, error) {
+func (r *categoryRepositoryBase) UpdateOneByID(id int64, patch *categoryPatch) (*categoryEntity, error) {
 	update := pqcomp.New(0, 6)
-	update.AddExpr(tableCategoryColumnID, pqcomp.Equal, patch.id)
+	update.AddExpr(tableCategoryColumnID, pqcomp.Equal, id)
 	update.AddExpr(tableCategoryColumnContent, pqcomp.Equal, patch.content)
 	if patch.createdAt != nil {
 		update.AddExpr(tableCategoryColumnCreatedAt, pqcomp.Equal, patch.createdAt)
@@ -3043,7 +1984,7 @@ func (r *categoryRepositoryBase) UpdateByID(patch *categoryPatch) (*categoryEnti
 	}
 
 	if update.Len() == 0 {
-		return nil, errors.New("main: category update failure, nothing to update")
+		return nil, errors.New("category update failure, nothing to update")
 	}
 	query := "UPDATE example.category SET "
 	for update.Next() {
@@ -3069,7 +2010,7 @@ func (r *categoryRepositoryBase) UpdateByID(patch *categoryPatch) (*categoryEnti
 
 	return &e, nil
 }
-func (r *categoryRepositoryBase) DeleteByID(id int64) (int64, error) {
+func (r *categoryRepositoryBase) DeleteOneByID(id int64) (int64, error) {
 	query := "DELETE FROM example.category WHERE id = $1"
 
 	res, err := r.db.Exec(query, id)

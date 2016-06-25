@@ -22,6 +22,7 @@ const (
 	ConstraintTypeExclusion = "excl"
 )
 
+// ConstraintOption ...
 type ConstraintOption func(*Constraint)
 
 // Constraint ...
@@ -117,12 +118,7 @@ func Exclusion(table *Table, columns ...*Column) *Constraint {
 //	return fk
 //}
 
-const (
-	MatchFull int32 = iota
-	MatchPartial
-	MatchSimple
-)
-
+// Reference ...
 type Reference struct {
 	From, To *Column
 }

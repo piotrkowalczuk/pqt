@@ -12,6 +12,7 @@ const (
 	EventUpdate Event = "UPDATE"
 )
 
+// Event ...
 type Event string
 
 // Column ...
@@ -79,6 +80,20 @@ func (c *Column) Constraints() []*Constraint {
 	return cs
 }
 
+// DefaultOn ...
+func (c Column) DefaultOn(e ...Event) (string, bool) {
+	for k, v := range c.Default {
+		for _, ee := range e {
+			if k == ee {
+				return v, true
+			}
+		}
+	}
+
+	return "", false
+}
+
+// Columns is a slice of columns that implements few handy methods.
 type Columns []*Column
 
 // Len implements sort.Interface interface.
@@ -109,19 +124,6 @@ func (c Columns) String() string {
 	}
 
 	return b.String()
-}
-
-// DefaultOn ...
-func (c Column) DefaultOn(e ...Event) (string, bool) {
-	for k, v := range c.Default {
-		for _, ee := range e {
-			if k == ee {
-				return v, true
-			}
-		}
-	}
-
-	return "", false
 }
 
 // JoinColumns ...

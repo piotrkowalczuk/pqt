@@ -68,4 +68,4 @@ Very welcome in general. Especially in fields like:
 * postgres types better support
 * support for functions
 * better control over if generated code is private or public
- 
+

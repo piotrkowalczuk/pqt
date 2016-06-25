@@ -154,249 +154,55 @@ id *qtypes.Int64
 name *qtypes.String
 }
 
-func (c *firstCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter, args *pqtgo.Arguments) (wr int64, err error) {
-		var (
-			wrt int
-			wrt64 int64
-			dirty bool
-		)
-
-		wbuf := bytes.NewBuffer(nil)
-
-				if c.id != nil && c.id.Valid {
-					switch c.id.Type {
-					case qtypes.NumericQueryType_NOT_A_NUMBER:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" IS NOT NULL ")
-						} else {
-							wbuf.WriteString(" IS NULL ")
-						}
-					case qtypes.NumericQueryType_EQUAL:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" <> ")
-						} else {
-							wbuf.WriteString("=")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id.Value())
-					case qtypes.NumericQueryType_GREATER:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" <= ")
-						} else {
-							wbuf.WriteString(" > ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id.Value())
-					case qtypes.NumericQueryType_GREATER_EQUAL:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" < ")
-						} else {
-							wbuf.WriteString(" >= ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id.Value())
-					case qtypes.NumericQueryType_LESS:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" >= ")
-						} else {
-							wbuf.WriteString(" < ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id)
-					case qtypes.NumericQueryType_LESS_EQUAL:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" > ")
-						} else {
-							wbuf.WriteString(" <= ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id.Value())
-					case qtypes.NumericQueryType_IN:
-						if len(c.id.Values) >0 {
-							if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-							wbuf.WriteString(tableFirstColumnId)
-							if c.id.Negation {
-								wbuf.WriteString(" NOT IN (")
-							} else {
-								wbuf.WriteString(" IN (")
-							}
-							for i, v := range c.id.Values {
-								if i != 0 {
-									wbuf.WriteString(",")
-								}
-								pw.WriteTo(wbuf)
-								args.Add(v)
-							}
-							wbuf.WriteString(") ")
-						}
-					case qtypes.NumericQueryType_BETWEEN:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" <= ")
-						} else {
-							wbuf.WriteString(" > ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id.Values[0])
-						wbuf.WriteString(" AND ")
-						wbuf.WriteString(tableFirstColumnId)
-						if c.id.Negation {
-							wbuf.WriteString(" >= ")
-						} else {
-							wbuf.WriteString(" < ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.id.Values[1])
-					}
-				}
-
-
-				if c.name != nil && c.name.Valid {
-					switch c.name.Type {
-					case qtypes.TextQueryType_NOT_A_TEXT:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnName)
-						if c.name.Negation {
-							wbuf.WriteString(" IS NOT NULL ")
-						} else {
-							wbuf.WriteString(" IS NULL ")
-						}
-					case qtypes.TextQueryType_EXACT:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnName)
-						if c.name.Negation {
-							wbuf.WriteString(" <> ")
-						} else {
-							wbuf.WriteString(" = ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(c.name.Value())
-					case qtypes.TextQueryType_SUBSTRING:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnName)
-						if c.name.Negation {
-							wbuf.WriteString(" NOT LIKE ")
-						} else {
-							wbuf.WriteString(" LIKE ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(fmt.Sprintf("%%%s%%", c.name.Value()))
-					case qtypes.TextQueryType_HAS_PREFIX:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnName)
-						if c.name.Negation {
-							wbuf.WriteString(" NOT LIKE ")
-						} else {
-							wbuf.WriteString(" LIKE ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(fmt.Sprintf("%s%%", c.name.Value()))
-					case qtypes.TextQueryType_HAS_SUFFIX:
-						if dirty {
-		wbuf.WriteString(" AND ")
-	}
-	dirty = true
-
-						wbuf.WriteString(tableFirstColumnName)
-						if c.name.Negation {
-							wbuf.WriteString(" NOT LIKE ")
-						} else {
-							wbuf.WriteString(" LIKE ")
-						}
-						pw.WriteTo(wbuf)
-						args.Add(fmt.Sprintf("%%%s", c.name.Value()))
-					}
-				}
-
-
-	if dirty {
-		if wrt, err = b.WriteString(" WHERE "); err != nil {
+func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
+		if _, err = com.WriteString(" WHERE "); err != nil {
 			return
 		}
-		wr += int64(wrt)
-		if wrt64, err = wbuf.WriteTo(b); err != nil {
-			return
-		}
-		wr += wrt64
-	}
+	
+			if c.id != nil && c.id.Valid && com.Dirty {
+				com.WriteString(" AND ")
+				com.Dirty = false
+			}
+			if err = pqtgo.WriteCompositionQueryInt64(c.id, tableFirstColumnId, com, pqtgo.And); err != nil {
+				return
+			}
+		
 
+			if c.name != nil && c.name.Valid && com.Dirty {
+				com.WriteString(" AND ")
+				com.Dirty = false
+			}
+			pqtgo.WriteCompositionQueryString(c.name, tableFirstColumnName, com, pqtgo.And)
+		
+
+	if !com.Dirty {
+		com.ResetBuf()
+	}
 	if c.offset > 0 {
-		b.WriteString(" OFFSET ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.offset)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.offset)
 	}
 	if c.limit > 0 {
-		b.WriteString(" LIMIT ")
-		if wrt64, err = pw.WriteTo(b); err != nil {
+		if _, err = com.WriteString(" LIMIT "); err != nil {
 			return
 		}
-		wr += wrt64
-		args.Add(c.limit)
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.limit)
 	}
+	com.Dirty = false
 
 	return
 }
@@ -434,50 +240,59 @@ func (c *firstCriteria) WriteSQL(b *bytes.Buffer, pw *pqtgo.PlaceholderWriter, a
 
 	func (r *firstRepositoryBase) Count(c *firstCriteria) (int64, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT COUNT(*) FROM ")
-	qbuf.WriteString(r.table)
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
+	com := pqtgo.NewComposer(2)
+	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+	buf.WriteString(r.table)
 
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return 0, err
 	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Count"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Count"); err != nil {
 			return 0, err
 		}
 	}
 
 	var count int64
-	err := r.db.QueryRow(qbuf.String(), args.Slice()...).Scan(&count)
-	if err != nil {
+	if err := r.db.QueryRow(buf.String(), com.Args()...).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
+
 func (r *firstRepositoryBase) Find(c *firstCriteria) ([]*firstEntity, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -488,26 +303,30 @@ func (r *firstRepositoryBase) Find(c *firstCriteria) ([]*firstEntity, error) {
 }
 func (r *firstRepositoryBase) FindIter(c *firstCriteria) (*firstIterator, error) {
 
-	qbuf := bytes.NewBuffer(nil)
-	qbuf.WriteString("SELECT ")
-	qbuf.WriteString(strings.Join(r.columns, ", "))
-	qbuf.WriteString(" FROM ")
-	qbuf.WriteString(r.table)
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
 
-	pw := pqtgo.NewPlaceholderWriter()
-	args := pqtgo.NewArguments(0)
-
-	if _, err := c.WriteSQL(qbuf, pw, args); err != nil {
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
 		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
 	}
 
 	if r.dbg {
-		if err := r.log.Log("msg", qbuf.String(), "function", "Find"); err != nil {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(qbuf.String(), args.Slice()...)
+	rows, err := r.db.Query(buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -570,7 +389,7 @@ func (r *firstRepositoryBase) Insert(e *firstEntity) (*firstEntity, error) {
 	}
 }
 
-func assertGoCode(t *testing.T, s1, s2, msg string, args ...interface{}) {
+func assertGoCode(t *testing.T, s1, s2, msg string, com ...interface{}) {
 	s1 = fmt.Sprintf("%s", s1)
 	s2 = fmt.Sprintf("%s", s2)
 	tmp1 := strings.Split(s1, "\n")
