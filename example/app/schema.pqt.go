@@ -185,9 +185,9 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 
 				com.WriteString(tableNewsColumnCreatedAt)
 				if c.createdAt.Negation {
-					com.WriteString("<>")
+					com.WriteString(" <> ")
 				} else {
-					com.WriteString("=")
+					com.WriteString(" = ")
 				}
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
@@ -218,7 +218,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 				com.Dirty = true
 
 				com.WriteString(tableNewsColumnCreatedAt)
-				com.WriteString("<")
+				com.WriteString(" < ")
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
 			case qtypes.QueryType_LESS_EQUAL:
@@ -228,7 +228,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 				com.Dirty = true
 
 				com.WriteString(tableNewsColumnCreatedAt)
-				com.WriteString("<=")
+				com.WriteString(" <= ")
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
 			case qtypes.QueryType_IN:
@@ -323,9 +323,9 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 
 				com.WriteString(tableNewsColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					com.WriteString("<>")
+					com.WriteString(" <> ")
 				} else {
-					com.WriteString("=")
+					com.WriteString(" = ")
 				}
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
@@ -356,7 +356,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 				com.Dirty = true
 
 				com.WriteString(tableNewsColumnUpdatedAt)
-				com.WriteString("<")
+				com.WriteString(" < ")
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
 			case qtypes.QueryType_LESS_EQUAL:
@@ -366,7 +366,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 				com.Dirty = true
 
 				com.WriteString(tableNewsColumnUpdatedAt)
-				com.WriteString("<=")
+				com.WriteString(" <= ")
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
 			case qtypes.QueryType_IN:
@@ -446,7 +446,6 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 }
 
 type newsPatch struct {
-	id        int64
 	content   *ntypes.String
 	createdAt *time.Time
 	lead      *ntypes.String
@@ -880,9 +879,9 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 
 				com.WriteString(tableCommentColumnCreatedAt)
 				if c.createdAt.Negation {
-					com.WriteString("<>")
+					com.WriteString(" <> ")
 				} else {
-					com.WriteString("=")
+					com.WriteString(" = ")
 				}
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
@@ -913,7 +912,7 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 				com.Dirty = true
 
 				com.WriteString(tableCommentColumnCreatedAt)
-				com.WriteString("<")
+				com.WriteString(" < ")
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
 			case qtypes.QueryType_LESS_EQUAL:
@@ -923,7 +922,7 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 				com.Dirty = true
 
 				com.WriteString(tableCommentColumnCreatedAt)
-				com.WriteString("<=")
+				com.WriteString(" <= ")
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
 			case qtypes.QueryType_IN:
@@ -1020,9 +1019,9 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 
 				com.WriteString(tableCommentColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					com.WriteString("<>")
+					com.WriteString(" <> ")
 				} else {
-					com.WriteString("=")
+					com.WriteString(" = ")
 				}
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
@@ -1053,7 +1052,7 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 				com.Dirty = true
 
 				com.WriteString(tableCommentColumnUpdatedAt)
-				com.WriteString("<")
+				com.WriteString(" < ")
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
 			case qtypes.QueryType_LESS_EQUAL:
@@ -1063,7 +1062,7 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 				com.Dirty = true
 
 				com.WriteString(tableCommentColumnUpdatedAt)
-				com.WriteString("<=")
+				com.WriteString(" <= ")
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
 			case qtypes.QueryType_IN:
@@ -1490,9 +1489,9 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 
 				com.WriteString(tableCategoryColumnCreatedAt)
 				if c.createdAt.Negation {
-					com.WriteString("<>")
+					com.WriteString(" <> ")
 				} else {
-					com.WriteString("=")
+					com.WriteString(" = ")
 				}
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
@@ -1523,7 +1522,7 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 				com.Dirty = true
 
 				com.WriteString(tableCategoryColumnCreatedAt)
-				com.WriteString("<")
+				com.WriteString(" < ")
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
 			case qtypes.QueryType_LESS_EQUAL:
@@ -1533,7 +1532,7 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 				com.Dirty = true
 
 				com.WriteString(tableCategoryColumnCreatedAt)
-				com.WriteString("<=")
+				com.WriteString(" <= ")
 				com.WritePlaceholder()
 				com.Add(c.createdAt.Value())
 			case qtypes.QueryType_IN:
@@ -1630,9 +1629,9 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 
 				com.WriteString(tableCategoryColumnUpdatedAt)
 				if c.updatedAt.Negation {
-					com.WriteString("<>")
+					com.WriteString(" <> ")
 				} else {
-					com.WriteString("=")
+					com.WriteString(" = ")
 				}
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
@@ -1663,7 +1662,7 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 				com.Dirty = true
 
 				com.WriteString(tableCategoryColumnUpdatedAt)
-				com.WriteString("<")
+				com.WriteString(" < ")
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
 			case qtypes.QueryType_LESS_EQUAL:
@@ -1673,7 +1672,7 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 				com.Dirty = true
 
 				com.WriteString(tableCategoryColumnUpdatedAt)
-				com.WriteString("<=")
+				com.WriteString(" <= ")
 				com.WritePlaceholder()
 				com.Add(c.updatedAt.Value())
 			case qtypes.QueryType_IN:
@@ -1753,7 +1752,6 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 }
 
 type categoryPatch struct {
-	id        int64
 	content   *ntypes.String
 	createdAt *time.Time
 	name      *ntypes.String

@@ -10,15 +10,23 @@ It relies to a large degree on packages:
 
 ## Features:
 
+- __query builder__:
+	- [pqtgo.Composer](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#Composer) - builder like object that keeps buffer and arguments but also tracks positional parameters.
+	- [pqtgo.CompositionWriter](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#CompositionWriter) - interface used by generator, allows custom structs to be used as a criteria parameter
+	- [pqtgo.WriteCompositionQueryInt64](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryInt64) - helper function that generate SQL for [qtypes.Int64](https://godoc.org/github.com/piotrkowalczuk/qtypes#Int64) object.
+	  - [pqtgo.WriteCompositionQueryString](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryString) - helper function that generate SQL for [qtypes.Int64](https://godoc.org/github.com/piotrkowalczuk/qtypes#String) object.
 - __array support__ - golang postgres driver do not support arrays natively, pqt comes with help:
-	- [pqt.ArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayInt64) - wrapper for []int64
-	- [pqt.ArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayFloat64) - wrapper for []float64
-	- [pqt.ArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayString) - wrapper for []string
+	- [pqt.ArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayInt64) - wrapper for []int64, it generates regular SQL array
+	- [pqt.ArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayFloat64) - wrapper for []float64, it generates regular SQL array
+	- [pqt.ArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayString) - wrapper for []string, it generates regular SQL array
+	- [pqt.JSONArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayInt64) - wrapper for []int64, it generates JSONB compatible array `[]` instead of `{}`
+	- [pqt.JSONArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayFloat64) - wrapper for []float64, it generates JSONB compatible array `[]` instead of `{}`
+	- [pqt.JSONArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayString) - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
 - __sql generation__
 - __go generation__ - it includes:
 	- `entity` - struct that reflects single row within the database
 	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
-	- `patch` - structure used by `UpdateBy<primary-key>` methods to modify existing entity
+	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing entity
 	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
 		- `table names`
@@ -30,8 +38,8 @@ It relies to a large degree on packages:
 		- `FindIter` - works like `Find` but returns `iterator`
 		- `Insert` - saves given entity into the database
 		- `FindOneBy<primary-key>` - retrieves single entity
-		- `UpdateBy<primary-key>` - modifies single entity
-		- `DeleteBy<primary-key>` - modifies single entity
+		- `UpdateOneBy<primary-key>` - modifies single entity
+		- `DeleteOneBy<primary-key>` - modifies single entity
 	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<entity>Entity, error) {` helper function
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
