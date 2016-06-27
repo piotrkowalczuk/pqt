@@ -1202,6 +1202,8 @@ ColumnsLoop:
 				fmt.Fprintf(w, "if patch.%s != nil {\n", g.private(c.Name))
 
 			}
+		} else if g.canBeNil(c, modeOptional) {
+			fmt.Fprintf(w, "if patch.%s != nil {\n", g.private(c.Name))
 		}
 
 		fmt.Fprintf(w, "update.AddExpr(")
@@ -1222,6 +1224,8 @@ ColumnsLoop:
 			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
 				fmt.Fprintf(w, "\n}\n")
 			}
+		} else if g.canBeNil(c, modeOptional) {
+			fmt.Fprintf(w, "\n}\n")
 		}
 	}
 	fmt.Fprintf(w, `
