@@ -4,21 +4,22 @@ import "sort"
 
 // Table is partially implemented postgres table synopsis.
 type Table struct {
-	self                      bool
-	Name, Collate, TableSpace string
-	IfNotExists, Temporary    bool
-	Schema                    *Schema
-	Columns                   Columns
-	Constraints               []*Constraint
-	OwnedRelationships        []*Relationship
-	InversedRelationships     []*Relationship
-	ManyToManyRelationships   []*Relationship
+	self                                 bool
+	Name, ShortName, Collate, TableSpace string
+	IfNotExists, Temporary               bool
+	Schema                               *Schema
+	Columns                              Columns
+	Constraints                          []*Constraint
+	OwnedRelationships                   []*Relationship
+	InversedRelationships                []*Relationship
+	ManyToManyRelationships              []*Relationship
 }
 
 // NewTable allocates new table using given name and options.
 func NewTable(name string, opts ...TableOption) *Table {
 	t := &Table{
 		Name:                  name,
+		ShortName:             name,
 		Columns:               make(Columns, 0),
 		Constraints:           make([]*Constraint, 0),
 		InversedRelationships: make([]*Relationship, 0),
@@ -277,6 +278,13 @@ func WithTemporary() TableOption {
 func WithTableSpace(s string) TableOption {
 	return func(t *Table) {
 		t.TableSpace = s
+	}
+}
+
+// WithTableShortName ...
+func WithTableShortName(s string) TableOption {
+	return func(t *Table) {
+		t.ShortName = s
 	}
 }
 

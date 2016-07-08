@@ -260,8 +260,8 @@ func WithOnUpdate(on int32) ColumnOption {
 	}
 }
 
-// WithShortName ...
-func WithShortName(s string) ColumnOption {
+// WithColumnShortName ...
+func WithColumnShortName(s string) ColumnOption {
 	return func(c *Column) {
 		c.ShortName = s
 	}

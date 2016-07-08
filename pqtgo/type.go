@@ -72,9 +72,16 @@ func (ct CustomType) Fingerprint() string {
 
 // TypeCustom ...
 func TypeCustom(m, o, c interface{}) CustomType {
-	mandatoryTypeOf := reflect.ValueOf(m).Type()
-	optionalTypeOf := reflect.ValueOf(o).Type()
-	criteriaTypeOf := reflect.ValueOf(c).Type()
+	var mandatoryTypeOf, optionalTypeOf, criteriaTypeOf reflect.Type
+	if m != nil {
+		mandatoryTypeOf = reflect.ValueOf(m).Type()
+	}
+	if o != nil {
+		optionalTypeOf = reflect.ValueOf(o).Type()
+	}
+	if c != nil {
+		criteriaTypeOf = reflect.ValueOf(c).Type()
+	}
 
 	return CustomType{
 		mandatory:       m,
@@ -84,4 +91,13 @@ func TypeCustom(m, o, c interface{}) CustomType {
 		optionalTypeOf:  optionalTypeOf,
 		criteriaTypeOf:  criteriaTypeOf,
 	}
+}
+
+// TypeMapOfStrings ....
+func TypeMapOfStrings() CustomType {
+	return TypeCustom(
+		map[string]string{},
+		map[string]string{},
+		nil,
+	)
 }

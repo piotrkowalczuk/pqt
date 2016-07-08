@@ -49,7 +49,7 @@ func (c *Constraint) Name() string {
 	}
 
 	if len(c.Columns) == 0 {
-		return fmt.Sprintf("%s.%s_%s", schema, c.Table.Name, c.Type)
+		return fmt.Sprintf("%s.%s_%s", schema, c.Table.ShortName, c.Type)
 	}
 	tmp := make([]string, 0, len(c.Columns))
 	for _, col := range c.Columns {
@@ -60,7 +60,7 @@ func (c *Constraint) Name() string {
 		tmp = append(tmp, col.Name)
 	}
 
-	return fmt.Sprintf("%s.%s_%s_%s", schema, c.Table.Name, strings.Join(tmp, "_"), c.Type)
+	return fmt.Sprintf("%s.%s_%s_%s", schema, c.Table.ShortName, strings.Join(tmp, "_"), c.Type)
 }
 
 // Unique constraint ensure that the data contained in a column or a group of columns is unique with respect to all the rows in the table.

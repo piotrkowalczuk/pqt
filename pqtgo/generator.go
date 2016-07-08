@@ -147,7 +147,9 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, "type %sEntity struct{\n", g.private(t.Name))
 
 	for _, c := range t.Columns {
-		fmt.Fprintf(w, "%s %s\n", g.public(c.Name), g.generateColumnTypeString(c, modeDefault))
+		if t := g.generateColumnTypeString(c, modeDefault); t != "<nil>" {
+			fmt.Fprintf(w, "%s %s\n", g.public(c.Name), t)
+		}
 	}
 
 	for _, r := range t.OwnedRelationships {
@@ -334,7 +336,9 @@ ColumnLoop:
 			continue ColumnLoop
 		}
 
-		fmt.Fprintf(w, "%s %s\n", g.private(c.Name), g.generateColumnTypeString(c, modeCriteria))
+		if t := g.generateColumnTypeString(c, modeCriteria); t != "<nil>" {
+			fmt.Fprintf(w, "%s %s\n", g.private(c.Name), t)
+		}
 	}
 	fmt.Fprintln(w, "}\n")
 }
@@ -352,13 +356,11 @@ ArgumentsLoop:
 			continue ArgumentsLoop
 		}
 
-		fmt.Fprintf(w, "%s %s\n", g.private(c.Name), g.generateColumnTypeString(c, modeOptional))
+		if t := g.generateColumnTypeString(c, modeOptional); t != "<nil>" {
+			fmt.Fprintf(w, "%s %s\n", g.private(c.Name), t)
+		}
 	}
 	fmt.Fprintln(w, "}\n")
-}
-
-func (g *Generator) generateColumnType(w io.Writer, c *pqt.Column, m int32) {
-	fmt.Fprintln(w, g.generateColumnTypeString(c, m))
 }
 
 func (g *Generator) generateColumnTypeString(c *pqt.Column, m int32) string {
@@ -471,7 +473,11 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 	columnNamePrivate := g.private(c.Name)
 	columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 
-	if !g.generateRepositoryFindPropertyQueryByGoType(w, c, g.generateColumnTypeString(c, modeCriteria), columnNamePrivate, columnNameWithTable) {
+	t := g.generateColumnTypeString(c, modeCriteria)
+	if t == "<nil>" {
+		return
+	}
+	if !g.generateRepositoryFindPropertyQueryByGoType(w, c, t, columnNamePrivate, columnNameWithTable) {
 		fmt.Fprintf(w, " if c.%s != nil {", g.private(c.Name))
 		fmt.Fprintf(w, dirtyAnd)
 		fmt.Fprintf(w, `if _, err = com.WriteString(%s); err != nil {
@@ -1487,6 +1493,9 @@ func generateBuiltinType(t BuiltinType, m int32) (r string) {
 
 func generateCustomType(t CustomType, m int32) string {
 	goType := func(tp reflect.Type) string {
+		if tp == nil {
+			return "<nil>"
+		}
 		if tp.Kind() == reflect.Struct {
 			return "*" + tp.String()
 		}
