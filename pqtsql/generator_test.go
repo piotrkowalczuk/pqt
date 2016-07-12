@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 				_ = pqt.NewTable("related_table").
 					AddColumn(&id)
 
-				return pqt.NewTable("table_name", pqt.WithIfNotExists()).
+				return pqt.NewTable("table_name", pqt.WithTableIfNotExists()).
 					AddColumn(&pqt.Column{Name: "id", Type: pqt.TypeSerial(), PrimaryKey: true}).
 					AddColumn(&pqt.Column{Name: "rel_id", Type: pqt.TypeInteger(), Reference: &id}).
 					AddColumn(&pqt.Column{Name: "name", Type: pqt.TypeText(), Unique: true}).

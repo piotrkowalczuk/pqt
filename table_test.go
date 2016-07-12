@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewTable(t *testing.T) {
-	tbl := pqt.NewTable("test", pqt.WithIfNotExists(), pqt.WithTableSpace("table_space"), pqt.WithTemporary())
+	tbl := pqt.NewTable("test", pqt.WithTableIfNotExists(), pqt.WithTableSpace("table_space"), pqt.WithTemporary())
 
 	if !tbl.IfNotExists {
 		t.Errorf("table should have field if not exists set to true")

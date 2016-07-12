@@ -5,13 +5,13 @@ import "github.com/piotrkowalczuk/pqt"
 func schema(sn string) *pqt.Schema {
 	title := pqt.NewColumn("title", pqt.TypeText(), pqt.WithNotNull(), pqt.WithUnique())
 
-	news := pqt.NewTable("news", pqt.WithIfNotExists()).
+	news := pqt.NewTable("news", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(title).
 		AddColumn(pqt.NewColumn("lead", pqt.TypeText())).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull()))
 
-	comment := pqt.NewTable("comment", pqt.WithIfNotExists()).
+	comment := pqt.NewTable("comment", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig())).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
 		AddColumn(pqt.NewColumn(
@@ -21,7 +21,7 @@ func schema(sn string) *pqt.Schema {
 			pqt.WithReference(title),
 		))
 
-	category := pqt.NewTable("category", pqt.WithIfNotExists()).
+	category := pqt.NewTable("category", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull())).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).

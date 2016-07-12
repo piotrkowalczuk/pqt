@@ -256,8 +256,8 @@ func (t *Table) PrimaryKey() (*Column, bool) {
 // TableOption configures how we set up the table.
 type TableOption func(*Table)
 
-// WithIfNotExists is table option that sets IfNotExists flag to true.
-func WithIfNotExists() TableOption {
+// WithTableIfNotExists is table option that sets IfNotExists flag to true.
+func WithTableIfNotExists() TableOption {
 	return func(t *Table) {
 		t.IfNotExists = true
 	}
