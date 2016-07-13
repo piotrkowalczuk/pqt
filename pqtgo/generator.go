@@ -653,14 +653,9 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 		)
 	case "*qtypes.Int64":
 		fmt.Fprintf(w, `
-			if c.%s != nil && c.%s.Valid && com.Dirty {
-				com.WriteString(" AND ")
-				com.Dirty = false
-			}
-			if err = pqtgo.WriteCompositionQueryInt64(c.%s, %s, com, pqtgo.And); err != nil {
-				return
-			}
-		`, columnNamePrivate, columnNamePrivate, columnNamePrivate, columnNameWithTable)
+		if err = pqtgo.WriteCompositionQueryInt64(c.%s, %s, com, pqtgo.And); err != nil {
+			return
+		}`, columnNamePrivate, columnNameWithTable)
 	case "*qtypes.Int32", "*qtypes.Float64":
 		fmt.Fprintf(w, `
 				if c.%s != nil && c.%s.Valid {
@@ -798,12 +793,9 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 		)
 	case "*qtypes.String":
 		fmt.Fprintf(w, `
-			if c.%s != nil && c.%s.Valid && com.Dirty {
-				com.WriteString(" AND ")
-				com.Dirty = false
-			}
-			pqtgo.WriteCompositionQueryString(c.%s, %s, com, pqtgo.And)
-		`, columnNamePrivate, columnNamePrivate, columnNamePrivate, columnNameWithTable)
+		if err = pqtgo.WriteCompositionQueryString(c.%s, %s, com, pqtgo.And); err != nil {
+			return
+		}`, columnNamePrivate, columnNameWithTable)
 	default:
 		if strings.HasPrefix(goType, "*ntypes.") {
 			fmt.Fprintf(w, " if c.%s != nil && c.%s.Valid {", columnNamePrivate, columnNamePrivate)
@@ -894,9 +886,6 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) {
 	entityName := g.private(t.Name)
 	fmt.Fprintf(w, `func (c *%sCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-		if _, err = com.WriteString(" WHERE "); err != nil {
-			return
-		}
 	`, entityName) // It's probably not enough but its good start.
 	for _, c := range t.Columns {
 		if g.shouldBeColumnIgnoredForCriteria(c) {
@@ -906,9 +895,6 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 		g.generateRepositoryFindSingleExpression(w, c)
 	}
 	fmt.Fprintf(w, `
-	if !com.Dirty {
-		com.ResetBuf()
-	}
 	if c.offset > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
@@ -933,7 +919,6 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 		}
 		com.Add(c.limit)
 	}
-	com.Dirty = false
 
 	return
 }

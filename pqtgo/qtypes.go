@@ -261,7 +261,7 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			com.Dirty = true
 		}
 	case qtypes.QueryType_IN:
-		if len(i.Values) > 0 {
+		if len(i.Values) > 0 && len(i.Values) > 0 {
 			if com.Dirty {
 				if _, err = com.WriteString(opt.Joint); err != nil {
 					return

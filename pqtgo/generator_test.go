@@ -155,29 +155,15 @@ name *qtypes.String
 }
 
 func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-		if _, err = com.WriteString(" WHERE "); err != nil {
+	
+		if err = pqtgo.WriteCompositionQueryInt64(c.id, tableFirstColumnId, com, pqtgo.And); err != nil {
 			return
 		}
-	
-			if c.id != nil && c.id.Valid && com.Dirty {
-				com.WriteString(" AND ")
-				com.Dirty = false
-			}
-			if err = pqtgo.WriteCompositionQueryInt64(c.id, tableFirstColumnId, com, pqtgo.And); err != nil {
-				return
-			}
-		
 
-			if c.name != nil && c.name.Valid && com.Dirty {
-				com.WriteString(" AND ")
-				com.Dirty = false
-			}
-			pqtgo.WriteCompositionQueryString(c.name, tableFirstColumnName, com, pqtgo.And)
-		
+		if err = pqtgo.WriteCompositionQueryString(c.name, tableFirstColumnName, com, pqtgo.And); err != nil {
+			return
+		}
 
-	if !com.Dirty {
-		com.ResetBuf()
-	}
 	if c.offset > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
@@ -202,7 +188,6 @@ func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *p
 		}
 		com.Add(c.limit)
 	}
-	com.Dirty = false
 
 	return
 }
