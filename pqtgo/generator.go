@@ -895,6 +895,20 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 		g.generateRepositoryFindSingleExpression(w, c)
 	}
 	fmt.Fprintf(w, `
+	if len(c.sort) > 0 {
+		i:=0
+		com.WriteString(" ORDER BY ")
+		for cn, asc := range c.sort {
+			if i > 0 {
+				com.WriteString(", ")
+			}
+			com.WriteString(cn)
+			if !asc {
+				com.WriteString(" DESC ")
+			}
+			i++
+		}
+	}
 	if c.offset > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
