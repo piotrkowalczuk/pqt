@@ -205,6 +205,11 @@ func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *p
 
 	return
 }
+type firstPatch struct {
+id *ntypes.Int64
+name *ntypes.String
+}
+
 
 		type firstRepositoryBase struct {
 			table string
@@ -359,8 +364,92 @@ func (r *firstRepositoryBase) Insert(e *firstEntity) (*firstEntity, error) {
 			}
 			b.WriteString(")")
 			if len(r.columns) > 0 {
-				b.WriteString("RETURNING ")
-				b.WriteString(strings.Join(r.columns, ","))
+				b.WriteString(" RETURNING ")
+				b.WriteString(strings.Join(r.columns, ", "))
+			}
+		}
+
+		if r.dbg {
+			if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
+				return nil, err
+			}
+		}
+
+		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+	&e.Id,
+&e.Name,
+)
+		if err != nil {
+			return nil, err
+		}
+
+		return e, nil
+	}
+func (r *firstRepositoryBase) Upsert(e *firstEntity, p *firstPatch, inf ...string) (*firstEntity, error) {
+		insert := pqcomp.New(0, 2)
+		update := insert.Compose(2)
+	insert.AddExpr(tableFirstColumnName, "", e.Name)
+if len(inf) > 0 {
+update.AddExpr(tableFirstColumnName, "=", p.name)
+}
+
+		b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+		if insert.Len() > 0 {
+			b.WriteString(" (")
+			for insert.Next() {
+				if !insert.First() {
+					b.WriteString(", ")
+				}
+
+				fmt.Fprintf(b, "%s", insert.Key())
+			}
+			insert.Reset()
+			b.WriteString(") VALUES (")
+			for insert.Next() {
+				if !insert.First() {
+					b.WriteString(", ")
+				}
+
+				fmt.Fprintf(b, "%s", insert.PlaceHolder())
+			}
+			b.WriteString(")")
+		}
+		b.WriteString(" ON CONFLICT ")
+		if len(inf) > 0 && update.Len() > 0 {
+			b.WriteString(" (")
+			for j, i := range inf {
+				if j != 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(i)
+			}
+			b.WriteString(") ")
+			b.WriteString(" DO UPDATE SET ")
+			for update.Next() {
+				if !update.First() {
+					b.WriteString(", ")
+				}
+
+				b.WriteString(update.Key())
+				b.WriteString(" ")
+				b.WriteString(update.Oper())
+				b.WriteString(" ")
+				b.WriteString(update.PlaceHolder())
+			}
+		} else {
+			b.WriteString(" DO NOTHING ")
+		}
+		if insert.Len() > 0 {
+			if len(r.columns) > 0 {
+				b.WriteString(" RETURNING ")
+				b.WriteString(strings.Join(r.columns, ", "))
+			}
+		}
+
+		if r.dbg {
+			if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+				return nil, err
 			}
 		}
 

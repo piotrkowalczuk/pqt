@@ -147,15 +147,10 @@ type newsCriteria struct {
 }
 
 func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-	if _, err = com.WriteString(" WHERE "); err != nil {
+
+	if err = pqtgo.WriteCompositionQueryString(c.content, tableNewsColumnContent, com, pqtgo.And); err != nil {
 		return
 	}
-
-	if c.content != nil && c.content.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
-	pqtgo.WriteCompositionQueryString(c.content, tableNewsColumnContent, com, pqtgo.And)
 
 	if c.createdAt != nil && c.createdAt.Valid {
 		createdAtt1 := c.createdAt.Value()
@@ -242,7 +237,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 					com.WriteString(" IN (")
 					for i, v := range c.createdAt.Values {
 						if i != 0 {
-							com.WriteString(",")
+							com.WriteString(", ")
 						}
 						com.WritePlaceholder()
 						com.Add(v)
@@ -275,25 +270,17 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 		}
 	}
 
-	if c.id != nil && c.id.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
 	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableNewsColumnID, com, pqtgo.And); err != nil {
 		return
 	}
 
-	if c.lead != nil && c.lead.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
+	if err = pqtgo.WriteCompositionQueryString(c.lead, tableNewsColumnLead, com, pqtgo.And); err != nil {
+		return
 	}
-	pqtgo.WriteCompositionQueryString(c.lead, tableNewsColumnLead, com, pqtgo.And)
 
-	if c.title != nil && c.title.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
+	if err = pqtgo.WriteCompositionQueryString(c.title, tableNewsColumnTitle, com, pqtgo.And); err != nil {
+		return
 	}
-	pqtgo.WriteCompositionQueryString(c.title, tableNewsColumnTitle, com, pqtgo.And)
 
 	if c.updatedAt != nil && c.updatedAt.Valid {
 		updatedAtt1 := c.updatedAt.Value()
@@ -380,7 +367,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 					com.WriteString(" IN (")
 					for i, v := range c.updatedAt.Values {
 						if i != 0 {
-							com.WriteString(",")
+							com.WriteString(", ")
 						}
 						com.WritePlaceholder()
 						com.Add(v)
@@ -413,8 +400,19 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 		}
 	}
 
-	if !com.Dirty {
-		com.ResetBuf()
+	if len(c.sort) > 0 {
+		i := 0
+		com.WriteString(" ORDER BY ")
+		for cn, asc := range c.sort {
+			if i > 0 {
+				com.WriteString(", ")
+			}
+			com.WriteString(cn)
+			if !asc {
+				com.WriteString(" DESC ")
+			}
+			i++
+		}
 	}
 	if c.offset > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
@@ -440,7 +438,6 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 		}
 		com.Add(c.limit)
 	}
-	com.Dirty = false
 
 	return
 }
@@ -586,10 +583,9 @@ func (r *newsRepositoryBase) FindIter(c *newsCriteria) (*newsIterator, error) {
 }
 func (r *newsRepositoryBase) FindOneByID(id int64) (*newsEntity, error) {
 	var (
-		query  string
 		entity newsEntity
 	)
-	query = `SELECT content,
+	query := `SELECT content,
 created_at,
 id,
 lead,
@@ -640,8 +636,104 @@ func (r *newsRepositoryBase) Insert(e *newsEntity) (*newsEntity, error) {
 		}
 		b.WriteString(")")
 		if len(r.columns) > 0 {
-			b.WriteString("RETURNING ")
-			b.WriteString(strings.Join(r.columns, ","))
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
+			return nil, err
+		}
+	}
+
+	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Lead,
+		&e.Title,
+		&e.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+func (r *newsRepositoryBase) Upsert(e *newsEntity, p *newsPatch, inf ...string) (*newsEntity, error) {
+	insert := pqcomp.New(0, 6)
+	update := insert.Compose(6)
+	insert.AddExpr(tableNewsColumnContent, "", e.Content)
+	insert.AddExpr(tableNewsColumnCreatedAt, "", e.CreatedAt)
+	insert.AddExpr(tableNewsColumnLead, "", e.Lead)
+	insert.AddExpr(tableNewsColumnTitle, "", e.Title)
+	insert.AddExpr(tableNewsColumnUpdatedAt, "", e.UpdatedAt)
+	if len(inf) > 0 {
+		update.AddExpr(tableNewsColumnContent, "=", p.content)
+		update.AddExpr(tableNewsColumnCreatedAt, "=", p.createdAt)
+		update.AddExpr(tableNewsColumnLead, "=", p.lead)
+		update.AddExpr(tableNewsColumnTitle, "=", p.title)
+		update.AddExpr(tableNewsColumnUpdatedAt, "=", p.updatedAt)
+	}
+
+	b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+	if insert.Len() > 0 {
+		b.WriteString(" (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.Key())
+		}
+		insert.Reset()
+		b.WriteString(") VALUES (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.PlaceHolder())
+		}
+		b.WriteString(")")
+	}
+	b.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 && update.Len() > 0 {
+		b.WriteString(" (")
+		for j, i := range inf {
+			if j != 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(i)
+		}
+		b.WriteString(") ")
+		b.WriteString(" DO UPDATE SET ")
+		for update.Next() {
+			if !update.First() {
+				b.WriteString(", ")
+			}
+
+			b.WriteString(update.Key())
+			b.WriteString(" ")
+			b.WriteString(update.Oper())
+			b.WriteString(" ")
+			b.WriteString(update.PlaceHolder())
+		}
+	} else {
+		b.WriteString(" DO NOTHING ")
+	}
+	if insert.Len() > 0 {
+		if len(r.columns) > 0 {
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+			return nil, err
 		}
 	}
 
@@ -841,15 +933,10 @@ type commentCriteria struct {
 }
 
 func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-	if _, err = com.WriteString(" WHERE "); err != nil {
+
+	if err = pqtgo.WriteCompositionQueryString(c.content, tableCommentColumnContent, com, pqtgo.And); err != nil {
 		return
 	}
-
-	if c.content != nil && c.content.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
-	pqtgo.WriteCompositionQueryString(c.content, tableCommentColumnContent, com, pqtgo.And)
 
 	if c.createdAt != nil && c.createdAt.Valid {
 		createdAtt1 := c.createdAt.Value()
@@ -936,7 +1023,7 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 					com.WriteString(" IN (")
 					for i, v := range c.createdAt.Values {
 						if i != 0 {
-							com.WriteString(",")
+							com.WriteString(", ")
 						}
 						com.WritePlaceholder()
 						com.Add(v)
@@ -969,27 +1056,17 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 		}
 	}
 
-	if c.id != nil && c.id.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
 	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCommentColumnID, com, pqtgo.And); err != nil {
 		return
 	}
 
-	if c.newsID != nil && c.newsID.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
 	if err = pqtgo.WriteCompositionQueryInt64(c.newsID, tableCommentColumnNewsID, com, pqtgo.And); err != nil {
 		return
 	}
 
-	if c.newsTitle != nil && c.newsTitle.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
+	if err = pqtgo.WriteCompositionQueryString(c.newsTitle, tableCommentColumnNewsTitle, com, pqtgo.And); err != nil {
+		return
 	}
-	pqtgo.WriteCompositionQueryString(c.newsTitle, tableCommentColumnNewsTitle, com, pqtgo.And)
 
 	if c.updatedAt != nil && c.updatedAt.Valid {
 		updatedAtt1 := c.updatedAt.Value()
@@ -1076,7 +1153,7 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 					com.WriteString(" IN (")
 					for i, v := range c.updatedAt.Values {
 						if i != 0 {
-							com.WriteString(",")
+							com.WriteString(", ")
 						}
 						com.WritePlaceholder()
 						com.Add(v)
@@ -1109,8 +1186,19 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 		}
 	}
 
-	if !com.Dirty {
-		com.ResetBuf()
+	if len(c.sort) > 0 {
+		i := 0
+		com.WriteString(" ORDER BY ")
+		for cn, asc := range c.sort {
+			if i > 0 {
+				com.WriteString(", ")
+			}
+			com.WriteString(cn)
+			if !asc {
+				com.WriteString(" DESC ")
+			}
+			i++
+		}
 	}
 	if c.offset > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
@@ -1136,9 +1224,17 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 		}
 		com.Add(c.limit)
 	}
-	com.Dirty = false
 
 	return
+}
+
+type commentPatch struct {
+	content   *ntypes.String
+	createdAt *time.Time
+	id        *ntypes.Int64
+	newsID    *ntypes.Int64
+	newsTitle *ntypes.String
+	updatedAt *time.Time
 }
 
 type commentRepositoryBase struct {
@@ -1302,8 +1398,104 @@ func (r *commentRepositoryBase) Insert(e *commentEntity) (*commentEntity, error)
 		}
 		b.WriteString(")")
 		if len(r.columns) > 0 {
-			b.WriteString("RETURNING ")
-			b.WriteString(strings.Join(r.columns, ","))
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
+			return nil, err
+		}
+	}
+
+	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.NewsID,
+		&e.NewsTitle,
+		&e.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+func (r *commentRepositoryBase) Upsert(e *commentEntity, p *commentPatch, inf ...string) (*commentEntity, error) {
+	insert := pqcomp.New(0, 6)
+	update := insert.Compose(6)
+	insert.AddExpr(tableCommentColumnContent, "", e.Content)
+	insert.AddExpr(tableCommentColumnCreatedAt, "", e.CreatedAt)
+	insert.AddExpr(tableCommentColumnNewsID, "", e.NewsID)
+	insert.AddExpr(tableCommentColumnNewsTitle, "", e.NewsTitle)
+	insert.AddExpr(tableCommentColumnUpdatedAt, "", e.UpdatedAt)
+	if len(inf) > 0 {
+		update.AddExpr(tableCommentColumnContent, "=", p.content)
+		update.AddExpr(tableCommentColumnCreatedAt, "=", p.createdAt)
+		update.AddExpr(tableCommentColumnNewsID, "=", p.newsID)
+		update.AddExpr(tableCommentColumnNewsTitle, "=", p.newsTitle)
+		update.AddExpr(tableCommentColumnUpdatedAt, "=", p.updatedAt)
+	}
+
+	b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+	if insert.Len() > 0 {
+		b.WriteString(" (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.Key())
+		}
+		insert.Reset()
+		b.WriteString(") VALUES (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.PlaceHolder())
+		}
+		b.WriteString(")")
+	}
+	b.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 && update.Len() > 0 {
+		b.WriteString(" (")
+		for j, i := range inf {
+			if j != 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(i)
+		}
+		b.WriteString(") ")
+		b.WriteString(" DO UPDATE SET ")
+		for update.Next() {
+			if !update.First() {
+				b.WriteString(", ")
+			}
+
+			b.WriteString(update.Key())
+			b.WriteString(" ")
+			b.WriteString(update.Oper())
+			b.WriteString(" ")
+			b.WriteString(update.PlaceHolder())
+		}
+	} else {
+		b.WriteString(" DO NOTHING ")
+	}
+	if insert.Len() > 0 {
+		if len(r.columns) > 0 {
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+			return nil, err
 		}
 	}
 
@@ -1451,15 +1643,10 @@ type categoryCriteria struct {
 }
 
 func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-	if _, err = com.WriteString(" WHERE "); err != nil {
+
+	if err = pqtgo.WriteCompositionQueryString(c.content, tableCategoryColumnContent, com, pqtgo.And); err != nil {
 		return
 	}
-
-	if c.content != nil && c.content.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
-	pqtgo.WriteCompositionQueryString(c.content, tableCategoryColumnContent, com, pqtgo.And)
 
 	if c.createdAt != nil && c.createdAt.Valid {
 		createdAtt1 := c.createdAt.Value()
@@ -1546,7 +1733,7 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 					com.WriteString(" IN (")
 					for i, v := range c.createdAt.Values {
 						if i != 0 {
-							com.WriteString(",")
+							com.WriteString(", ")
 						}
 						com.WritePlaceholder()
 						com.Add(v)
@@ -1579,24 +1766,14 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 		}
 	}
 
-	if c.id != nil && c.id.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
 	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCategoryColumnID, com, pqtgo.And); err != nil {
 		return
 	}
 
-	if c.name != nil && c.name.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
+	if err = pqtgo.WriteCompositionQueryString(c.name, tableCategoryColumnName, com, pqtgo.And); err != nil {
+		return
 	}
-	pqtgo.WriteCompositionQueryString(c.name, tableCategoryColumnName, com, pqtgo.And)
 
-	if c.parentID != nil && c.parentID.Valid && com.Dirty {
-		com.WriteString(" AND ")
-		com.Dirty = false
-	}
 	if err = pqtgo.WriteCompositionQueryInt64(c.parentID, tableCategoryColumnParentID, com, pqtgo.And); err != nil {
 		return
 	}
@@ -1686,7 +1863,7 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 					com.WriteString(" IN (")
 					for i, v := range c.updatedAt.Values {
 						if i != 0 {
-							com.WriteString(",")
+							com.WriteString(", ")
 						}
 						com.WritePlaceholder()
 						com.Add(v)
@@ -1719,8 +1896,19 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 		}
 	}
 
-	if !com.Dirty {
-		com.ResetBuf()
+	if len(c.sort) > 0 {
+		i := 0
+		com.WriteString(" ORDER BY ")
+		for cn, asc := range c.sort {
+			if i > 0 {
+				com.WriteString(", ")
+			}
+			com.WriteString(cn)
+			if !asc {
+				com.WriteString(" DESC ")
+			}
+			i++
+		}
 	}
 	if c.offset > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
@@ -1746,7 +1934,6 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 		}
 		com.Add(c.limit)
 	}
-	com.Dirty = false
 
 	return
 }
@@ -1892,10 +2079,9 @@ func (r *categoryRepositoryBase) FindIter(c *categoryCriteria) (*categoryIterato
 }
 func (r *categoryRepositoryBase) FindOneByID(id int64) (*categoryEntity, error) {
 	var (
-		query  string
 		entity categoryEntity
 	)
-	query = `SELECT content,
+	query := `SELECT content,
 created_at,
 id,
 name,
@@ -1946,8 +2132,104 @@ func (r *categoryRepositoryBase) Insert(e *categoryEntity) (*categoryEntity, err
 		}
 		b.WriteString(")")
 		if len(r.columns) > 0 {
-			b.WriteString("RETURNING ")
-			b.WriteString(strings.Join(r.columns, ","))
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
+			return nil, err
+		}
+	}
+
+	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Name,
+		&e.ParentID,
+		&e.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+func (r *categoryRepositoryBase) Upsert(e *categoryEntity, p *categoryPatch, inf ...string) (*categoryEntity, error) {
+	insert := pqcomp.New(0, 6)
+	update := insert.Compose(6)
+	insert.AddExpr(tableCategoryColumnContent, "", e.Content)
+	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.CreatedAt)
+	insert.AddExpr(tableCategoryColumnName, "", e.Name)
+	insert.AddExpr(tableCategoryColumnParentID, "", e.ParentID)
+	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.UpdatedAt)
+	if len(inf) > 0 {
+		update.AddExpr(tableCategoryColumnContent, "=", p.content)
+		update.AddExpr(tableCategoryColumnCreatedAt, "=", p.createdAt)
+		update.AddExpr(tableCategoryColumnName, "=", p.name)
+		update.AddExpr(tableCategoryColumnParentID, "=", p.parentID)
+		update.AddExpr(tableCategoryColumnUpdatedAt, "=", p.updatedAt)
+	}
+
+	b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+	if insert.Len() > 0 {
+		b.WriteString(" (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.Key())
+		}
+		insert.Reset()
+		b.WriteString(") VALUES (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.PlaceHolder())
+		}
+		b.WriteString(")")
+	}
+	b.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 && update.Len() > 0 {
+		b.WriteString(" (")
+		for j, i := range inf {
+			if j != 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(i)
+		}
+		b.WriteString(") ")
+		b.WriteString(" DO UPDATE SET ")
+		for update.Next() {
+			if !update.First() {
+				b.WriteString(", ")
+			}
+
+			b.WriteString(update.Key())
+			b.WriteString(" ")
+			b.WriteString(update.Oper())
+			b.WriteString(" ")
+			b.WriteString(update.PlaceHolder())
+		}
+	} else {
+		b.WriteString(" DO NOTHING ")
+	}
+	if insert.Len() > 0 {
+		if len(r.columns) > 0 {
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+			return nil, err
 		}
 	}
 

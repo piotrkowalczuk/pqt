@@ -42,7 +42,7 @@ func schema(sn string) *pqt.Schema {
 
 	pqt.ManyToMany(category, news, pqt.WithBidirectional())
 
-	return pqt.NewSchema(sn).
+	return pqt.NewSchema(sn, pqt.WithSchemaIfNotExists()).
 		AddTable(news).
 		AddTable(comment).
 		AddTable(category)

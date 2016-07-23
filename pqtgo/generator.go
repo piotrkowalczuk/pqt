@@ -28,14 +28,16 @@ const (
 
 // Generator ...
 type Generator struct {
+	ver      float32
 	acronyms map[string]string
 	imports  []string
 	pkg      string
 }
 
-// NewGenerator ...
+// NewGenerator allocates new Generator.
 func NewGenerator() *Generator {
 	return &Generator{
+		ver: 9.5,
 		pkg: "main",
 	}
 }
@@ -43,6 +45,13 @@ func NewGenerator() *Generator {
 // SetAcronyms ...
 func (g *Generator) SetAcronyms(acronyms map[string]string) *Generator {
 	g.acronyms = acronyms
+
+	return g
+}
+
+// SetPostgresVersion sets version of postgres for which code will be generated.
+func (g *Generator) SetPostgresVersion(ver float32) *Generator {
+	g.ver = ver
 
 	return g
 }
@@ -344,10 +353,6 @@ ColumnLoop:
 }
 
 func (g *Generator) generatePatch(w io.Writer, t *pqt.Table) {
-	_, ok := t.PrimaryKey()
-	if !ok {
-		return
-	}
 	fmt.Fprintf(w, "type %sPatch struct {\n", g.private(t.Name))
 
 ArgumentsLoop:
@@ -464,7 +469,9 @@ func (g *Generator) generateRepository(b *bytes.Buffer, t *pqt.Table) {
 	g.generateRepositoryFind(b, t)
 	g.generateRepositoryFindIter(b, t)
 	g.generateRepositoryFindOneByPrimaryKey(b, t)
+	g.generateRepositoryFindOneByUniqueConstraint(b, t)
 	g.generateRepositoryInsert(b, t)
+	g.generateRepositoryUpsert(b, t)
 	g.generateRepositoryUpdateByPrimaryKey(b, t)
 	g.generateRepositoryDeleteByPrimaryKey(b, t)
 }
@@ -586,7 +593,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 								com.WriteString(" IN (")
 								for i, v := range c.%s.Values {
 									if i != 0 {
-										com.WriteString(",")
+										com.WriteString(", ")
 									}
 									com.WritePlaceholder()
 									com.Add(v)
@@ -729,7 +736,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 							}
 							for i, v := range c.%s.Values {
 								if i != 0 {
-									com.WriteString(",")
+									com.WriteString(", ")
 								}
 								com.WritePlaceholder()
 								com.Add(v)
@@ -862,7 +869,7 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 					for i := 0; i < zero.NumField(); i++ {
 						field := zero.Field(i)
 						fieldName := columnNamePrivate + "." + zero.Type().Field(i).Name
-						fieldJSONName := strings.Split(zero.Type().Field(i).Tag.Get("json"), ",")[0]
+						fieldJSONName := strings.Split(zero.Type().Field(i).Tag.Get("json"), ", ")[0]
 						columnNameWithTableAndJSONSelector := fmt.Sprintf(`%s + " -> '%s'"`, columnNameWithTable, fieldJSONName)
 
 						// If struct is nil, it's properties should not be accessed.
@@ -1066,8 +1073,7 @@ func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {
 `, len(t.Columns))
 }
 
-func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer,
-	table *pqt.Table) {
+func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, table *pqt.Table) {
 	entityName := g.private(table.Name)
 	pk, ok := table.PrimaryKey()
 	if !ok {
@@ -1076,11 +1082,10 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer,
 
 	fmt.Fprintf(code, `func (r *%sRepositoryBase) FindOneBy%s(%s %s) (*%sEntity, error) {`, entityName, g.public(pk.Name), g.private(pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName)
 	fmt.Fprintf(code, `var (
-		query string
 		entity %sEntity
 	)`, entityName)
 	code.WriteRune('\n')
-	fmt.Fprintf(code, "query = `SELECT ")
+	fmt.Fprintf(code, "query := `SELECT ")
 	for i, c := range table.Columns {
 		fmt.Fprintf(code, "%s", c.Name)
 		if i != len(table.Columns)-1 {
@@ -1104,6 +1109,73 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer,
 		return &entity, nil
 }
 `)
+}
+
+func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buffer, table *pqt.Table) {
+	entityName := g.private(table.Name)
+	unique := make([]*pqt.Constraint, 0)
+	for _, c := range table.Constraints {
+		if c.Type == pqt.ConstraintTypeUnique {
+			unique = append(unique, c)
+		}
+	}
+	if len(unique) < 1 {
+		return
+	}
+
+	for _, u := range unique {
+		arguments := ""
+		methodName := "FindOneBy"
+		for i, c := range u.Columns {
+			if i != 0 {
+				methodName += "And"
+				arguments += ", "
+			}
+			methodName += g.public(c.Name)
+			arguments += fmt.Sprintf("%s %s", g.private(c.Name), g.generateColumnTypeString(c, modeMandatory))
+		}
+		fmt.Fprintf(code, `func (r *%sRepositoryBase) %s(%s) (*%sEntity, error) {`, entityName, methodName, arguments, entityName)
+		fmt.Fprintf(code, `var (
+			entity %sEntity
+		)`, entityName)
+		code.WriteRune('\n')
+		fmt.Fprintf(code, "query := `SELECT ")
+		for i, c := range table.Columns {
+			if i != 0 {
+				code.WriteString(", ")
+			}
+			fmt.Fprintf(code, "%s", c.Name)
+		}
+		fmt.Fprintf(code, " FROM %s WHERE ", table.FullName())
+		for i, c := range u.Columns {
+			if i != 0 {
+				fmt.Fprintf(code, " AND ")
+			}
+			fmt.Fprintf(code, "%s = $%d", c.Name, i+1)
+		}
+		fmt.Fprintln(code, "`")
+
+		fmt.Fprintf(code, "err := r.db.QueryRow(query, ")
+		for i, c := range u.Columns {
+			if i != 0 {
+				fmt.Fprintf(code, ", ")
+			}
+			fmt.Fprintf(code, "%s", g.private(c.Name))
+		}
+		fmt.Fprintf(code, ").Scan(\n")
+		for _, c := range table.Columns {
+			fmt.Fprintf(code, "&entity.%s,\n", g.public(c.Name))
+		}
+		fmt.Fprintf(code, `)
+			if err != nil {
+				return nil, err
+			}
+
+			return &entity, nil
+	}
+	`)
+
+	}
 }
 
 func (g *Generator) generateRepositoryInsert(code *bytes.Buffer,
@@ -1159,8 +1231,148 @@ ColumnsLoop:
 			}
 			b.WriteString(")")
 			if len(r.columns) > 0 {
-				b.WriteString("RETURNING ")
-				b.WriteString(strings.Join(r.columns, ","))
+				b.WriteString(" RETURNING ")
+				b.WriteString(strings.Join(r.columns, ", "))
+			}
+		}
+
+		if r.dbg {
+			if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
+				return nil, err
+			}
+		}
+
+		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+	`)
+
+	for _, c := range table.Columns {
+		fmt.Fprintf(code, "&e.%s,\n", g.public(c.Name))
+	}
+	fmt.Fprint(code, `)
+		if err != nil {
+			return nil, err
+		}
+
+		return e, nil
+	}
+`)
+}
+
+func (g *Generator) generateRepositoryUpsert(code *bytes.Buffer, table *pqt.Table) {
+	if g.ver < 9.5 {
+		return
+	}
+	entityName := g.private(table.Name)
+
+	fmt.Fprintf(code, `func (r *%sRepositoryBase) Upsert(e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`, entityName, entityName, entityName, entityName)
+	fmt.Fprintf(code, `
+		insert := pqcomp.New(0, %d)
+		update := insert.Compose(%d)
+	`, len(table.Columns), len(table.Columns))
+
+InsertLoop:
+	for _, c := range table.Columns {
+		switch c.Type {
+		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
+			continue InsertLoop
+		default:
+			if g.canBeNil(c, modeOptional) {
+				fmt.Fprintf(code, `
+					if e.%s != nil {
+						insert.AddExpr(%s, "", e.%s)
+					}
+				`,
+					g.public(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name),
+				)
+			} else {
+				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name))
+			}
+			fmt.Fprintln(code, "")
+		}
+	}
+	fmt.Fprintln(code, "if len(inf) > 0 {")
+UpdateLoop:
+	for _, c := range table.Columns {
+		switch c.Type {
+		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
+			continue UpdateLoop
+		default:
+			if g.canBeNil(c, modeOptional) {
+				fmt.Fprintf(code, `
+					if p.%s != nil {
+						update.AddExpr(%s, "=", p.%s)
+					}
+				`,
+					g.private(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name), g.private(c.Name),
+				)
+			} else {
+				fmt.Fprintf(code, `update.AddExpr(%s, "=", p.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.private(c.Name))
+			}
+			fmt.Fprintln(code, "")
+		}
+	}
+	fmt.Fprintln(code, "}")
+
+	fmt.Fprint(code, `
+		b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+		if insert.Len() > 0 {
+			b.WriteString(" (")
+			for insert.Next() {
+				if !insert.First() {
+					b.WriteString(", ")
+				}
+
+				fmt.Fprintf(b, "%s", insert.Key())
+			}
+			insert.Reset()
+			b.WriteString(") VALUES (")
+			for insert.Next() {
+				if !insert.First() {
+					b.WriteString(", ")
+				}
+
+				fmt.Fprintf(b, "%s", insert.PlaceHolder())
+			}
+			b.WriteString(")")
+		}
+		b.WriteString(" ON CONFLICT ")
+		if len(inf) > 0 && update.Len() > 0 {
+			b.WriteString(" (")
+			for j, i := range inf {
+				if j != 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString(i)
+			}
+			b.WriteString(") ")
+			b.WriteString(" DO UPDATE SET ")
+			for update.Next() {
+				if !update.First() {
+					b.WriteString(", ")
+				}
+
+				b.WriteString(update.Key())
+				b.WriteString(" ")
+				b.WriteString(update.Oper())
+				b.WriteString(" ")
+				b.WriteString(update.PlaceHolder())
+			}
+		} else {
+			b.WriteString(" DO NOTHING ")
+		}
+		if insert.Len() > 0 {
+			if len(r.columns) > 0 {
+				b.WriteString(" RETURNING ")
+				b.WriteString(strings.Join(r.columns, ", "))
+			}
+		}
+
+		if r.dbg {
+			if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+				return nil, err
 			}
 		}
 

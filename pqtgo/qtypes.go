@@ -419,7 +419,12 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 			return
 		}
 		if s.Negation {
-			if _, err = com.WriteString(" NOT LIKE "); err != nil {
+			if _, err = com.WriteString(" NOT "); err != nil {
+				return
+			}
+		}
+		if s.Insensitive {
+			if _, err = com.WriteString(" ILIKE "); err != nil {
 				return
 			}
 		} else {
@@ -427,6 +432,7 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 				return
 			}
 		}
+
 		if opt.PlaceholderFunc != "" {
 			if _, err = com.WriteString(opt.PlaceholderFunc); err != nil {
 				return
@@ -451,7 +457,12 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 			return
 		}
 		if s.Negation {
-			if _, err = com.WriteString(" NOT LIKE "); err != nil {
+			if _, err = com.WriteString(" NOT "); err != nil {
+				return
+			}
+		}
+		if s.Insensitive {
+			if _, err = com.WriteString(" ILIKE "); err != nil {
 				return
 			}
 		} else {
@@ -483,15 +494,19 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 			return
 		}
 		if s.Negation {
-			if _, err = com.WriteString(" NOT LIKE "); err != nil {
+			if _, err = com.WriteString(" NOT "); err != nil {
 				return
 			}
 
+		}
+		if s.Insensitive {
+			if _, err = com.WriteString(" ILIKE "); err != nil {
+				return
+			}
 		} else {
 			if _, err = com.WriteString(" LIKE "); err != nil {
 				return
 			}
-
 		}
 		if opt.PlaceholderFunc != "" {
 			if _, err = com.WriteString(opt.PlaceholderFunc); err != nil {

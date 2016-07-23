@@ -37,8 +37,7 @@ func main() {
         // DO NOT EDIT!
     `)
 	err = pqtgo.NewGenerator().
-		AddImport("github.com/piotrkowalczuk/ntypes").
-		AddImport("github.com/piotrkowalczuk/qtypes").
+		SetPostgresVersion(9.5).
 		SetAcronyms(acronyms).
 		GenerateTo(sch, file)
 	if err != nil {

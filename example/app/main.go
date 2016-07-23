@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -69,13 +70,24 @@ func main() {
 		},
 	}
 
+	count, err := repo.news.Count(&newsCriteria{})
+	if err != nil {
+		sklog.Fatal(log, err)
+	}
+	sklog.Debug(log, "number of news fetched", "count", count)
+
 	news, err := repo.news.Insert(&newsEntity{
 		Title:   "Lorem Ipsum",
 		Content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a felis vel erat gravida luctus at id nisi. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Vivamus a nibh massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Fusce viverra quam id dolor facilisis ultrices. Donec blandit, justo sit amet consequat gravida, nisi velit efficitur neque, ac ullamcorper leo dui vitae lorem. Pellentesque vitae ligula id massa fringilla facilisis eu sit amet neque. Ut ac fringilla mi. Maecenas id fermentum massa. Duis at tristique felis, nec aliquet nisi. Suspendisse potenti. In sed dolor maximus, dapibus arcu vitae, vehicula ligula. Nunc imperdiet eu ipsum sed pretium. Nullam iaculis nunc id dictum auctor.",
 		Lead:    &ntypes.String{String: "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit...", Valid: true},
 	})
 	if err != nil {
-		sklog.Fatal(log, err)
+		switch pqt.ErrorConstraint(err) {
+		case tableNewsConstraintTitleUnique:
+			sklog.Fatal(log, errors.New("news with such title already exists"))
+		default:
+			sklog.Fatal(log, err)
+		}
 	}
 
 	nb := 20
@@ -130,7 +142,7 @@ func main() {
 		}
 	}
 
-	count, err := repo.category.Count(&categoryCriteria{
+	count, err = repo.category.Count(&categoryCriteria{
 		parentID: qtypes.EqualInt64(category.ID),
 	})
 	if err != nil {
