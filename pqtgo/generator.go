@@ -154,96 +154,65 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 
 func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, "type %sEntity struct{\n", g.private(t.Name))
-
-	for _, c := range t.Columns {
-		if t := g.generateColumnTypeString(c, modeDefault); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.public(c.Name), t)
-		}
+	for prop := range g.entityPropertiesGenerator(t) {
+		prop.WriteTo(w)
+		io.WriteString(w, "\n")
 	}
+	fmt.Fprint(w, "}\n\n")
+}
 
-	for _, r := range t.OwnedRelationships {
-		switch r.Type {
-		case pqt.RelationshipTypeOneToMany:
-			if r.InversedName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.InversedName))
-			} else {
-				fmt.Fprintf(w, "%ss", g.public(r.InversedTable.Name))
-			}
-			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.InversedTable.Name))
-		case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
-			if r.InversedName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.InversedName))
-			} else {
-				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
-			}
-			fmt.Fprintf(w, " *%sEntity\n", g.private(r.InversedTable.Name))
-		case pqt.RelationshipTypeManyToMany:
-			if r.OwnerName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
-			} else {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerTable.Name))
-			}
-			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
+// entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
+// It thread differently relationship differently based on ownership.
+func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
+	fields := make(chan structField)
 
-			if r.InversedName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.InversedName))
-			} else {
-				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
+	go func(out chan structField) {
+		for _, c := range t.Columns {
+			if t := g.generateColumnTypeString(c, modeDefault); t != "<nil>" {
+				out <- structField{Name: g.public(c.Name), Type: t}
 			}
-			fmt.Fprintf(w, " *%sEntity\n", g.private(r.InversedTable.Name))
-		}
-	}
-
-	for _, r := range t.InversedRelationships {
-		switch r.Type {
-		case pqt.RelationshipTypeOneToMany:
-			if r.OwnerName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
-			} else {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerTable.Name))
-			}
-			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
-		case pqt.RelationshipTypeOneToOne:
-			if r.OwnerName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
-			} else {
-				fmt.Fprintf(w, "%ss", g.public(r.OwnerTable.Name))
-			}
-			fmt.Fprintf(w, " *%sEntity\n", g.private(r.OwnerTable.Name))
-		case pqt.RelationshipTypeManyToOne:
-			if r.OwnerName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
-			} else {
-				fmt.Fprintf(w, "%ss", g.public(r.OwnerTable.Name))
-			}
-			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.OwnerTable.Name))
-		}
-	}
-
-	for _, r := range t.ManyToManyRelationships {
-		if r.Type != pqt.RelationshipTypeManyToMany {
-			continue
 		}
 
-		switch {
-		case r.OwnerTable == t:
-			if r.InversedName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.InversedName))
-			} else {
-				fmt.Fprintf(w, "%s", g.public(r.InversedTable.Name))
+		for _, r := range t.OwnedRelationships {
+			switch r.Type {
+			case pqt.RelationshipTypeOneToMany:
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.InversedTable.Name))}
+			case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.InversedTable.Name))}
+			case pqt.RelationshipTypeManyToMany:
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.OwnerTable.Name))}
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.InversedTable.Name))}
 			}
-			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.InversedTable.Name))
-		case r.InversedTable == t:
-			if r.OwnerName != "" {
-				fmt.Fprintf(w, "%s", g.public(r.OwnerName))
-			} else {
-				fmt.Fprintf(w, "%ss", g.public(r.OwnerTable.Name))
-			}
-			fmt.Fprintf(w, " []*%sEntity\n", g.private(r.OwnerTable.Name))
 		}
-	}
 
-	fmt.Fprintln(w, "}\n")
+		for _, r := range t.InversedRelationships {
+			switch r.Type {
+			case pqt.RelationshipTypeOneToMany:
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.OwnerTable.Name))}
+			case pqt.RelationshipTypeOneToOne:
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.OwnerTable.Name))}
+			case pqt.RelationshipTypeManyToOne:
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.OwnerTable.Name))}
+			}
+		}
+
+		for _, r := range t.ManyToManyRelationships {
+			if r.Type != pqt.RelationshipTypeManyToMany {
+				continue
+			}
+
+			switch {
+			case r.OwnerTable == t:
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.InversedTable.Name))}
+			case r.InversedTable == t:
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.OwnerTable.Name))}
+			}
+		}
+
+		close(out)
+	}(fields)
+
+	return fields
 }
 
 func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
@@ -1085,7 +1054,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 		entity %sEntity
 	)`, entityName)
 	code.WriteRune('\n')
-	fmt.Fprintf(code, "query := `SELECT ")
+	fmt.Fprint(code, "query := `SELECT ")
 	for i, c := range table.Columns {
 		fmt.Fprintf(code, "%s", c.Name)
 		if i != len(table.Columns)-1 {
@@ -1101,7 +1070,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 	for _, c := range table.Columns {
 		fmt.Fprintf(code, "&entity.%s,\n", g.public(c.Name))
 	}
-	fmt.Fprintf(code, `)
+	fmt.Fprint(code, `)
 		if err != nil {
 			return nil, err
 		}
@@ -1139,7 +1108,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 			entity %sEntity
 		)`, entityName)
 		code.WriteRune('\n')
-		fmt.Fprintf(code, "query := `SELECT ")
+		fmt.Fprint(code, "query := `SELECT ")
 		for i, c := range table.Columns {
 			if i != 0 {
 				code.WriteString(", ")
@@ -1149,24 +1118,24 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 		fmt.Fprintf(code, " FROM %s WHERE ", table.FullName())
 		for i, c := range u.Columns {
 			if i != 0 {
-				fmt.Fprintf(code, " AND ")
+				fmt.Fprint(code, " AND ")
 			}
 			fmt.Fprintf(code, "%s = $%d", c.Name, i+1)
 		}
 		fmt.Fprintln(code, "`")
 
-		fmt.Fprintf(code, "err := r.db.QueryRow(query, ")
+		fmt.Fprint(code, "err := r.db.QueryRow(query, ")
 		for i, c := range u.Columns {
 			if i != 0 {
 				fmt.Fprintf(code, ", ")
 			}
 			fmt.Fprintf(code, "%s", g.private(c.Name))
 		}
-		fmt.Fprintf(code, ").Scan(\n")
+		fmt.Fprint(code, ").Scan(\n")
 		for _, c := range table.Columns {
 			fmt.Fprintf(code, "&entity.%s,\n", g.public(c.Name))
 		}
-		fmt.Fprintf(code, `)
+		fmt.Fprint(code, `)
 			if err != nil {
 				return nil, err
 			}
@@ -1752,4 +1721,32 @@ func (g *Generator) shouldBeColumnIgnoredForCriteria(c *pqt.Column) bool {
 	//}
 	//
 	//return false
+}
+
+type structField struct {
+	Name string
+	Type string
+	Tags reflect.StructTag
+}
+
+// WriteTo implements io.WriterTo interface
+func (sf structField) WriteTo(w io.Writer) (int64, error) {
+	var (
+		nb  int
+		err error
+	)
+	if sf.Tags != "" {
+		nb, err = fmt.Fprintf(w, "%s %s %s", sf.Name, sf.Type, sf.Tags)
+	} else {
+		nb, err = fmt.Fprintf(w, "%s %s", sf.Name, sf.Type)
+	}
+
+	return int64(nb), err
+}
+
+func or(s1, s2 string) string {
+	if s1 == "" {
+		return s2
+	}
+	return s1
 }
