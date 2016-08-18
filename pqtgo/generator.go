@@ -1420,9 +1420,6 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 			fmt.Fprintf(w, "update.AddArg(%s)\n", g.private(c.Name))
 		}
 		pk, pkOK := table.PrimaryKey()
-		if !pkOK {
-			return
-		}
 	ColumnsLoop:
 		for _, c := range table.Columns {
 			if pkOK && c == pk {
