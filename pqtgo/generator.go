@@ -26,12 +26,20 @@ const (
 `
 )
 
+type Visibility string
+
+const (
+	Public  Visibility = "public"
+	Private Visibility = "private"
+)
+
 // Generator ...
 type Generator struct {
 	ver      float32
 	acronyms map[string]string
 	imports  []string
 	pkg      string
+	vis      Visibility
 }
 
 // NewGenerator allocates new Generator.
@@ -39,19 +47,26 @@ func NewGenerator() *Generator {
 	return &Generator{
 		ver: 9.5,
 		pkg: "main",
+		vis: Private,
 	}
 }
 
 // SetAcronyms ...
 func (g *Generator) SetAcronyms(acronyms map[string]string) *Generator {
 	g.acronyms = acronyms
-
 	return g
 }
 
 // SetPostgresVersion sets version of postgres for which code will be generated.
 func (g *Generator) SetPostgresVersion(ver float32) *Generator {
 	g.ver = ver
+
+	return g
+}
+
+// SetVisibility sets visibility that each struct, function, method or property will get.
+func (g *Generator) SetVisibility(v Visibility) *Generator {
+	g.vis = v
 
 	return g
 }
@@ -153,10 +168,13 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 }
 
 func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "type %sEntity struct{\n", g.private(t.Name))
+	fmt.Fprintf(w, "type %sEntity struct{\n", g.name(t.Name))
 	for prop := range g.entityPropertiesGenerator(t) {
-		prop.WriteTo(w)
-		io.WriteString(w, "\n")
+		if prop.Tags != "" {
+			fmt.Fprintf(w, "%s %s %s\n", g.name(prop.Name), prop.Type, prop.Tags)
+		} else {
+			fmt.Fprintf(w, "%s %s\n", g.name(prop.Name), prop.Type)
+		}
 	}
 	fmt.Fprint(w, "}\n\n")
 }
@@ -169,30 +187,30 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 	go func(out chan structField) {
 		for _, c := range t.Columns {
 			if t := g.generateColumnTypeString(c, modeDefault); t != "<nil>" {
-				out <- structField{Name: g.public(c.Name), Type: t}
+				out <- structField{Name: g.name(c.Name), Type: t}
 			}
 		}
 
 		for _, r := range t.OwnedRelationships {
 			switch r.Type {
 			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.InversedTable.Name))}
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.name(r.InversedTable.Name))}
 			case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.InversedTable.Name))}
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
 			case pqt.RelationshipTypeManyToMany:
-				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.OwnerTable.Name))}
-				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.InversedTable.Name))}
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.name(r.OwnerTable.Name))}
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
 			}
 		}
 
 		for _, r := range t.InversedRelationships {
 			switch r.Type {
 			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.OwnerTable.Name))}
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.name(r.OwnerTable.Name))}
 			case pqt.RelationshipTypeOneToOne:
-				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.private(r.OwnerTable.Name))}
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("*%sEntity", g.name(r.OwnerTable.Name))}
 			case pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.OwnerTable.Name))}
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.name(r.OwnerTable.Name))}
 			}
 		}
 
@@ -203,9 +221,9 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 
 			switch {
 			case r.OwnerTable == t:
-				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.InversedTable.Name))}
+				out <- structField{Name: or(r.InversedName, r.InversedTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.name(r.InversedTable.Name))}
 			case r.InversedTable == t:
-				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.private(r.OwnerTable.Name))}
+				out <- structField{Name: or(r.OwnerName, r.OwnerTable.Name), Type: fmt.Sprintf("[]*%sEntity", g.name(r.OwnerTable.Name))}
 			}
 		}
 
@@ -216,14 +234,14 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 }
 
 func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "func (e *%sEntity) Prop(cn string) (interface{}, bool) {\n", g.private(t.Name))
+	fmt.Fprintf(w, "func (e *%sEntity) %s(cn string) (interface{}, bool) {\n", g.name(t.Name), g.name("Prop"))
 	fmt.Fprintln(w, "switch cn {")
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.columnNameWithTableName(t.Name, c.Name))
 		if g.canBeNil(c, modeDefault) {
-			fmt.Fprintf(w, "return e.%s, true\n", g.public(c.Name))
+			fmt.Fprintf(w, "return e.%s, true\n", g.name(c.Name))
 		} else {
-			fmt.Fprintf(w, "return &e.%s, true\n", g.public(c.Name))
+			fmt.Fprintf(w, "return &e.%s, true\n", g.name(c.Name))
 		}
 	}
 	fmt.Fprint(w, "default:\n")
@@ -232,21 +250,21 @@ func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "func (e *%sEntity) Props(cns ...string) ([]interface{}, error) {\n", g.private(t.Name))
+	fmt.Fprintf(w, "func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {\n", g.name(t.Name), g.name("Props"))
 	fmt.Fprintf(w, `
 		res := make([]interface{}, 0, len(cns))
 		for _, cn := range cns {
-			if prop, ok := e.Prop(cn); ok {
+			if prop, ok := e.%s(cn); ok {
 				res = append(res, prop)
 			} else {
 				return nil, fmt.Errorf("unexpected column provided: %%s", cn)
 			}
 		}
-		return res, nil`)
+		return res, nil`, g.name("prop"))
 	fmt.Fprint(w, "\n}\n")
 }
 func (g *Generator) generateIterator(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
+	entityName := g.name(t.Name)
 	fmt.Fprintf(w, `
 
 // %sIterator is not thread safe.
@@ -291,7 +309,7 @@ func (i *%sIterator) %s() (*%sEntity, error) {
 		return nil, err
 	}
 
-	props, err := ent.Props(cols...)
+	props, err := ent.%s(cols...)
 	if err != nil {
 		return nil, err
 	}
@@ -300,13 +318,13 @@ func (i *%sIterator) %s() (*%sEntity, error) {
 	}
 	return &ent, nil
 }
-`, entityName, entityName, entityName, entityName, entityName, entityName, entityName, entityName, g.public(t.Name), entityName, g.public(t.Name), entityName, entityName)
+`, entityName, entityName, entityName, entityName, entityName, entityName, entityName, entityName, g.public(t.Name), entityName, g.public(t.Name), entityName, entityName, g.name("props"))
 }
 
 func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "type %sCriteria struct {\n", g.private(t.Name))
-	fmt.Fprintln(w, "offset, limit int64")
-	fmt.Fprintln(w, "sort map[string]bool")
+	fmt.Fprintf(w, "type %sCriteria struct {\n", g.name(t.Name))
+	fmt.Fprintf(w, "%s, %s int64\n", g.name("offset"), g.name("limit"))
+	fmt.Fprintf(w, "%s map[string]bool\n", g.name("sort"))
 
 ColumnLoop:
 	for _, c := range t.Columns {
@@ -315,14 +333,14 @@ ColumnLoop:
 		}
 
 		if t := g.generateColumnTypeString(c, modeCriteria); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.private(c.Name), t)
+			fmt.Fprintf(w, "%s %s\n", g.name(c.Name), t)
 		}
 	}
-	fmt.Fprintln(w, "}\n")
+	fmt.Fprint(w, "}\n\n")
 }
 
 func (g *Generator) generatePatch(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "type %sPatch struct {\n", g.private(t.Name))
+	fmt.Fprintf(w, "type %sPatch struct {\n", g.name(t.Name))
 
 ArgumentsLoop:
 	for _, c := range t.Columns {
@@ -331,10 +349,10 @@ ArgumentsLoop:
 		}
 
 		if t := g.generateColumnTypeString(c, modeOptional); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.private(c.Name), t)
+			fmt.Fprintf(w, "%s %s\n", g.name(c.Name), t)
 		}
 	}
-	fmt.Fprintln(w, "}\n")
+	fmt.Fprint(w, "}\n\n")
 }
 
 func (g *Generator) generateColumnTypeString(c *pqt.Column, m int32) string {
@@ -376,41 +394,41 @@ func (g *Generator) generateConstants(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString(")\n")
 }
 
-func (g *Generator) generateConstantsColumns(code *bytes.Buffer, table *pqt.Table) {
-	fmt.Fprintf(code, `table%s = "%s"`, g.public(table.Name), table.FullName())
-	code.WriteRune('\n')
+func (g *Generator) generateConstantsColumns(w io.Writer, table *pqt.Table) {
+	fmt.Fprintf(w, `%s%s = "%s"
+	`, g.name("table"), g.public(table.Name), table.FullName())
 
 	for _, name := range sortedColumns(table.Columns) {
-		fmt.Fprintf(code, `table%sColumn%s = "%s"`, g.public(table.Name), g.public(name), name)
-		code.WriteRune('\n')
+		fmt.Fprintf(w, `%s%sColumn%s = "%s"
+		`, g.name("table"), g.public(table.Name), g.public(name), name)
 	}
 }
 
-func (g *Generator) generateConstantsConstraints(code *bytes.Buffer, table *pqt.Table) {
+func (g *Generator) generateConstantsConstraints(w io.Writer, table *pqt.Table) {
 	for _, c := range tableConstraints(table) {
 		name := fmt.Sprintf("%s", pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
-			fmt.Fprintf(code, `table%sConstraint%sCheck = "%s"`, g.public(table.Name), g.public(name), c.String())
+			fmt.Fprintf(w, `%s%sConstraint%sCheck = "%s"`, g.name("table"), g.public(table.Name), g.public(name), c.String())
 		case pqt.ConstraintTypePrimaryKey:
-			fmt.Fprintf(code, `table%sConstraintPrimaryKey = "%s"`, g.public(table.Name), c.String())
+			fmt.Fprintf(w, `%s%sConstraintPrimaryKey = "%s"`, g.name("table"), g.public(table.Name), c.String())
 		case pqt.ConstraintTypeForeignKey:
-			fmt.Fprintf(code, `table%sConstraint%sForeignKey = "%s"`, g.public(table.Name), g.public(name), c.String())
+			fmt.Fprintf(w, `%s%sConstraint%sForeignKey = "%s"`, g.name("table"), g.public(table.Name), g.public(name), c.String())
 		case pqt.ConstraintTypeExclusion:
-			fmt.Fprintf(code, `table%sConstraint%sExclusion = "%s"`, g.public(table.Name), g.public(name), c.String())
+			fmt.Fprintf(w, `%s%sConstraint%sExclusion = "%s"`, g.name("table"), g.public(table.Name), g.public(name), c.String())
 		case pqt.ConstraintTypeUnique:
-			fmt.Fprintf(code, `table%sConstraint%sUnique = "%s"`, g.public(table.Name), g.public(name), c.String())
+			fmt.Fprintf(w, `%s%sConstraint%sUnique = "%s"`, g.name("table"), g.public(table.Name), g.public(name), c.String())
 		case pqt.ConstraintTypeIndex:
-			fmt.Fprintf(code, `table%sConstraint%sIndex = "%s"`, g.public(table.Name), g.public(name), c.String())
+			fmt.Fprintf(w, `%s%sConstraint%sIndex = "%s"`, g.name("table"), g.public(table.Name), g.public(name), c.String())
 		}
 
-		code.WriteRune('\n')
+		io.WriteString(w, "\n")
 	}
 }
 
 func (g *Generator) generateColumns(code *bytes.Buffer, table *pqt.Table) {
 	code.WriteString("var (\n")
-	code.WriteString("table")
+	code.WriteString(g.name("table"))
 	code.WriteString(g.public(table.Name))
 	code.WriteString("Columns = []string{\n")
 
@@ -432,7 +450,7 @@ func (g *Generator) generateRepository(b *bytes.Buffer, t *pqt.Table) {
 			dbg bool
 			log log.Logger
 		}
-	`, g.private(t.Name))
+	`, g.name(t.Name))
 	g.generateRepositoryScanRows(b, t)
 	g.generateRepositoryCount(b, t)
 	g.generateRepositoryFind(b, t)
@@ -441,26 +459,27 @@ func (g *Generator) generateRepository(b *bytes.Buffer, t *pqt.Table) {
 	g.generateRepositoryFindOneByUniqueConstraint(b, t)
 	g.generateRepositoryInsert(b, t)
 	g.generateRepositoryUpsert(b, t)
-	g.generateRepositoryUpdateByPrimaryKey(b, t)
-	g.generateRepositoryDeleteByPrimaryKey(b, t)
+	g.generateRepositoryUpdateOneByPrimaryKey(b, t)
+	g.generateRepositoryUpdateOneByUniqueConstraint(b, t)
+	g.generateRepositoryDeleteOneByPrimaryKey(b, t)
 }
 
 func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Column) {
-	columnNamePrivate := g.private(c.Name)
+	columnName := g.name(c.Name)
 	columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 
 	t := g.generateColumnTypeString(c, modeCriteria)
 	if t == "<nil>" {
 		return
 	}
-	if !g.generateRepositoryFindPropertyQueryByGoType(w, c, t, columnNamePrivate, columnNameWithTable) {
-		fmt.Fprintf(w, " if c.%s != nil {", g.private(c.Name))
+	if !g.generateRepositoryFindPropertyQueryByGoType(w, c, t, columnName, columnNameWithTable) {
+		fmt.Fprintf(w, " if c.%s != nil {", g.name(c.Name))
 		fmt.Fprintf(w, dirtyAnd)
 		fmt.Fprintf(w, `if _, err = com.WriteString(%s); err != nil {
 			return
 		}
 		`, g.columnNameWithTableName(c.Table.Name, c.Name))
-		fmt.Fprintf(w, `if _, err = com.WriteString(" = "); err != nil {
+		fmt.Fprint(w, `if _, err = com.WriteString(" = "); err != nil {
 			return
 		}
 		`)
@@ -481,11 +500,11 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 		}
 		`)
 		fmt.Fprintf(w, `com.Add(c.%s)
-		}`, g.private(c.Name))
+		}`, g.name(c.Name))
 	}
 }
 
-func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col *pqt.Column, goType, columnNamePrivate, columnNameWithTable string) (done bool) {
+func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col *pqt.Column, goType, columnName, columnNameWithTable string) (done bool) {
 	switch goType {
 	case "uuid.UUID":
 		fmt.Fprintf(w, `
@@ -502,7 +521,7 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 				}
 				com.Add(c.%s)
 			}
-		`, columnNamePrivate, dirtyAnd, columnNameWithTable, columnNamePrivate)
+		`, columnName, dirtyAnd, columnNameWithTable, columnName)
 	case "*qtypes.Timestamp":
 		fmt.Fprintf(w, `
 				if c.%s != nil && c.%s.Valid {
@@ -591,47 +610,47 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 					}
 				}
 `,
-			columnNamePrivate, columnNamePrivate,
-			columnNamePrivate, columnNamePrivate,
-			columnNamePrivate,
-			columnNamePrivate,
-			columnNamePrivate, columnNamePrivate,
+			columnName, columnName,
+			columnName, columnName,
+			columnName,
+			columnName,
+			columnName, columnName,
 			// NOT A NUMBER
 			dirtyAnd,
 			columnNameWithTable,
-			columnNamePrivate,
+			columnName,
 			// EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate, columnNamePrivate,
+			columnNameWithTable, columnName, columnName,
 			// GREATER
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnName,
 			// GREATER EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnName,
 			// LESS
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnName,
 			// LESS EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnName,
 			// IN
-			columnNamePrivate,
+			columnName,
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate,
+			columnNameWithTable, columnName,
 			// BETWEEN
 			dirtyAnd,
-			columnNamePrivate, columnNamePrivate,
-			columnNamePrivate, columnNamePrivate,
-			columnNamePrivate,
-			columnNameWithTable, columnNamePrivate,
-			columnNameWithTable, columnNamePrivate,
+			columnName, columnName,
+			columnName, columnName,
+			columnName,
+			columnNameWithTable, columnName,
+			columnNameWithTable, columnName,
 		)
 	case "*qtypes.Int64":
 		fmt.Fprintf(w, `
 		if err = pqtgo.WriteCompositionQueryInt64(c.%s, %s, com, pqtgo.And); err != nil {
 			return
-		}`, columnNamePrivate, columnNameWithTable)
+		}`, columnName, columnNameWithTable)
 	case "*qtypes.Int32", "*qtypes.Float64":
 		fmt.Fprintf(w, `
 				if c.%s != nil && c.%s.Valid {
@@ -734,54 +753,53 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 					}
 				}
 `,
-			columnNamePrivate, columnNamePrivate,
-			columnNamePrivate,
+			columnName, columnName,
+			columnName,
 			// NOT A NUMBER
 			dirtyAnd,
 			columnNameWithTable,
-			columnNamePrivate,
+			columnName,
 			// EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate, columnNamePrivate,
+			columnNameWithTable, columnName, columnName,
 			// GREATER
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate, columnNamePrivate,
+			columnNameWithTable, columnName, columnName,
 			// GREATER EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate, columnNamePrivate,
+			columnNameWithTable, columnName, columnName,
 			// LESS
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate, columnNamePrivate,
+			columnNameWithTable, columnName, columnName,
 			// LESS EQUAL
 			dirtyAnd,
-			columnNameWithTable, columnNamePrivate, columnNamePrivate,
+			columnNameWithTable, columnName, columnName,
 			// IN
-			columnNamePrivate,
+			columnName,
 			dirtyAnd,
 			columnNameWithTable,
-			columnNamePrivate, columnNamePrivate,
+			columnName, columnName,
 			// BETWEEN
 			dirtyAnd,
 			columnNameWithTable,
-			columnNamePrivate, columnNamePrivate,
+			columnName, columnName,
 			columnNameWithTable,
-			columnNamePrivate, columnNamePrivate,
+			columnName, columnName,
 		)
 	case "*qtypes.String":
 		fmt.Fprintf(w, `
 		if err = pqtgo.WriteCompositionQueryString(c.%s, %s, com, pqtgo.And); err != nil {
 			return
-		}`, columnNamePrivate, columnNameWithTable)
+		}`, columnName, columnNameWithTable)
 	default:
 		if strings.HasPrefix(goType, "*ntypes.") {
-			fmt.Fprintf(w, " if c.%s != nil && c.%s.Valid {", columnNamePrivate, columnNamePrivate)
+			fmt.Fprintf(w, " if c.%s != nil && c.%s.Valid {", columnName, columnName)
 			fmt.Fprintf(w, dirtyAnd)
 			fmt.Fprintf(w, "com.WriteString(%s)\n", columnNameWithTable)
-			fmt.Fprintf(w, `com.WriteString(" = ")
-`)
+			fmt.Fprintln(w, `com.WriteString(" = ")`)
 			fmt.Fprintln(w, `com.WritePlaceholder()`)
 			fmt.Fprintf(w, `com.Add(c.%s)
-		}`, columnNamePrivate)
+		}`, columnName)
 			return true
 		}
 		return
@@ -808,7 +826,7 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 					return
 				}
 
-				columnNamePrivate := g.private(c.Name)
+				columnName := g.name(c.Name)
 				columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 				zero := reflect.Zero(mtt.criteriaTypeOf)
 				// Checks if custom type implements Criterion interface.
@@ -816,15 +834,15 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 				if zero.CanInterface() {
 					if _, ok := zero.Interface().(CompositionWriter); ok {
 						if zero.IsNil() {
-							fmt.Fprintf(w, "if c.%s != nil {", columnNamePrivate)
+							fmt.Fprintf(w, "if c.%s != nil {", columnName)
 						}
 						fmt.Fprintf(w, `
 							if err = c.%s.WriteComposition(%s, com, pqtgo.And); err != nil {
 								return
 							}
-						`, columnNamePrivate, columnNameWithTable)
+						`, columnName, columnNameWithTable)
 						if zero.IsNil() {
-							fmt.Fprintf(w, "}\n")
+							fmt.Fprintln(w, "}")
 						}
 						return
 					}
@@ -837,16 +855,15 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 				case reflect.Struct:
 					for i := 0; i < zero.NumField(); i++ {
 						field := zero.Field(i)
-						fieldName := columnNamePrivate + "." + zero.Type().Field(i).Name
+						fieldName := columnName + "." + zero.Type().Field(i).Name
 						fieldJSONName := strings.Split(zero.Type().Field(i).Tag.Get("json"), ", ")[0]
 						columnNameWithTableAndJSONSelector := fmt.Sprintf(`%s + " -> '%s'"`, columnNameWithTable, fieldJSONName)
 
 						// If struct is nil, it's properties should not be accessed.
 						fmt.Fprintf(w, `if c.%s != nil {
-						`, g.private(c.Name))
+						`, g.name(c.Name))
 						g.generateRepositoryFindPropertyQueryByGoType(w, c, field.Type().String(), fieldName, columnNameWithTableAndJSONSelector)
-						fmt.Fprintf(w, `}
-						`)
+						fmt.Fprintln(w, "}")
 					}
 				}
 			default:
@@ -860,7 +877,7 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 }
 
 func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
+	entityName := g.name(t.Name)
 	fmt.Fprintf(w, `func (c *%sCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
 	`, entityName) // It's probably not enough but its good start.
 	for _, c := range t.Columns {
@@ -871,10 +888,10 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 		g.generateRepositoryFindSingleExpression(w, c)
 	}
 	fmt.Fprintf(w, `
-	if len(c.sort) > 0 {
+	if len(c.%s) > 0 {
 		i:=0
 		com.WriteString(" ORDER BY ")
-		for cn, asc := range c.sort {
+		for cn, asc := range c.%s {
 			if i > 0 {
 				com.WriteString(", ")
 			}
@@ -885,7 +902,7 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 			i++
 		}
 	}
-	if c.offset > 0 {
+	if c.%s > 0 {
 		if _, err = com.WriteString(" OFFSET "); err != nil {
 			return
 		}
@@ -895,9 +912,9 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 		if _, err = com.WriteString(" "); err != nil {
 			return
 		}
-		com.Add(c.offset)
+		com.Add(c.%s)
 	}
-	if c.limit > 0 {
+	if c.%s > 0 {
 		if _, err = com.WriteString(" LIMIT "); err != nil {
 			return
 		}
@@ -907,16 +924,18 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 		if _, err = com.WriteString(" "); err != nil {
 			return
 		}
-		com.Add(c.limit)
+		com.Add(c.%s)
 	}
 
 	return
 }
-`)
+`, g.name("sort"), g.name("sort"),
+		g.name("offset"), g.name("offset"),
+		g.name("limit"), g.name("limit"))
 }
 
 func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
+	entityName := g.name(t.Name)
 	fmt.Fprintf(w, `func Scan%sRows(rows *sql.Rows) ([]*%sEntity, error) {
 	`, g.public(t.Name), entityName)
 	fmt.Fprintf(w, `var (
@@ -928,7 +947,7 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 		err = rows.Scan(
 	`, entityName, entityName)
 	for _, c := range t.Columns {
-		fmt.Fprintf(w, "&ent.%s,\n", g.public(c.Name))
+		fmt.Fprintf(w, "&ent.%s,\n", g.name(c.Name))
 	}
 	fmt.Fprint(w, `)
 			if err != nil {
@@ -948,7 +967,7 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryFindBody(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, `
+	fmt.Fprint(w, `
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(r.columns, ", "))
@@ -980,11 +999,11 @@ func (g *Generator) generateRepositoryFindBody(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
+	entityName := g.name(t.Name)
 
 	fmt.Fprintf(w, `
-func (r *%sRepositoryBase) Find(c *%sCriteria) ([]*%sEntity, error) {
-`, entityName, entityName, entityName)
+func (r *%sRepositoryBase) %s(c *%sCriteria) ([]*%sEntity, error) {
+`, entityName, g.name("Find"), entityName, entityName)
 	g.generateRepositoryFindBody(w, t)
 	fmt.Fprintf(w, `
 	defer rows.Close()
@@ -995,23 +1014,23 @@ func (r *%sRepositoryBase) Find(c *%sCriteria) ([]*%sEntity, error) {
 }
 
 func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
+	entityName := g.name(t.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) FindIter(c *%sCriteria) (*%sIterator, error) {
-`, entityName, entityName, entityName)
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(c *%sCriteria) (*%sIterator, error) {
+`, entityName, g.name("FindIter"), entityName, entityName)
 	g.generateRepositoryFindBody(w, t)
 	fmt.Fprintf(w, `
 
 	return &%sIterator{rows: rows}, nil
 }
-`, g.private(t.Name))
+`, g.name(t.Name))
 }
 
 func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {
-	entityName := g.private(t.Name)
+	entityName := g.name(t.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) Count(c *%sCriteria) (int64, error) {
-`, entityName, entityName)
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(c *%sCriteria) (int64, error) {
+`, entityName, g.name("count"), entityName)
 	fmt.Fprintf(w, `
 	com := pqtgo.NewComposer(%d)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
@@ -1043,13 +1062,20 @@ func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, table *pqt.Table) {
-	entityName := g.private(table.Name)
+	entityName := g.name(table.Name)
 	pk, ok := table.PrimaryKey()
 	if !ok {
 		return
 	}
 
-	fmt.Fprintf(code, `func (r *%sRepositoryBase) FindOneBy%s(%s %s) (*%sEntity, error) {`, entityName, g.public(pk.Name), g.private(pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName)
+	fmt.Fprintf(code, `func (r *%sRepositoryBase) %s%s(%s %s) (*%sEntity, error) {`,
+		entityName,
+		g.name("FindOneBy"),
+		g.public(pk.Name),
+		g.private(pk.Name),
+		g.generateColumnTypeString(pk, modeMandatory),
+		entityName,
+	)
 	fmt.Fprintf(code, `var (
 		entity %sEntity
 	)`, entityName)
@@ -1068,7 +1094,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 	err := r.db.QueryRow(query, %s).Scan(
 	`, g.private(pk.Name))
 	for _, c := range table.Columns {
-		fmt.Fprintf(code, "&entity.%s,\n", g.public(c.Name))
+		fmt.Fprintf(code, "&entity.%s,\n", g.name(c.Name))
 	}
 	fmt.Fprint(code, `)
 		if err != nil {
@@ -1081,8 +1107,8 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 }
 
 func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buffer, table *pqt.Table) {
-	entityName := g.private(table.Name)
-	unique := make([]*pqt.Constraint, 0)
+	entityName := g.name(table.Name)
+	var unique []*pqt.Constraint
 	for _, c := range table.Constraints {
 		if c.Type == pqt.ConstraintTypeUnique {
 			unique = append(unique, c)
@@ -1103,7 +1129,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 			methodName += g.public(c.Name)
 			arguments += fmt.Sprintf("%s %s", g.private(c.Name), g.generateColumnTypeString(c, modeMandatory))
 		}
-		fmt.Fprintf(code, `func (r *%sRepositoryBase) %s(%s) (*%sEntity, error) {`, entityName, methodName, arguments, entityName)
+		fmt.Fprintf(code, `func (r *%sRepositoryBase) %s(%s) (*%sEntity, error) {`, entityName, g.name(methodName), arguments, entityName)
 		fmt.Fprintf(code, `var (
 			entity %sEntity
 		)`, entityName)
@@ -1127,13 +1153,13 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 		fmt.Fprint(code, "err := r.db.QueryRow(query, ")
 		for i, c := range u.Columns {
 			if i != 0 {
-				fmt.Fprintf(code, ", ")
+				fmt.Fprint(code, ", ")
 			}
 			fmt.Fprintf(code, "%s", g.private(c.Name))
 		}
 		fmt.Fprint(code, ").Scan(\n")
 		for _, c := range table.Columns {
-			fmt.Fprintf(code, "&entity.%s,\n", g.public(c.Name))
+			fmt.Fprintf(code, "&entity.%s,\n", g.name(c.Name))
 		}
 		fmt.Fprint(code, `)
 			if err != nil {
@@ -1147,12 +1173,12 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 	}
 }
 
-func (g *Generator) generateRepositoryInsert(code *bytes.Buffer,
+func (g *Generator) generateRepositoryInsert(w io.Writer,
 	table *pqt.Table) {
-	entityName := g.private(table.Name)
+	entityName := g.name(table.Name)
 
-	fmt.Fprintf(code, `func (r *%sRepositoryBase) Insert(e *%sEntity) (*%sEntity, error) {`, entityName, entityName, entityName)
-	fmt.Fprintf(code, `
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(e *%sEntity) (*%sEntity, error) {`, entityName, g.name("Insert"), entityName, entityName)
+	fmt.Fprintf(w, `
 		insert := pqcomp.New(0, %d)
 	`, len(table.Columns))
 
@@ -1163,21 +1189,21 @@ ColumnsLoop:
 			continue ColumnsLoop
 		default:
 			if g.canBeNil(c, modeOptional) {
-				fmt.Fprintf(code, `
+				fmt.Fprintf(w, `
 					if e.%s != nil {
 						insert.AddExpr(%s, "", e.%s)
 					}
 				`,
-					g.public(c.Name),
-					g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name),
+					g.name(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name),
 				)
 			} else {
-				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name))
+				fmt.Fprintf(w, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name))
 			}
-			fmt.Fprintln(code, "")
+			fmt.Fprintln(w, "")
 		}
 	}
-	fmt.Fprint(code, `
+	fmt.Fprint(w, `
 		b := bytes.NewBufferString("INSERT INTO " + r.table)
 
 		if insert.Len() != 0 {
@@ -1215,9 +1241,9 @@ ColumnsLoop:
 	`)
 
 	for _, c := range table.Columns {
-		fmt.Fprintf(code, "&e.%s,\n", g.public(c.Name))
+		fmt.Fprintf(w, "&e.%s,\n", g.name(c.Name))
 	}
-	fmt.Fprint(code, `)
+	fmt.Fprint(w, `)
 		if err != nil {
 			return nil, err
 		}
@@ -1231,9 +1257,12 @@ func (g *Generator) generateRepositoryUpsert(code *bytes.Buffer, table *pqt.Tabl
 	if g.ver < 9.5 {
 		return
 	}
-	entityName := g.private(table.Name)
+	entityName := g.name(table.Name)
 
-	fmt.Fprintf(code, `func (r *%sRepositoryBase) Upsert(e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`, entityName, entityName, entityName, entityName)
+	fmt.Fprintf(code, `func (r *%sRepositoryBase) %s(e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`,
+		entityName, g.name("Upsert"),
+		entityName, entityName, entityName,
+	)
 	fmt.Fprintf(code, `
 		insert := pqcomp.New(0, %d)
 		update := insert.Compose(%d)
@@ -1251,11 +1280,11 @@ InsertLoop:
 						insert.AddExpr(%s, "", e.%s)
 					}
 				`,
-					g.public(c.Name),
-					g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name),
+					g.name(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name),
 				)
 			} else {
-				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.public(c.Name))
+				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name))
 			}
 			fmt.Fprintln(code, "")
 		}
@@ -1273,11 +1302,11 @@ UpdateLoop:
 						update.AddExpr(%s, "=", p.%s)
 					}
 				`,
-					g.private(c.Name),
-					g.columnNameWithTableName(table.Name, c.Name), g.private(c.Name),
+					g.name(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name),
 				)
 			} else {
-				fmt.Fprintf(code, `update.AddExpr(%s, "=", p.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.private(c.Name))
+				fmt.Fprintf(code, `update.AddExpr(%s, "=", p.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name))
 			}
 			fmt.Fprintln(code, "")
 		}
@@ -1349,7 +1378,7 @@ UpdateLoop:
 	`)
 
 	for _, c := range table.Columns {
-		fmt.Fprintf(code, "&e.%s,\n", g.public(c.Name))
+		fmt.Fprintf(code, "&e.%s,\n", g.name(c.Name))
 	}
 	fmt.Fprint(code, `)
 		if err != nil {
@@ -1361,20 +1390,138 @@ UpdateLoop:
 `)
 }
 
-func (g *Generator) generateRepositoryUpdateByPrimaryKey(w io.Writer, table *pqt.Table) {
-	entityName := g.private(table.Name)
+func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
+	entityName := g.name(table.Name)
+	var unique []*pqt.Constraint
+	for _, c := range table.Constraints {
+		if c.Type == pqt.ConstraintTypeUnique {
+			unique = append(unique, c)
+		}
+	}
+	if len(unique) < 1 {
+		return
+	}
+
+	for _, u := range unique {
+		arguments := ""
+		methodName := "UpdateOneBy"
+		for i, c := range u.Columns {
+			if i != 0 {
+				methodName += "And"
+				arguments += ", "
+			}
+			methodName += g.public(c.Name)
+			arguments += fmt.Sprintf("%s %s", g.private(c.Name), g.generateColumnTypeString(c, modeMandatory))
+		}
+		fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(%s, patch *%sPatch) (*%sEntity, error) {
+		`, entityName, g.name(methodName), arguments, entityName, entityName)
+		fmt.Fprintf(w, "update := pqcomp.New(2, %d)\n", len(table.Columns))
+		for _, c := range u.Columns {
+			fmt.Fprintf(w, "update.AddArg(%s)\n", g.private(c.Name))
+		}
+		pk, pkOK := table.PrimaryKey()
+		if !pkOK {
+			return
+		}
+	ColumnsLoop:
+		for _, c := range table.Columns {
+			if pkOK && c == pk {
+				continue ColumnsLoop
+			}
+			for _, uc := range u.Columns {
+				if c == uc {
+					continue
+				}
+			}
+			if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
+				switch c.Type {
+				case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+					fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
+
+				}
+			} else if g.canBeNil(c, modeOptional) {
+				fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
+			}
+
+			fmt.Fprint(w, "update.AddExpr(")
+			g.writeTableNameColumnNameTo(w, c.Table.Name, c.Name)
+			fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.name(c.Name))
+
+			if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
+				switch c.Type {
+				case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+					fmt.Fprint(w, `} else {`)
+					fmt.Fprint(w, "update.AddExpr(")
+					g.writeTableNameColumnNameTo(w, c.Table.Name, c.Name)
+					fmt.Fprintf(w, `, pqcomp.Equal, "%s")`, d)
+				}
+			}
+			if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
+				switch c.Type {
+				case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+					fmt.Fprint(w, "\n}\n")
+				}
+			} else if g.canBeNil(c, modeOptional) {
+				fmt.Fprint(w, "\n}\n")
+			}
+		}
+
+		fmt.Fprintf(w, `
+	if update.Len() == 0 {
+		return nil, errors.New("%s update failure, nothing to update")
+	}`, entityName)
+
+		fmt.Fprintf(w, `
+	query := "UPDATE %s SET "
+	for update.Next() {
+		if !update.First() {
+			query += ", "
+		}
+
+		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
+	}
+`, table.FullName())
+		fmt.Fprint(w, `query += " WHERE `)
+		for i, c := range u.Columns {
+			if i != 0 {
+				fmt.Fprint(w, " AND ")
+			}
+			fmt.Fprintf(w, "%s = $%d", c.Name, i+1)
+		}
+		fmt.Fprintf(w, ` RETURNING " + strings.Join(r.columns, ", ")
+	if r.dbg {
+		if err := r.log.Log("msg", query, "function", "%s"); err != nil {
+			return nil, err
+		}
+	}
+	var e %sEntity
+	err := r.db.QueryRow(query, update.Args()...).Scan(
+	`, methodName, entityName)
+		for _, c := range table.Columns {
+			fmt.Fprintf(w, "&e.%s,\n", g.name(c.Name))
+		}
+		fmt.Fprint(w, `)
+if err != nil {
+	return nil, err
+}
+
+
+return &e, nil
+}
+`)
+	}
+}
+
+func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
+	entityName := g.name(table.Name)
 	pk, ok := table.PrimaryKey()
 	if !ok {
 		return
 	}
 
-	fmt.Fprintf(w, "func (r *%sRepositoryBase) UpdateOneBy%s(%s %s, patch *%sPatch) (*%sEntity, error) {\n", entityName, g.public(pk.Name), g.private(pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName, entityName)
-	fmt.Fprintf(w, "update := pqcomp.New(0, %d)\n", len(table.Columns))
-	fmt.Fprintf(
-		w, `update.AddExpr(%s, pqcomp.Equal, %s)`,
-		g.columnNameWithTableName(table.Name, pk.Name),
-		g.private(pk.Name),
-	)
+	fmt.Fprintf(w, "func (r *%sRepositoryBase) %s%s(%s %s, patch *%sPatch) (*%sEntity, error) {\n", entityName, g.name("UpdateOneBy"), g.public(pk.Name), g.private(pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName, entityName)
+	fmt.Fprintf(w, "update := pqcomp.New(1, %d)\n", len(table.Columns))
+	fmt.Fprintf(w, "update.AddArg(%s)\n", g.private(pk.Name))
 	fmt.Fprintln(w, "")
 
 ColumnsLoop:
@@ -1385,22 +1532,22 @@ ColumnsLoop:
 		if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
 			switch c.Type {
 			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-				fmt.Fprintf(w, "if patch.%s != nil {\n", g.private(c.Name))
+				fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
 
 			}
 		} else if g.canBeNil(c, modeOptional) {
-			fmt.Fprintf(w, "if patch.%s != nil {\n", g.private(c.Name))
+			fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
 		}
 
-		fmt.Fprintf(w, "update.AddExpr(")
+		fmt.Fprint(w, "update.AddExpr(")
 		g.writeTableNameColumnNameTo(w, c.Table.Name, c.Name)
-		fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.private(c.Name))
+		fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.name(c.Name))
 
 		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
 			switch c.Type {
 			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-				fmt.Fprintf(w, `} else {`)
-				fmt.Fprintf(w, "update.AddExpr(")
+				fmt.Fprint(w, `} else {`)
+				fmt.Fprint(w, "update.AddExpr(")
 				g.writeTableNameColumnNameTo(w, c.Table.Name, c.Name)
 				fmt.Fprintf(w, `, pqcomp.Equal, "%s")`, d)
 			}
@@ -1408,10 +1555,10 @@ ColumnsLoop:
 		if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
 			switch c.Type {
 			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-				fmt.Fprintf(w, "\n}\n")
+				fmt.Fprint(w, "\n}\n")
 			}
 		} else if g.canBeNil(c, modeOptional) {
-			fmt.Fprintf(w, "\n}\n")
+			fmt.Fprint(w, "\n}\n")
 		}
 	}
 	fmt.Fprintf(w, `
@@ -1433,28 +1580,29 @@ ColumnsLoop:
 	err := r.db.QueryRow(query, update.Args()...).Scan(
 	`, table.FullName(), pk.Name, entityName)
 	for _, c := range table.Columns {
-		fmt.Fprintf(w, "&e.%s,\n", g.public(c.Name))
+		fmt.Fprintf(w, "&e.%s,\n", g.name(c.Name))
 	}
-	fmt.Fprintf(w, `)
+	fmt.Fprint(w, `)
 if err != nil {
 	return nil, err
 }
 
 
 return &e, nil
-}`)
+}
+`)
 }
 
-func (g *Generator) generateRepositoryDeleteByPrimaryKey(code *bytes.Buffer,
+func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(code *bytes.Buffer,
 	table *pqt.Table) {
-	entityName := g.private(table.Name)
+	entityName := g.name(table.Name)
 	pk, ok := table.PrimaryKey()
 	if !ok {
 		return
 	}
 
 	fmt.Fprintf(code, `
-		func (r *%sRepositoryBase) DeleteOneBy%s(%s %s) (int64, error) {
+		func (r *%sRepositoryBase) %s%s(%s %s) (int64, error) {
 			query := "DELETE FROM %s WHERE %s = $1"
 
 			res, err := r.db.Exec(query, %s)
@@ -1464,7 +1612,7 @@ func (g *Generator) generateRepositoryDeleteByPrimaryKey(code *bytes.Buffer,
 
 			return res.RowsAffected()
 		}
-	`, entityName, g.public(pk.Name), g.private(pk.Name), g.generateColumnTypeString(pk, 1), table.FullName(), pk.Name, g.private(pk.Name))
+`, entityName, g.name("DeleteOneBy"), g.public(pk.Name), g.private(pk.Name), g.generateColumnTypeString(pk, 1), table.FullName(), pk.Name, g.private(pk.Name))
 }
 
 func sortedColumns(columns []*pqt.Column) []string {
@@ -1505,6 +1653,10 @@ func snake(s string, private bool, acronyms map[string]string) string {
 	}
 
 	return strings.Join(parts, "")
+}
+
+func (g *Generator) name(s string) string {
+	return snake(s, g.vis == Private, g.acronyms)
 }
 
 func (g *Generator) private(s string) string {
@@ -1690,11 +1842,11 @@ func generateCustomType(t CustomType, m int32) string {
 }
 
 func (g *Generator) writeTableNameColumnNameTo(w io.Writer, tableName, columnName string) {
-	fmt.Fprintf(w, "table%sColumn%s", g.public(tableName), g.public(columnName))
+	fmt.Fprintf(w, "%s%sColumn%s", g.name("table"), g.public(tableName), g.public(columnName))
 }
 
 func (g *Generator) columnNameWithTableName(tableName, columnName string) string {
-	return fmt.Sprintf("table%sColumn%s", g.public(tableName), g.public(columnName))
+	return fmt.Sprintf("%s%sColumn%s", g.name("table"), g.public(tableName), g.public(columnName))
 }
 
 func (g *Generator) shouldBeColumnIgnoredForCriteria(c *pqt.Column) bool {
@@ -1727,21 +1879,6 @@ type structField struct {
 	Name string
 	Type string
 	Tags reflect.StructTag
-}
-
-// WriteTo implements io.WriterTo interface
-func (sf structField) WriteTo(w io.Writer) (int64, error) {
-	var (
-		nb  int
-		err error
-	)
-	if sf.Tags != "" {
-		nb, err = fmt.Fprintf(w, "%s %s %s", sf.Name, sf.Type, sf.Tags)
-	} else {
-		nb, err = fmt.Fprintf(w, "%s %s", sf.Name, sf.Type)
-	}
-
-	return int64(nb), err
 }
 
 func or(s1, s2 string) string {

@@ -59,34 +59,34 @@ import (
 )
 const (
 tableFirst = "text.first"
-tableFirstColumnId = "id"
-tableFirstColumnName = "name"
-)
+	tableFirstColumnId = "id"
+		tableFirstColumnName = "name"
+		)
 var (
 tableFirstColumns = []string{
 tableFirstColumnId,
 tableFirstColumnName,
 })
 type firstEntity struct{
-Id *ntypes.Int64
-Name *ntypes.String
+id *ntypes.Int64
+name *ntypes.String
 }
 
-func (e *firstEntity) Prop(cn string) (interface{}, bool) {
+func (e *firstEntity) prop(cn string) (interface{}, bool) {
 switch cn {
 case tableFirstColumnId:
-return &e.Id, true
+return &e.id, true
 case tableFirstColumnName:
-return &e.Name, true
+return &e.name, true
 default:
 return nil, false
 }
 }
-func (e *firstEntity) Props(cns ...string) ([]interface{}, error) {
+func (e *firstEntity) props(cns ...string) ([]interface{}, error) {
 
 		res := make([]interface{}, 0, len(cns))
 		for _, cn := range cns {
-			if prop, ok := e.Prop(cn); ok {
+			if prop, ok := e.prop(cn); ok {
 				res = append(res, prop)
 			} else {
 				return nil, fmt.Errorf("unexpected column provided: %s", cn)
@@ -138,7 +138,7 @@ func (i *firstIterator) First() (*firstEntity, error) {
 		return nil, err
 	}
 
-	props, err := ent.Props(cols...)
+	props, err := ent.props(cols...)
 	if err != nil {
 		return nil, err
 	}
@@ -226,8 +226,8 @@ name *ntypes.String
 	for rows.Next() {
 		var ent firstEntity
 		err = rows.Scan(
-	&ent.Id,
-&ent.Name,
+	&ent.id,
+&ent.name,
 )
 			if err != nil {
 				return nil, err
@@ -242,7 +242,7 @@ name *ntypes.String
 		return entities, nil
 	}
 
-	func (r *firstRepositoryBase) Count(c *firstCriteria) (int64, error) {
+	func (r *firstRepositoryBase) count(c *firstCriteria) (int64, error) {
 
 	com := pqtgo.NewComposer(2)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
@@ -271,7 +271,7 @@ name *ntypes.String
 	return count, nil
 }
 
-func (r *firstRepositoryBase) Find(c *firstCriteria) ([]*firstEntity, error) {
+func (r *firstRepositoryBase) find(c *firstCriteria) ([]*firstEntity, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -305,7 +305,7 @@ func (r *firstRepositoryBase) Find(c *firstCriteria) ([]*firstEntity, error) {
 
 	return ScanFirstRows(rows)
 }
-func (r *firstRepositoryBase) FindIter(c *firstCriteria) (*firstIterator, error) {
+func (r *firstRepositoryBase) findIter(c *firstCriteria) (*firstIterator, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -338,9 +338,9 @@ func (r *firstRepositoryBase) FindIter(c *firstCriteria) (*firstIterator, error)
 
 	return &firstIterator{rows: rows}, nil
 }
-func (r *firstRepositoryBase) Insert(e *firstEntity) (*firstEntity, error) {
+func (r *firstRepositoryBase) insert(e *firstEntity) (*firstEntity, error) {
 		insert := pqcomp.New(0, 2)
-	insert.AddExpr(tableFirstColumnName, "", e.Name)
+	insert.AddExpr(tableFirstColumnName, "", e.name)
 
 		b := bytes.NewBufferString("INSERT INTO " + r.table)
 
@@ -376,8 +376,8 @@ func (r *firstRepositoryBase) Insert(e *firstEntity) (*firstEntity, error) {
 		}
 
 		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-	&e.Id,
-&e.Name,
+	&e.id,
+&e.name,
 )
 		if err != nil {
 			return nil, err
@@ -385,10 +385,10 @@ func (r *firstRepositoryBase) Insert(e *firstEntity) (*firstEntity, error) {
 
 		return e, nil
 	}
-func (r *firstRepositoryBase) Upsert(e *firstEntity, p *firstPatch, inf ...string) (*firstEntity, error) {
+func (r *firstRepositoryBase) upsert(e *firstEntity, p *firstPatch, inf ...string) (*firstEntity, error) {
 		insert := pqcomp.New(0, 2)
 		update := insert.Compose(2)
-	insert.AddExpr(tableFirstColumnName, "", e.Name)
+	insert.AddExpr(tableFirstColumnName, "", e.name)
 if len(inf) > 0 {
 update.AddExpr(tableFirstColumnName, "=", p.name)
 }
@@ -454,8 +454,8 @@ update.AddExpr(tableFirstColumnName, "=", p.name)
 		}
 
 		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-	&e.Id,
-&e.Name,
+	&e.id,
+&e.name,
 )
 		if err != nil {
 			return nil, err

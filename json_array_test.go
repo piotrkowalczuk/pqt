@@ -52,7 +52,7 @@ SuccessLoop:
 		}
 
 		if !reflect.DeepEqual(expected, got) {
-			t.Errorf("wrong output, expected %s but got %s", expected, got)
+			t.Errorf("wrong output, expected %v but got %v", expected, got)
 		}
 	}
 
@@ -87,7 +87,7 @@ func TestJSONArrayInt64_Scan_nil(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if got != nil {
-		t.Errorf("unexpected output, expected: %T\n	%s\n	but got: %T\n	%s,", nil, nil, got, got)
+		t.Errorf("unexpected output, expected: %T\n	%v\n	but got: %T\n	%v,", nil, nil, got, got)
 
 	}
 }
@@ -219,7 +219,7 @@ SuccessLoop:
 		}
 
 		if !reflect.DeepEqual(expected, got) {
-			t.Errorf("wrong output, expected %s but got %s", expected, got)
+			t.Errorf("wrong output, expected %v but got %v", expected, got)
 		}
 	}
 
@@ -238,7 +238,7 @@ FailLoop:
 
 		err := got.Scan(src)
 		if err == nil {
-			t.Errorf("expected error, got nil")
+			t.Error("expected error, got nil")
 			continue FailLoop
 		}
 		if expected != err.Error() {
@@ -254,7 +254,7 @@ func TestJSONArrayFloat64_Scan_nil(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if got != nil {
-		t.Errorf("unexpected output, expected: %T\n	%s\n	but got: %T\n	%s,", nil, nil, got, got)
+		t.Errorf("unexpected output, expected: %T\n	%v\n	but got: %T\n	%v,", nil, nil, got, got)
 
 	}
 }

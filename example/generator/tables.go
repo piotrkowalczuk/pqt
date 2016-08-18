@@ -4,12 +4,14 @@ import "github.com/piotrkowalczuk/pqt"
 
 func schema(sn string) *pqt.Schema {
 	title := pqt.NewColumn("title", pqt.TypeText(), pqt.WithNotNull(), pqt.WithUnique())
+	lead := pqt.NewColumn("lead", pqt.TypeText())
 
 	news := pqt.NewTable("news", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(title).
-		AddColumn(pqt.NewColumn("lead", pqt.TypeText())).
-		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull()))
+		AddColumn(lead).
+		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
+		AddUnique(title, lead)
 
 	comment := pqt.NewTable("comment", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig())).

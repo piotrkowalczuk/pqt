@@ -75,11 +75,11 @@ func TestTable_AddRelationship_oneToOneBidirectional(t *testing.T) {
 	}
 
 	if user.OwnedRelationships[0].OwnerTable != user {
-		t.Errorf("user relationship to user_detail should be mapped by user table, but is %s", user.OwnedRelationships[0].OwnerTable)
+		t.Errorf("user relationship to user_detail should be mapped by user table, but is %v", user.OwnedRelationships[0].OwnerTable)
 	}
 
 	if user.OwnedRelationships[0].Type != pqt.RelationshipTypeOneToOne {
-		t.Errorf("user relationship to user_detail should be one to one bidirectional")
+		t.Error("user relationship to user_detail should be one to one bidirectional")
 	}
 
 	if len(userDetail.InversedRelationships) != 1 {
@@ -87,11 +87,11 @@ func TestTable_AddRelationship_oneToOneBidirectional(t *testing.T) {
 	}
 
 	if userDetail.InversedRelationships[0].InversedName != "details" {
-		t.Errorf("user_detail relationship to user should be mapped by user")
+		t.Error("user_detail relationship to user should be mapped by user")
 	}
 
 	if userDetail.InversedRelationships[0].InversedTable != userDetail {
-		t.Errorf("user_detail relationship to user should be mapped by user_detail table")
+		t.Error("user_detail relationship to user should be mapped by user_detail table")
 	}
 
 	if userDetail.InversedRelationships[0].Type != pqt.RelationshipTypeOneToOne {

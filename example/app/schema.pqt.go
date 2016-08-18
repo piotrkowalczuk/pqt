@@ -20,15 +20,16 @@ import (
 )
 
 const (
-	tableNews                      = "example.news"
-	tableNewsColumnContent         = "content"
-	tableNewsColumnCreatedAt       = "created_at"
-	tableNewsColumnID              = "id"
-	tableNewsColumnLead            = "lead"
-	tableNewsColumnTitle           = "title"
-	tableNewsColumnUpdatedAt       = "updated_at"
-	tableNewsConstraintPrimaryKey  = "example.news_id_pkey"
-	tableNewsConstraintTitleUnique = "example.news_title_key"
+	tableNews                          = "example.news"
+	tableNewsColumnContent             = "content"
+	tableNewsColumnCreatedAt           = "created_at"
+	tableNewsColumnID                  = "id"
+	tableNewsColumnLead                = "lead"
+	tableNewsColumnTitle               = "title"
+	tableNewsColumnUpdatedAt           = "updated_at"
+	tableNewsConstraintPrimaryKey      = "example.news_id_pkey"
+	tableNewsConstraintTitleUnique     = "example.news_title_key"
+	tableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
 )
 
 var (
@@ -43,38 +44,38 @@ var (
 )
 
 type newsEntity struct {
-	Content   string
-	CreatedAt time.Time
-	ID        int64
-	Lead      *ntypes.String
-	Title     string
-	UpdatedAt *time.Time
-	Comments  []*commentEntity
+	content   string
+	createdAt time.Time
+	id        int64
+	lead      *ntypes.String
+	title     string
+	updatedAt *time.Time
+	comment   []*commentEntity
 }
 
-func (e *newsEntity) Prop(cn string) (interface{}, bool) {
+func (e *newsEntity) prop(cn string) (interface{}, bool) {
 	switch cn {
 	case tableNewsColumnContent:
-		return &e.Content, true
+		return &e.content, true
 	case tableNewsColumnCreatedAt:
-		return &e.CreatedAt, true
+		return &e.createdAt, true
 	case tableNewsColumnID:
-		return &e.ID, true
+		return &e.id, true
 	case tableNewsColumnLead:
-		return &e.Lead, true
+		return &e.lead, true
 	case tableNewsColumnTitle:
-		return &e.Title, true
+		return &e.title, true
 	case tableNewsColumnUpdatedAt:
-		return &e.UpdatedAt, true
+		return &e.updatedAt, true
 	default:
 		return nil, false
 	}
 }
-func (e *newsEntity) Props(cns ...string) ([]interface{}, error) {
+func (e *newsEntity) props(cns ...string) ([]interface{}, error) {
 
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
+		if prop, ok := e.prop(cn); ok {
 			res = append(res, prop)
 		} else {
 			return nil, fmt.Errorf("unexpected column provided: %s", cn)
@@ -125,7 +126,7 @@ func (i *newsIterator) News() (*newsEntity, error) {
 		return nil, err
 	}
 
-	props, err := ent.Props(cols...)
+	props, err := ent.props(cols...)
 	if err != nil {
 		return nil, err
 	}
@@ -466,12 +467,12 @@ func ScanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
 	for rows.Next() {
 		var ent newsEntity
 		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.Lead,
-			&ent.Title,
-			&ent.UpdatedAt,
+			&ent.content,
+			&ent.createdAt,
+			&ent.id,
+			&ent.lead,
+			&ent.title,
+			&ent.updatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -486,7 +487,7 @@ func ScanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
 	return entities, nil
 }
 
-func (r *newsRepositoryBase) Count(c *newsCriteria) (int64, error) {
+func (r *newsRepositoryBase) count(c *newsCriteria) (int64, error) {
 
 	com := pqtgo.NewComposer(6)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
@@ -515,7 +516,7 @@ func (r *newsRepositoryBase) Count(c *newsCriteria) (int64, error) {
 	return count, nil
 }
 
-func (r *newsRepositoryBase) Find(c *newsCriteria) ([]*newsEntity, error) {
+func (r *newsRepositoryBase) find(c *newsCriteria) ([]*newsEntity, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -549,7 +550,7 @@ func (r *newsRepositoryBase) Find(c *newsCriteria) ([]*newsEntity, error) {
 
 	return ScanNewsRows(rows)
 }
-func (r *newsRepositoryBase) FindIter(c *newsCriteria) (*newsIterator, error) {
+func (r *newsRepositoryBase) findIter(c *newsCriteria) (*newsIterator, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -581,7 +582,7 @@ func (r *newsRepositoryBase) FindIter(c *newsCriteria) (*newsIterator, error) {
 
 	return &newsIterator{rows: rows}, nil
 }
-func (r *newsRepositoryBase) FindOneByID(id int64) (*newsEntity, error) {
+func (r *newsRepositoryBase) findOneByID(id int64) (*newsEntity, error) {
 	var (
 		entity newsEntity
 	)
@@ -593,12 +594,12 @@ title,
 updated_at
  FROM example.news WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(
-		&entity.Content,
-		&entity.CreatedAt,
-		&entity.ID,
-		&entity.Lead,
-		&entity.Title,
-		&entity.UpdatedAt,
+		&entity.content,
+		&entity.createdAt,
+		&entity.id,
+		&entity.lead,
+		&entity.title,
+		&entity.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -606,13 +607,32 @@ updated_at
 
 	return &entity, nil
 }
-func (r *newsRepositoryBase) Insert(e *newsEntity) (*newsEntity, error) {
+func (r *newsRepositoryBase) findOneByTitleAndLead(title string, lead string) (*newsEntity, error) {
+	var (
+		entity newsEntity
+	)
+	query := `SELECT content, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
+	err := r.db.QueryRow(query, title, lead).Scan(
+		&entity.content,
+		&entity.createdAt,
+		&entity.id,
+		&entity.lead,
+		&entity.title,
+		&entity.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &entity, nil
+}
+func (r *newsRepositoryBase) insert(e *newsEntity) (*newsEntity, error) {
 	insert := pqcomp.New(0, 6)
-	insert.AddExpr(tableNewsColumnContent, "", e.Content)
-	insert.AddExpr(tableNewsColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(tableNewsColumnLead, "", e.Lead)
-	insert.AddExpr(tableNewsColumnTitle, "", e.Title)
-	insert.AddExpr(tableNewsColumnUpdatedAt, "", e.UpdatedAt)
+	insert.AddExpr(tableNewsColumnContent, "", e.content)
+	insert.AddExpr(tableNewsColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tableNewsColumnLead, "", e.lead)
+	insert.AddExpr(tableNewsColumnTitle, "", e.title)
+	insert.AddExpr(tableNewsColumnUpdatedAt, "", e.updatedAt)
 
 	b := bytes.NewBufferString("INSERT INTO " + r.table)
 
@@ -648,12 +668,12 @@ func (r *newsRepositoryBase) Insert(e *newsEntity) (*newsEntity, error) {
 	}
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.lead,
+		&e.title,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -661,14 +681,14 @@ func (r *newsRepositoryBase) Insert(e *newsEntity) (*newsEntity, error) {
 
 	return e, nil
 }
-func (r *newsRepositoryBase) Upsert(e *newsEntity, p *newsPatch, inf ...string) (*newsEntity, error) {
+func (r *newsRepositoryBase) upsert(e *newsEntity, p *newsPatch, inf ...string) (*newsEntity, error) {
 	insert := pqcomp.New(0, 6)
 	update := insert.Compose(6)
-	insert.AddExpr(tableNewsColumnContent, "", e.Content)
-	insert.AddExpr(tableNewsColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(tableNewsColumnLead, "", e.Lead)
-	insert.AddExpr(tableNewsColumnTitle, "", e.Title)
-	insert.AddExpr(tableNewsColumnUpdatedAt, "", e.UpdatedAt)
+	insert.AddExpr(tableNewsColumnContent, "", e.content)
+	insert.AddExpr(tableNewsColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tableNewsColumnLead, "", e.lead)
+	insert.AddExpr(tableNewsColumnTitle, "", e.title)
+	insert.AddExpr(tableNewsColumnUpdatedAt, "", e.updatedAt)
 	if len(inf) > 0 {
 		update.AddExpr(tableNewsColumnContent, "=", p.content)
 		update.AddExpr(tableNewsColumnCreatedAt, "=", p.createdAt)
@@ -738,12 +758,12 @@ func (r *newsRepositoryBase) Upsert(e *newsEntity, p *newsPatch, inf ...string) 
 	}
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.lead,
+		&e.title,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -751,9 +771,10 @@ func (r *newsRepositoryBase) Upsert(e *newsEntity, p *newsPatch, inf ...string) 
 
 	return e, nil
 }
-func (r *newsRepositoryBase) UpdateOneByID(id int64, patch *newsPatch) (*newsEntity, error) {
-	update := pqcomp.New(0, 6)
-	update.AddExpr(tableNewsColumnID, pqcomp.Equal, id)
+func (r *newsRepositoryBase) updateOneByID(id int64, patch *newsPatch) (*newsEntity, error) {
+	update := pqcomp.New(1, 6)
+	update.AddArg(id)
+
 	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
 	if patch.createdAt != nil {
 		update.AddExpr(tableNewsColumnCreatedAt, pqcomp.Equal, patch.createdAt)
@@ -781,12 +802,12 @@ func (r *newsRepositoryBase) UpdateOneByID(id int64, patch *newsPatch) (*newsEnt
 	query += " WHERE id = $1 RETURNING " + strings.Join(r.columns, ", ")
 	var e newsEntity
 	err := r.db.QueryRow(query, update.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.lead,
+		&e.title,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -794,7 +815,57 @@ func (r *newsRepositoryBase) UpdateOneByID(id int64, patch *newsPatch) (*newsEnt
 
 	return &e, nil
 }
-func (r *newsRepositoryBase) DeleteOneByID(id int64) (int64, error) {
+func (r *newsRepositoryBase) updateOneByTitleAndLead(title string, lead string, patch *newsPatch) (*newsEntity, error) {
+	update := pqcomp.New(2, 6)
+	update.AddArg(title)
+	update.AddArg(lead)
+	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
+	if patch.createdAt != nil {
+		update.AddExpr(tableNewsColumnCreatedAt, pqcomp.Equal, patch.createdAt)
+
+	}
+	update.AddExpr(tableNewsColumnLead, pqcomp.Equal, patch.lead)
+	update.AddExpr(tableNewsColumnTitle, pqcomp.Equal, patch.title)
+	if patch.updatedAt != nil {
+		update.AddExpr(tableNewsColumnUpdatedAt, pqcomp.Equal, patch.updatedAt)
+	} else {
+		update.AddExpr(tableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
+	}
+
+	if update.Len() == 0 {
+		return nil, errors.New("news update failure, nothing to update")
+	}
+	query := "UPDATE example.news SET "
+	for update.Next() {
+		if !update.First() {
+			query += ", "
+		}
+
+		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
+	}
+	query += " WHERE title = $1 AND lead = $2 RETURNING " + strings.Join(r.columns, ", ")
+	if r.dbg {
+		if err := r.log.Log("msg", query, "function", "UpdateOneByTitleAndLead"); err != nil {
+			return nil, err
+		}
+	}
+	var e newsEntity
+	err := r.db.QueryRow(query, update.Args()...).Scan(
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.lead,
+		&e.title,
+		&e.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &e, nil
+}
+
+func (r *newsRepositoryBase) deleteOneByID(id int64) (int64, error) {
 	query := "DELETE FROM example.news WHERE id = $1"
 
 	res, err := r.db.Exec(query, id)
@@ -829,38 +900,38 @@ var (
 )
 
 type commentEntity struct {
-	Content   string
-	CreatedAt time.Time
-	ID        *ntypes.Int64
-	NewsID    int64
-	NewsTitle string
-	UpdatedAt *time.Time
-	News      *newsEntity
+	content   string
+	createdAt time.Time
+	id        *ntypes.Int64
+	newsID    int64
+	newsTitle string
+	updatedAt *time.Time
+	news      *newsEntity
 }
 
-func (e *commentEntity) Prop(cn string) (interface{}, bool) {
+func (e *commentEntity) prop(cn string) (interface{}, bool) {
 	switch cn {
 	case tableCommentColumnContent:
-		return &e.Content, true
+		return &e.content, true
 	case tableCommentColumnCreatedAt:
-		return &e.CreatedAt, true
+		return &e.createdAt, true
 	case tableCommentColumnID:
-		return &e.ID, true
+		return &e.id, true
 	case tableCommentColumnNewsID:
-		return &e.NewsID, true
+		return &e.newsID, true
 	case tableCommentColumnNewsTitle:
-		return &e.NewsTitle, true
+		return &e.newsTitle, true
 	case tableCommentColumnUpdatedAt:
-		return &e.UpdatedAt, true
+		return &e.updatedAt, true
 	default:
 		return nil, false
 	}
 }
-func (e *commentEntity) Props(cns ...string) ([]interface{}, error) {
+func (e *commentEntity) props(cns ...string) ([]interface{}, error) {
 
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
+		if prop, ok := e.prop(cn); ok {
 			res = append(res, prop)
 		} else {
 			return nil, fmt.Errorf("unexpected column provided: %s", cn)
@@ -911,7 +982,7 @@ func (i *commentIterator) Comment() (*commentEntity, error) {
 		return nil, err
 	}
 
-	props, err := ent.Props(cols...)
+	props, err := ent.props(cols...)
 	if err != nil {
 		return nil, err
 	}
@@ -1253,12 +1324,12 @@ func ScanCommentRows(rows *sql.Rows) ([]*commentEntity, error) {
 	for rows.Next() {
 		var ent commentEntity
 		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.NewsID,
-			&ent.NewsTitle,
-			&ent.UpdatedAt,
+			&ent.content,
+			&ent.createdAt,
+			&ent.id,
+			&ent.newsID,
+			&ent.newsTitle,
+			&ent.updatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -1273,7 +1344,7 @@ func ScanCommentRows(rows *sql.Rows) ([]*commentEntity, error) {
 	return entities, nil
 }
 
-func (r *commentRepositoryBase) Count(c *commentCriteria) (int64, error) {
+func (r *commentRepositoryBase) count(c *commentCriteria) (int64, error) {
 
 	com := pqtgo.NewComposer(6)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
@@ -1302,7 +1373,7 @@ func (r *commentRepositoryBase) Count(c *commentCriteria) (int64, error) {
 	return count, nil
 }
 
-func (r *commentRepositoryBase) Find(c *commentCriteria) ([]*commentEntity, error) {
+func (r *commentRepositoryBase) find(c *commentCriteria) ([]*commentEntity, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -1336,7 +1407,7 @@ func (r *commentRepositoryBase) Find(c *commentCriteria) ([]*commentEntity, erro
 
 	return ScanCommentRows(rows)
 }
-func (r *commentRepositoryBase) FindIter(c *commentCriteria) (*commentIterator, error) {
+func (r *commentRepositoryBase) findIter(c *commentCriteria) (*commentIterator, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -1368,13 +1439,13 @@ func (r *commentRepositoryBase) FindIter(c *commentCriteria) (*commentIterator, 
 
 	return &commentIterator{rows: rows}, nil
 }
-func (r *commentRepositoryBase) Insert(e *commentEntity) (*commentEntity, error) {
+func (r *commentRepositoryBase) insert(e *commentEntity) (*commentEntity, error) {
 	insert := pqcomp.New(0, 6)
-	insert.AddExpr(tableCommentColumnContent, "", e.Content)
-	insert.AddExpr(tableCommentColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(tableCommentColumnNewsID, "", e.NewsID)
-	insert.AddExpr(tableCommentColumnNewsTitle, "", e.NewsTitle)
-	insert.AddExpr(tableCommentColumnUpdatedAt, "", e.UpdatedAt)
+	insert.AddExpr(tableCommentColumnContent, "", e.content)
+	insert.AddExpr(tableCommentColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tableCommentColumnNewsID, "", e.newsID)
+	insert.AddExpr(tableCommentColumnNewsTitle, "", e.newsTitle)
+	insert.AddExpr(tableCommentColumnUpdatedAt, "", e.updatedAt)
 
 	b := bytes.NewBufferString("INSERT INTO " + r.table)
 
@@ -1410,12 +1481,12 @@ func (r *commentRepositoryBase) Insert(e *commentEntity) (*commentEntity, error)
 	}
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.NewsID,
-		&e.NewsTitle,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.newsID,
+		&e.newsTitle,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -1423,14 +1494,14 @@ func (r *commentRepositoryBase) Insert(e *commentEntity) (*commentEntity, error)
 
 	return e, nil
 }
-func (r *commentRepositoryBase) Upsert(e *commentEntity, p *commentPatch, inf ...string) (*commentEntity, error) {
+func (r *commentRepositoryBase) upsert(e *commentEntity, p *commentPatch, inf ...string) (*commentEntity, error) {
 	insert := pqcomp.New(0, 6)
 	update := insert.Compose(6)
-	insert.AddExpr(tableCommentColumnContent, "", e.Content)
-	insert.AddExpr(tableCommentColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(tableCommentColumnNewsID, "", e.NewsID)
-	insert.AddExpr(tableCommentColumnNewsTitle, "", e.NewsTitle)
-	insert.AddExpr(tableCommentColumnUpdatedAt, "", e.UpdatedAt)
+	insert.AddExpr(tableCommentColumnContent, "", e.content)
+	insert.AddExpr(tableCommentColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tableCommentColumnNewsID, "", e.newsID)
+	insert.AddExpr(tableCommentColumnNewsTitle, "", e.newsTitle)
+	insert.AddExpr(tableCommentColumnUpdatedAt, "", e.updatedAt)
 	if len(inf) > 0 {
 		update.AddExpr(tableCommentColumnContent, "=", p.content)
 		update.AddExpr(tableCommentColumnCreatedAt, "=", p.createdAt)
@@ -1500,12 +1571,12 @@ func (r *commentRepositoryBase) Upsert(e *commentEntity, p *commentPatch, inf ..
 	}
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.NewsID,
-		&e.NewsTitle,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.newsID,
+		&e.newsTitle,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -1538,39 +1609,39 @@ var (
 )
 
 type categoryEntity struct {
-	Content        string
-	CreatedAt      time.Time
-	ID             int64
-	Name           string
-	ParentID       *ntypes.Int64
-	UpdatedAt      *time.Time
-	ChildCategory  []*categoryEntity
-	ParentCategory *categoryEntity
+	content        string
+	createdAt      time.Time
+	id             int64
+	name           string
+	parentID       *ntypes.Int64
+	updatedAt      *time.Time
+	childCategory  []*categoryEntity
+	parentCategory *categoryEntity
 }
 
-func (e *categoryEntity) Prop(cn string) (interface{}, bool) {
+func (e *categoryEntity) prop(cn string) (interface{}, bool) {
 	switch cn {
 	case tableCategoryColumnContent:
-		return &e.Content, true
+		return &e.content, true
 	case tableCategoryColumnCreatedAt:
-		return &e.CreatedAt, true
+		return &e.createdAt, true
 	case tableCategoryColumnID:
-		return &e.ID, true
+		return &e.id, true
 	case tableCategoryColumnName:
-		return &e.Name, true
+		return &e.name, true
 	case tableCategoryColumnParentID:
-		return &e.ParentID, true
+		return &e.parentID, true
 	case tableCategoryColumnUpdatedAt:
-		return &e.UpdatedAt, true
+		return &e.updatedAt, true
 	default:
 		return nil, false
 	}
 }
-func (e *categoryEntity) Props(cns ...string) ([]interface{}, error) {
+func (e *categoryEntity) props(cns ...string) ([]interface{}, error) {
 
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
+		if prop, ok := e.prop(cn); ok {
 			res = append(res, prop)
 		} else {
 			return nil, fmt.Errorf("unexpected column provided: %s", cn)
@@ -1621,7 +1692,7 @@ func (i *categoryIterator) Category() (*categoryEntity, error) {
 		return nil, err
 	}
 
-	props, err := ent.Props(cols...)
+	props, err := ent.props(cols...)
 	if err != nil {
 		return nil, err
 	}
@@ -1962,12 +2033,12 @@ func ScanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
 	for rows.Next() {
 		var ent categoryEntity
 		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.Name,
-			&ent.ParentID,
-			&ent.UpdatedAt,
+			&ent.content,
+			&ent.createdAt,
+			&ent.id,
+			&ent.name,
+			&ent.parentID,
+			&ent.updatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -1982,7 +2053,7 @@ func ScanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
 	return entities, nil
 }
 
-func (r *categoryRepositoryBase) Count(c *categoryCriteria) (int64, error) {
+func (r *categoryRepositoryBase) count(c *categoryCriteria) (int64, error) {
 
 	com := pqtgo.NewComposer(6)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
@@ -2011,7 +2082,7 @@ func (r *categoryRepositoryBase) Count(c *categoryCriteria) (int64, error) {
 	return count, nil
 }
 
-func (r *categoryRepositoryBase) Find(c *categoryCriteria) ([]*categoryEntity, error) {
+func (r *categoryRepositoryBase) find(c *categoryCriteria) ([]*categoryEntity, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -2045,7 +2116,7 @@ func (r *categoryRepositoryBase) Find(c *categoryCriteria) ([]*categoryEntity, e
 
 	return ScanCategoryRows(rows)
 }
-func (r *categoryRepositoryBase) FindIter(c *categoryCriteria) (*categoryIterator, error) {
+func (r *categoryRepositoryBase) findIter(c *categoryCriteria) (*categoryIterator, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -2077,7 +2148,7 @@ func (r *categoryRepositoryBase) FindIter(c *categoryCriteria) (*categoryIterato
 
 	return &categoryIterator{rows: rows}, nil
 }
-func (r *categoryRepositoryBase) FindOneByID(id int64) (*categoryEntity, error) {
+func (r *categoryRepositoryBase) findOneByID(id int64) (*categoryEntity, error) {
 	var (
 		entity categoryEntity
 	)
@@ -2089,12 +2160,12 @@ parent_id,
 updated_at
  FROM example.category WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(
-		&entity.Content,
-		&entity.CreatedAt,
-		&entity.ID,
-		&entity.Name,
-		&entity.ParentID,
-		&entity.UpdatedAt,
+		&entity.content,
+		&entity.createdAt,
+		&entity.id,
+		&entity.name,
+		&entity.parentID,
+		&entity.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -2102,13 +2173,13 @@ updated_at
 
 	return &entity, nil
 }
-func (r *categoryRepositoryBase) Insert(e *categoryEntity) (*categoryEntity, error) {
+func (r *categoryRepositoryBase) insert(e *categoryEntity) (*categoryEntity, error) {
 	insert := pqcomp.New(0, 6)
-	insert.AddExpr(tableCategoryColumnContent, "", e.Content)
-	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(tableCategoryColumnName, "", e.Name)
-	insert.AddExpr(tableCategoryColumnParentID, "", e.ParentID)
-	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.UpdatedAt)
+	insert.AddExpr(tableCategoryColumnContent, "", e.content)
+	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tableCategoryColumnName, "", e.name)
+	insert.AddExpr(tableCategoryColumnParentID, "", e.parentID)
+	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.updatedAt)
 
 	b := bytes.NewBufferString("INSERT INTO " + r.table)
 
@@ -2144,12 +2215,12 @@ func (r *categoryRepositoryBase) Insert(e *categoryEntity) (*categoryEntity, err
 	}
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.name,
+		&e.parentID,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -2157,14 +2228,14 @@ func (r *categoryRepositoryBase) Insert(e *categoryEntity) (*categoryEntity, err
 
 	return e, nil
 }
-func (r *categoryRepositoryBase) Upsert(e *categoryEntity, p *categoryPatch, inf ...string) (*categoryEntity, error) {
+func (r *categoryRepositoryBase) upsert(e *categoryEntity, p *categoryPatch, inf ...string) (*categoryEntity, error) {
 	insert := pqcomp.New(0, 6)
 	update := insert.Compose(6)
-	insert.AddExpr(tableCategoryColumnContent, "", e.Content)
-	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(tableCategoryColumnName, "", e.Name)
-	insert.AddExpr(tableCategoryColumnParentID, "", e.ParentID)
-	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.UpdatedAt)
+	insert.AddExpr(tableCategoryColumnContent, "", e.content)
+	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tableCategoryColumnName, "", e.name)
+	insert.AddExpr(tableCategoryColumnParentID, "", e.parentID)
+	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.updatedAt)
 	if len(inf) > 0 {
 		update.AddExpr(tableCategoryColumnContent, "=", p.content)
 		update.AddExpr(tableCategoryColumnCreatedAt, "=", p.createdAt)
@@ -2234,12 +2305,12 @@ func (r *categoryRepositoryBase) Upsert(e *categoryEntity, p *categoryPatch, inf
 	}
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.name,
+		&e.parentID,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -2247,9 +2318,10 @@ func (r *categoryRepositoryBase) Upsert(e *categoryEntity, p *categoryPatch, inf
 
 	return e, nil
 }
-func (r *categoryRepositoryBase) UpdateOneByID(id int64, patch *categoryPatch) (*categoryEntity, error) {
-	update := pqcomp.New(0, 6)
-	update.AddExpr(tableCategoryColumnID, pqcomp.Equal, id)
+func (r *categoryRepositoryBase) updateOneByID(id int64, patch *categoryPatch) (*categoryEntity, error) {
+	update := pqcomp.New(1, 6)
+	update.AddArg(id)
+
 	update.AddExpr(tableCategoryColumnContent, pqcomp.Equal, patch.content)
 	if patch.createdAt != nil {
 		update.AddExpr(tableCategoryColumnCreatedAt, pqcomp.Equal, patch.createdAt)
@@ -2277,12 +2349,12 @@ func (r *categoryRepositoryBase) UpdateOneByID(id int64, patch *categoryPatch) (
 	query += " WHERE id = $1 RETURNING " + strings.Join(r.columns, ", ")
 	var e categoryEntity
 	err := r.db.QueryRow(query, update.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
+		&e.content,
+		&e.createdAt,
+		&e.id,
+		&e.name,
+		&e.parentID,
+		&e.updatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -2290,7 +2362,8 @@ func (r *categoryRepositoryBase) UpdateOneByID(id int64, patch *categoryPatch) (
 
 	return &e, nil
 }
-func (r *categoryRepositoryBase) DeleteOneByID(id int64) (int64, error) {
+
+func (r *categoryRepositoryBase) deleteOneByID(id int64) (int64, error) {
 	query := "DELETE FROM example.category WHERE id = $1"
 
 	res, err := r.db.Exec(query, id)
@@ -2315,7 +2388,8 @@ CREATE TABLE IF NOT EXISTS example.news (
 	updated_at TIMESTAMPTZ,
 
 	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id),
-	CONSTRAINT "example.news_title_key" UNIQUE (title)
+	CONSTRAINT "example.news_title_key" UNIQUE (title),
+	CONSTRAINT "example.news_title_lead_key" UNIQUE (title, lead)
 );
 
 CREATE TABLE IF NOT EXISTS example.comment (
