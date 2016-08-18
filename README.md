@@ -39,9 +39,11 @@ It relies to a large degree on packages:
 		- `Find` - returns collection of entities that match given criteria
 		- `FindIter` - works like `Find` but returns `iterator`
 		- `Insert` - saves given entity into the database
-		- `FindOneBy<primary-key>` - retrieves single entity
-		- `UpdateOneBy<primary-key>` - modifies single entity
-		- `DeleteOneBy<primary-key>` - modifies single entity
+		- `FindOneBy<primary-key>` - retrieves single entity, search by primary key
+		- `FindOneBy<unique-key>` - retrieves single entity, search by unique key
+		- `UpdateOneBy<primary-key>` - modifies single entity, search by primary key
+		- `UpdateOneBy<unique-key>` - modifies single entity, search by unique key
+		- `DeleteOneBy<primary-key>` - modifies single entity, search by primary key
 	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<entity>Entity, error) {` helper function
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
