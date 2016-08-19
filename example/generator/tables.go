@@ -24,10 +24,6 @@ func schema(sn string) *pqt.Schema {
 			pqt.WithReference(title),
 		))
 
-	pkg := pqt.NewTable("package", pqt.WithTableIfNotExists()).
-		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
-		AddColumn(pqt.NewColumn("break", pqt.TypeText()))
-
 	category := pqt.NewTable("category", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull())).
@@ -40,8 +36,15 @@ func schema(sn string) *pqt.Schema {
 				pqt.WithOwnerName("parent_category"),
 				pqt.WithColumnName("parent_id"),
 			),
-		).
-		AddRelationship(pqt.OneToOne(pkg, pqt.WithBidirectional()))
+		)
+
+	pkg := pqt.NewTable("package", pqt.WithTableIfNotExists()).
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(pqt.NewColumn("break", pqt.TypeText())).
+		AddRelationship(pqt.ManyToOne(
+			category,
+			pqt.WithBidirectional(),
+		))
 
 	timestampable(news)
 	timestampable(comment)

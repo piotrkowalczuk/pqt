@@ -198,6 +198,7 @@ func (g *Generator) generateImports(code *bytes.Buffer, schema *pqt.Schema) {
 func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, "type %sEntity struct{\n", g.name(t.Name))
 	for prop := range g.entityPropertiesGenerator(t) {
+		fmt.Fprintf(w, "// %s ...\n", g.name(prop.Name))
 		if prop.Tags != "" {
 			fmt.Fprintf(w, "%s %s %s\n", g.name(prop.Name), prop.Type, prop.Tags)
 		} else {
@@ -222,8 +223,10 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 		for _, r := range t.OwnedRelationships {
 			switch r.Type {
 			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("[]*%sEntity", g.name(r.InversedTable.Name))}
-			case pqt.RelationshipTypeOneToOne, pqt.RelationshipTypeManyToOne:
+				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.name(r.InversedTable.Name))}
+			case pqt.RelationshipTypeOneToOne:
+				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
+			case pqt.RelationshipTypeManyToOne:
 				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
 			case pqt.RelationshipTypeManyToMany:
 				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.OwnerTable.Name))}
@@ -238,7 +241,7 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 			case pqt.RelationshipTypeOneToOne:
 				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.OwnerTable.Name))}
 			case pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("[]*%sEntity", g.name(r.OwnerTable.Name))}
+				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.name(r.OwnerTable.Name))}
 			}
 		}
 
@@ -249,9 +252,9 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 
 			switch {
 			case r.OwnerTable == t:
-				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("[]*%sEntity", g.name(r.InversedTable.Name))}
+				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.name(r.InversedTable.Name))}
 			case r.InversedTable == t:
-				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("[]*%sEntity", g.name(r.OwnerTable.Name))}
+				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.name(r.OwnerTable.Name))}
 			}
 		}
 
