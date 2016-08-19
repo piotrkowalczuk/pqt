@@ -20,6 +20,750 @@ import (
 )
 
 const (
+	tablePackage                     = "example.package"
+	tablePackageColumnBreak          = "break"
+	tablePackageColumnCreatedAt      = "created_at"
+	tablePackageColumnID             = "id"
+	tablePackageColumnUpdatedAt      = "updated_at"
+	tablePackageConstraintPrimaryKey = "example.package_id_pkey"
+)
+
+var (
+	tablePackageColumns = []string{
+		tablePackageColumnBreak,
+		tablePackageColumnCreatedAt,
+		tablePackageColumnID,
+		tablePackageColumnUpdatedAt,
+	}
+)
+
+type packageEntity struct {
+	brk       *ntypes.String
+	createdAt time.Time
+	id        int64
+	updatedAt *time.Time
+}
+
+func (e *packageEntity) prop(cn string) (interface{}, bool) {
+	switch cn {
+	case tablePackageColumnBreak:
+		return &e.brk, true
+	case tablePackageColumnCreatedAt:
+		return &e.createdAt, true
+	case tablePackageColumnID:
+		return &e.id, true
+	case tablePackageColumnUpdatedAt:
+		return &e.updatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *packageEntity) props(cns ...string) ([]interface{}, error) {
+
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
+// packageIterator is not thread safe.
+type packageIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *packageIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *packageIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *packageIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *packageIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper arround package method that makes iterator more generic.
+func (i *packageIterator) Ent() (interface{}, error) {
+	return i.Package()
+}
+
+func (i *packageIterator) Package() (*packageEntity, error) {
+	var ent packageEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type packageCriteria struct {
+	offset, limit int64
+	sort          map[string]bool
+	brk           *qtypes.String
+	createdAt     *qtypes.Timestamp
+	id            *qtypes.Int64
+	updatedAt     *qtypes.Timestamp
+}
+
+func (c *packageCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
+
+	if err = pqtgo.WriteCompositionQueryString(c.brk, tablePackageColumnBreak, com, pqtgo.And); err != nil {
+		return
+	}
+
+	if c.createdAt != nil && c.createdAt.Valid {
+		createdAtt1 := c.createdAt.Value()
+		if createdAtt1 != nil {
+			createdAt1, err := ptypes.Timestamp(createdAtt1)
+			if err != nil {
+				return err
+			}
+			switch c.createdAt.Type {
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnCreatedAt)
+				if c.createdAt.Negation {
+					com.WriteString(" IS NOT NULL ")
+				} else {
+					com.WriteString(" IS NULL ")
+				}
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnCreatedAt)
+				if c.createdAt.Negation {
+					com.WriteString(" <> ")
+				} else {
+					com.WriteString(" = ")
+				}
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnCreatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnCreatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnCreatedAt)
+				com.WriteString(" < ")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnCreatedAt)
+				com.WriteString(" <= ")
+				com.WritePlaceholder()
+				com.Add(c.createdAt.Value())
+			case qtypes.QueryType_IN:
+				if len(c.createdAt.Values) > 0 {
+					if com.Dirty {
+						com.WriteString(" AND ")
+					}
+					com.Dirty = true
+
+					com.WriteString(tablePackageColumnCreatedAt)
+					com.WriteString(" IN (")
+					for i, v := range c.createdAt.Values {
+						if i != 0 {
+							com.WriteString(", ")
+						}
+						com.WritePlaceholder()
+						com.Add(v)
+					}
+					com.WriteString(") ")
+				}
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				createdAtt2 := c.createdAt.Values[1]
+				if createdAtt2 != nil {
+					createdAt2, err := ptypes.Timestamp(createdAtt2)
+					if err != nil {
+						return err
+					}
+					com.WriteString(tablePackageColumnCreatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(createdAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tablePackageColumnCreatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(createdAt2)
+				}
+			}
+		}
+	}
+
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tablePackageColumnID, com, pqtgo.And); err != nil {
+		return
+	}
+
+	if c.updatedAt != nil && c.updatedAt.Valid {
+		updatedAtt1 := c.updatedAt.Value()
+		if updatedAtt1 != nil {
+			updatedAt1, err := ptypes.Timestamp(updatedAtt1)
+			if err != nil {
+				return err
+			}
+			switch c.updatedAt.Type {
+			case qtypes.QueryType_NULL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnUpdatedAt)
+				if c.updatedAt.Negation {
+					com.WriteString(" IS NOT NULL ")
+				} else {
+					com.WriteString(" IS NULL ")
+				}
+			case qtypes.QueryType_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnUpdatedAt)
+				if c.updatedAt.Negation {
+					com.WriteString(" <> ")
+				} else {
+					com.WriteString(" = ")
+				}
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnUpdatedAt)
+				com.WriteString(">")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_GREATER_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnUpdatedAt)
+				com.WriteString(">=")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnUpdatedAt)
+				com.WriteString(" < ")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_LESS_EQUAL:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				com.WriteString(tablePackageColumnUpdatedAt)
+				com.WriteString(" <= ")
+				com.WritePlaceholder()
+				com.Add(c.updatedAt.Value())
+			case qtypes.QueryType_IN:
+				if len(c.updatedAt.Values) > 0 {
+					if com.Dirty {
+						com.WriteString(" AND ")
+					}
+					com.Dirty = true
+
+					com.WriteString(tablePackageColumnUpdatedAt)
+					com.WriteString(" IN (")
+					for i, v := range c.updatedAt.Values {
+						if i != 0 {
+							com.WriteString(", ")
+						}
+						com.WritePlaceholder()
+						com.Add(v)
+					}
+					com.WriteString(") ")
+				}
+			case qtypes.QueryType_BETWEEN:
+				if com.Dirty {
+					com.WriteString(" AND ")
+				}
+				com.Dirty = true
+
+				updatedAtt2 := c.updatedAt.Values[1]
+				if updatedAtt2 != nil {
+					updatedAt2, err := ptypes.Timestamp(updatedAtt2)
+					if err != nil {
+						return err
+					}
+					com.WriteString(tablePackageColumnUpdatedAt)
+					com.WriteString(" > ")
+					com.WritePlaceholder()
+					com.Add(updatedAt1)
+					com.WriteString(" AND ")
+					com.WriteString(tablePackageColumnUpdatedAt)
+					com.WriteString(" < ")
+					com.WritePlaceholder()
+					com.Add(updatedAt2)
+				}
+			}
+		}
+	}
+
+	if len(c.sort) > 0 {
+		i := 0
+		com.WriteString(" ORDER BY ")
+		for cn, asc := range c.sort {
+			if i > 0 {
+				com.WriteString(", ")
+			}
+			com.WriteString(cn)
+			if !asc {
+				com.WriteString(" DESC ")
+			}
+			i++
+		}
+	}
+	if c.offset > 0 {
+		if _, err = com.WriteString(" OFFSET "); err != nil {
+			return
+		}
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.offset)
+	}
+	if c.limit > 0 {
+		if _, err = com.WriteString(" LIMIT "); err != nil {
+			return
+		}
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" "); err != nil {
+			return
+		}
+		com.Add(c.limit)
+	}
+
+	return
+}
+
+type packagePatch struct {
+	brk       *ntypes.String
+	createdAt *time.Time
+	updatedAt *time.Time
+}
+
+type packageRepositoryBase struct {
+	table   string
+	columns []string
+	db      *sql.DB
+	dbg     bool
+	log     log.Logger
+}
+
+func scanPackageRows(rows *sql.Rows) ([]*packageEntity, error) {
+	var (
+		entities []*packageEntity
+		err      error
+	)
+	for rows.Next() {
+		var ent packageEntity
+		err = rows.Scan(
+			&ent.brk,
+			&ent.createdAt,
+			&ent.id,
+			&ent.updatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, &ent)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+
+	return entities, nil
+}
+
+func (r *packageRepositoryBase) count(c *packageCriteria) (int64, error) {
+
+	com := pqtgo.NewComposer(4)
+	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+	buf.WriteString(r.table)
+
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
+		return 0, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", buf.String(), "function", "Count"); err != nil {
+			return 0, err
+		}
+	}
+
+	var count int64
+	if err := r.db.QueryRow(buf.String(), com.Args()...).Scan(&count); err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (r *packageRepositoryBase) find(c *packageCriteria) ([]*packageEntity, error) {
+
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
+
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
+		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
+			return nil, err
+		}
+	}
+
+	rows, err := r.db.Query(buf.String(), com.Args()...)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	return scanPackageRows(rows)
+}
+func (r *packageRepositoryBase) findIter(c *packageCriteria) (*packageIterator, error) {
+
+	com := pqtgo.NewComposer(1)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(r.columns, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.table)
+	buf.WriteString(" ")
+
+	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
+		return nil, err
+	}
+	if com.Dirty {
+		buf.WriteString(" WHERE ")
+	}
+	if com.Len() > 0 {
+		buf.ReadFrom(com)
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
+			return nil, err
+		}
+	}
+
+	rows, err := r.db.Query(buf.String(), com.Args()...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &packageIterator{rows: rows}, nil
+}
+func (r *packageRepositoryBase) findOneByID(id int64) (*packageEntity, error) {
+	var (
+		ent packageEntity
+	)
+	query := `SELECT break,
+created_at,
+id,
+updated_at
+ FROM example.package WHERE id = $1`
+	err := r.db.QueryRow(query, id).Scan(
+		&ent.brk,
+		&ent.createdAt,
+		&ent.id,
+		&ent.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
+func (r *packageRepositoryBase) insert(e *packageEntity) (*packageEntity, error) {
+	insert := pqcomp.New(0, 4)
+	insert.AddExpr(tablePackageColumnBreak, "", e.brk)
+	insert.AddExpr(tablePackageColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tablePackageColumnUpdatedAt, "", e.updatedAt)
+
+	b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+	if insert.Len() != 0 {
+		b.WriteString(" (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.Key())
+		}
+		insert.Reset()
+		b.WriteString(") VALUES (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.PlaceHolder())
+		}
+		b.WriteString(")")
+		if len(r.columns) > 0 {
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
+			return nil, err
+		}
+	}
+
+	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		&e.brk,
+		&e.createdAt,
+		&e.id,
+		&e.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+func (r *packageRepositoryBase) upsert(e *packageEntity, p *packagePatch, inf ...string) (*packageEntity, error) {
+	insert := pqcomp.New(0, 4)
+	update := insert.Compose(4)
+	insert.AddExpr(tablePackageColumnBreak, "", e.brk)
+	insert.AddExpr(tablePackageColumnCreatedAt, "", e.createdAt)
+	insert.AddExpr(tablePackageColumnUpdatedAt, "", e.updatedAt)
+	if len(inf) > 0 {
+		update.AddExpr(tablePackageColumnBreak, "=", p.brk)
+		update.AddExpr(tablePackageColumnCreatedAt, "=", p.createdAt)
+		update.AddExpr(tablePackageColumnUpdatedAt, "=", p.updatedAt)
+	}
+
+	b := bytes.NewBufferString("INSERT INTO " + r.table)
+
+	if insert.Len() > 0 {
+		b.WriteString(" (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.Key())
+		}
+		insert.Reset()
+		b.WriteString(") VALUES (")
+		for insert.Next() {
+			if !insert.First() {
+				b.WriteString(", ")
+			}
+
+			fmt.Fprintf(b, "%s", insert.PlaceHolder())
+		}
+		b.WriteString(")")
+	}
+	b.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 && update.Len() > 0 {
+		b.WriteString(" (")
+		for j, i := range inf {
+			if j != 0 {
+				b.WriteString(", ")
+			}
+			b.WriteString(i)
+		}
+		b.WriteString(") ")
+		b.WriteString(" DO UPDATE SET ")
+		for update.Next() {
+			if !update.First() {
+				b.WriteString(", ")
+			}
+
+			b.WriteString(update.Key())
+			b.WriteString(" ")
+			b.WriteString(update.Oper())
+			b.WriteString(" ")
+			b.WriteString(update.PlaceHolder())
+		}
+	} else {
+		b.WriteString(" DO NOTHING ")
+	}
+	if insert.Len() > 0 {
+		if len(r.columns) > 0 {
+			b.WriteString(" RETURNING ")
+			b.WriteString(strings.Join(r.columns, ", "))
+		}
+	}
+
+	if r.dbg {
+		if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+			return nil, err
+		}
+	}
+
+	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		&e.brk,
+		&e.createdAt,
+		&e.id,
+		&e.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
+}
+func (r *packageRepositoryBase) updateOneByID(id int64, patch *packagePatch) (*packageEntity, error) {
+	update := pqcomp.New(1, 4)
+	update.AddArg(id)
+
+	update.AddExpr(tablePackageColumnBreak, pqcomp.Equal, patch.brk)
+	if patch.createdAt != nil {
+		update.AddExpr(tablePackageColumnCreatedAt, pqcomp.Equal, patch.createdAt)
+
+	}
+	if patch.updatedAt != nil {
+		update.AddExpr(tablePackageColumnUpdatedAt, pqcomp.Equal, patch.updatedAt)
+	} else {
+		update.AddExpr(tablePackageColumnUpdatedAt, pqcomp.Equal, "NOW()")
+	}
+
+	if update.Len() == 0 {
+		return nil, errors.New("package update failure, nothing to update")
+	}
+	query := "UPDATE example.package SET "
+	for update.Next() {
+		if !update.First() {
+			query += ", "
+		}
+
+		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
+	}
+	query += " WHERE id = $1 RETURNING " + strings.Join(r.columns, ", ")
+	var e packageEntity
+	err := r.db.QueryRow(query, update.Args()...).Scan(
+		&e.brk,
+		&e.createdAt,
+		&e.id,
+		&e.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &e, nil
+}
+
+func (r *packageRepositoryBase) deleteOneByID(id int64) (int64, error) {
+	query := "DELETE FROM example.package WHERE id = $1"
+
+	res, err := r.db.Exec(query, id)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected()
+}
+
+const (
 	tableNews                          = "example.news"
 	tableNewsColumnContent             = "content"
 	tableNewsColumnContinue            = "continue"
@@ -602,7 +1346,7 @@ func (r *newsRepositoryBase) findIter(c *newsCriteria) (*newsIterator, error) {
 }
 func (r *newsRepositoryBase) findOneByID(id int64) (*newsEntity, error) {
 	var (
-		entity newsEntity
+		ent newsEntity
 	)
 	query := `SELECT content,
 continue,
@@ -613,39 +1357,39 @@ title,
 updated_at
  FROM example.news WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(
-		&entity.content,
-		&entity.cont,
-		&entity.createdAt,
-		&entity.id,
-		&entity.lead,
-		&entity.title,
-		&entity.updatedAt,
+		&ent.content,
+		&ent.cont,
+		&ent.createdAt,
+		&ent.id,
+		&ent.lead,
+		&ent.title,
+		&ent.updatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &entity, nil
+	return &ent, nil
 }
 func (r *newsRepositoryBase) findOneByTitleAndLead(title string, lead string) (*newsEntity, error) {
 	var (
-		entity newsEntity
+		ent newsEntity
 	)
 	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
 	err := r.db.QueryRow(query, title, lead).Scan(
-		&entity.content,
-		&entity.cont,
-		&entity.createdAt,
-		&entity.id,
-		&entity.lead,
-		&entity.title,
-		&entity.updatedAt,
+		&ent.content,
+		&ent.cont,
+		&ent.createdAt,
+		&ent.id,
+		&ent.lead,
+		&ent.title,
+		&ent.updatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &entity, nil
+	return &ent, nil
 }
 func (r *newsRepositoryBase) insert(e *newsEntity) (*newsEntity, error) {
 	insert := pqcomp.New(0, 7)
@@ -2180,7 +2924,7 @@ func (r *categoryRepositoryBase) findIter(c *categoryCriteria) (*categoryIterato
 }
 func (r *categoryRepositoryBase) findOneByID(id int64) (*categoryEntity, error) {
 	var (
-		entity categoryEntity
+		ent categoryEntity
 	)
 	query := `SELECT content,
 created_at,
@@ -2190,18 +2934,18 @@ parent_id,
 updated_at
  FROM example.category WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(
-		&entity.content,
-		&entity.createdAt,
-		&entity.id,
-		&entity.name,
-		&entity.parentID,
-		&entity.updatedAt,
+		&ent.content,
+		&ent.createdAt,
+		&ent.id,
+		&ent.name,
+		&ent.parentID,
+		&ent.updatedAt,
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	return &entity, nil
+	return &ent, nil
 }
 func (r *categoryRepositoryBase) insert(e *categoryEntity) (*categoryEntity, error) {
 	insert := pqcomp.New(0, 6)
@@ -2408,6 +3152,15 @@ const SQL = `
 -- do not modify, generated by pqt
 
 CREATE SCHEMA IF NOT EXISTS example; 
+
+CREATE TABLE IF NOT EXISTS example.package (
+	break TEXT,
+	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+	id BIGSERIAL,
+	updated_at TIMESTAMPTZ,
+
+	CONSTRAINT "example.package_id_pkey" PRIMARY KEY (id)
+);
 
 CREATE TABLE IF NOT EXISTS example.news (
 	content TEXT NOT NULL,

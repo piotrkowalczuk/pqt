@@ -215,7 +215,7 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 	go func(out chan structField) {
 		for _, c := range t.Columns {
 			if t := g.generateColumnTypeString(c, modeDefault); t != "<nil>" {
-				out <- structField{Name: g.name(c.Name), Type: t}
+				out <- structField{Name: g.propertyName(c.Name), Type: t}
 			}
 		}
 
@@ -267,9 +267,9 @@ func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.columnNameWithTableName(t.Name, c.Name))
 		if g.canBeNil(c, modeDefault) {
-			fmt.Fprintf(w, "return e.%s, true\n", g.name(c.Name))
+			fmt.Fprintf(w, "return e.%s, true\n", g.propertyName(c.Name))
 		} else {
-			fmt.Fprintf(w, "return &e.%s, true\n", g.name(c.Name))
+			fmt.Fprintf(w, "return &e.%s, true\n", g.propertyName(c.Name))
 		}
 	}
 	fmt.Fprint(w, "default:\n")
@@ -361,7 +361,7 @@ ColumnLoop:
 		}
 
 		if t := g.generateColumnTypeString(c, modeCriteria); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.name(c.Name), t)
+			fmt.Fprintf(w, "%s %s\n", g.propertyName(c.Name), t)
 		}
 	}
 	fmt.Fprint(w, "}\n\n")
@@ -377,7 +377,7 @@ ArgumentsLoop:
 		}
 
 		if t := g.generateColumnTypeString(c, modeOptional); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.name(c.Name), t)
+			fmt.Fprintf(w, "%s %s\n", g.propertyName(c.Name), t)
 		}
 	}
 	fmt.Fprint(w, "}\n\n")
@@ -493,7 +493,7 @@ func (g *Generator) generateRepository(b *bytes.Buffer, t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Column) {
-	columnName := g.name(c.Name)
+	columnName := g.propertyName(c.Name)
 	columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 
 	t := g.generateColumnTypeString(c, modeCriteria)
@@ -501,7 +501,7 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 		return
 	}
 	if !g.generateRepositoryFindPropertyQueryByGoType(w, c, t, columnName, columnNameWithTable) {
-		fmt.Fprintf(w, " if c.%s != nil {", g.name(c.Name))
+		fmt.Fprintf(w, " if c.%s != nil {", g.propertyName(c.Name))
 		fmt.Fprintf(w, dirtyAnd)
 		fmt.Fprintf(w, `if _, err = com.WriteString(%s); err != nil {
 			return
@@ -528,7 +528,7 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 		}
 		`)
 		fmt.Fprintf(w, `com.Add(c.%s)
-		}`, g.name(c.Name))
+		}`, g.propertyName(c.Name))
 	}
 }
 
@@ -854,7 +854,7 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 					return
 				}
 
-				columnName := g.name(c.Name)
+				columnName := g.propertyName(c.Name)
 				columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
 				zero := reflect.Zero(mtt.criteriaTypeOf)
 				// Checks if custom type implements Criterion interface.
@@ -889,7 +889,7 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 
 						// If struct is nil, it's properties should not be accessed.
 						fmt.Fprintf(w, `if c.%s != nil {
-						`, g.name(c.Name))
+						`, g.propertyName(c.Name))
 						g.generateRepositoryFindPropertyQueryByGoType(w, c, field.Type().String(), fieldName, columnNameWithTableAndJSONSelector)
 						fmt.Fprintln(w, "}")
 					}
@@ -975,7 +975,7 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 		err = rows.Scan(
 	`, entityName, entityName)
 	for _, c := range t.Columns {
-		fmt.Fprintf(w, "&ent.%s,\n", g.name(c.Name))
+		fmt.Fprintf(w, "&ent.%s,\n", g.propertyName(c.Name))
 	}
 	fmt.Fprint(w, `)
 			if err != nil {
@@ -1105,7 +1105,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 		entityName,
 	)
 	fmt.Fprintf(code, `var (
-		entity %sEntity
+		ent %sEntity
 	)`, entityName)
 	code.WriteRune('\n')
 	fmt.Fprint(code, "query := `SELECT ")
@@ -1122,14 +1122,14 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 	err := r.db.QueryRow(query, %s).Scan(
 	`, g.private(pk.Name))
 	for _, c := range table.Columns {
-		fmt.Fprintf(code, "&entity.%s,\n", g.name(c.Name))
+		fmt.Fprintf(code, "&ent.%s,\n", g.propertyName(c.Name))
 	}
 	fmt.Fprint(code, `)
 		if err != nil {
 			return nil, err
 		}
 
-		return &entity, nil
+		return &ent, nil
 }
 `)
 }
@@ -1159,7 +1159,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 		}
 		fmt.Fprintf(code, `func (r *%sRepositoryBase) %s(%s) (*%sEntity, error) {`, entityName, g.name(methodName), arguments, entityName)
 		fmt.Fprintf(code, `var (
-			entity %sEntity
+			ent %sEntity
 		)`, entityName)
 		code.WriteRune('\n')
 		fmt.Fprint(code, "query := `SELECT ")
@@ -1187,14 +1187,14 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 		}
 		fmt.Fprint(code, ").Scan(\n")
 		for _, c := range table.Columns {
-			fmt.Fprintf(code, "&entity.%s,\n", g.name(c.Name))
+			fmt.Fprintf(code, "&ent.%s,\n", g.propertyName(c.Name))
 		}
 		fmt.Fprint(code, `)
 			if err != nil {
 				return nil, err
 			}
 
-			return &entity, nil
+			return &ent, nil
 	}
 	`)
 
@@ -1222,11 +1222,17 @@ ColumnsLoop:
 						insert.AddExpr(%s, "", e.%s)
 					}
 				`,
-					g.name(c.Name),
-					g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name),
+					g.propertyName(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name),
+					g.propertyName(c.Name),
 				)
 			} else {
-				fmt.Fprintf(w, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name))
+				fmt.Fprintf(
+					w,
+					`insert.AddExpr(%s, "", e.%s)`,
+					g.columnNameWithTableName(table.Name, c.Name),
+					g.propertyName(c.Name),
+				)
 			}
 			fmt.Fprintln(w, "")
 		}
@@ -1269,7 +1275,7 @@ ColumnsLoop:
 	`)
 
 	for _, c := range table.Columns {
-		fmt.Fprintf(w, "&e.%s,\n", g.name(c.Name))
+		fmt.Fprintf(w, "&e.%s,\n", g.propertyName(c.Name))
 	}
 	fmt.Fprint(w, `)
 		if err != nil {
@@ -1308,11 +1314,14 @@ InsertLoop:
 						insert.AddExpr(%s, "", e.%s)
 					}
 				`,
-					g.name(c.Name),
-					g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name),
+					g.propertyName(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name), g.propertyName(c.Name),
 				)
 			} else {
-				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name))
+				fmt.Fprintf(code, `insert.AddExpr(%s, "", e.%s)`,
+					g.columnNameWithTableName(table.Name, c.Name),
+					g.propertyName(c.Name),
+				)
 			}
 			fmt.Fprintln(code, "")
 		}
@@ -1330,11 +1339,12 @@ UpdateLoop:
 						update.AddExpr(%s, "=", p.%s)
 					}
 				`,
-					g.name(c.Name),
-					g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name),
+					g.propertyName(c.Name),
+					g.columnNameWithTableName(table.Name, c.Name),
+					g.propertyName(c.Name),
 				)
 			} else {
-				fmt.Fprintf(code, `update.AddExpr(%s, "=", p.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.name(c.Name))
+				fmt.Fprintf(code, `update.AddExpr(%s, "=", p.%s)`, g.columnNameWithTableName(table.Name, c.Name), g.propertyName(c.Name))
 			}
 			fmt.Fprintln(code, "")
 		}
@@ -1406,7 +1416,7 @@ UpdateLoop:
 	`)
 
 	for _, c := range table.Columns {
-		fmt.Fprintf(code, "&e.%s,\n", g.name(c.Name))
+		fmt.Fprintf(code, "&e.%s,\n", g.propertyName(c.Name))
 	}
 	fmt.Fprint(code, `)
 		if err != nil {
@@ -1461,16 +1471,16 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 			if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
 				switch c.Type {
 				case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-					fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
+					fmt.Fprintf(w, "if patch.%s != nil {\n", g.propertyName(c.Name))
 
 				}
 			} else if g.canBeNil(c, modeOptional) {
-				fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
+				fmt.Fprintf(w, "if patch.%s != nil {\n", g.propertyName(c.Name))
 			}
 
 			fmt.Fprint(w, "update.AddExpr(")
 			g.writeTableNameColumnNameTo(w, c.Table.Name, c.Name)
-			fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.name(c.Name))
+			fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.propertyName(c.Name))
 
 			if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
 				switch c.Type {
@@ -1523,7 +1533,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 	err := r.db.QueryRow(query, update.Args()...).Scan(
 	`, methodName, entityName)
 		for _, c := range table.Columns {
-			fmt.Fprintf(w, "&e.%s,\n", g.name(c.Name))
+			fmt.Fprintf(w, "&e.%s,\n", g.propertyName(c.Name))
 		}
 		fmt.Fprint(w, `)
 if err != nil {
@@ -1557,16 +1567,16 @@ ColumnsLoop:
 		if _, ok := c.DefaultOn(pqt.EventInsert, pqt.EventUpdate); ok {
 			switch c.Type {
 			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-				fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
+				fmt.Fprintf(w, "if patch.%s != nil {\n", g.propertyName(c.Name))
 
 			}
 		} else if g.canBeNil(c, modeOptional) {
-			fmt.Fprintf(w, "if patch.%s != nil {\n", g.name(c.Name))
+			fmt.Fprintf(w, "if patch.%s != nil {\n", g.propertyName(c.Name))
 		}
 
 		fmt.Fprint(w, "update.AddExpr(")
 		g.writeTableNameColumnNameTo(w, c.Table.Name, c.Name)
-		fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.name(c.Name))
+		fmt.Fprintf(w, ", pqcomp.Equal, patch.%s)\n", g.propertyName(c.Name))
 
 		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
 			switch c.Type {
@@ -1605,7 +1615,7 @@ ColumnsLoop:
 	err := r.db.QueryRow(query, update.Args()...).Scan(
 	`, table.FullName(), pk.Name, entityName)
 	for _, c := range table.Columns {
-		fmt.Fprintf(w, "&e.%s,\n", g.name(c.Name))
+		fmt.Fprintf(w, "&e.%s,\n", g.propertyName(c.Name))
 	}
 	fmt.Fprint(w, `)
 if err != nil {
@@ -1676,12 +1686,16 @@ func snake(s string, private bool, acronyms map[string]string) string {
 	if private {
 		parts[0] = xstrings.FirstRuneToLower(parts[0])
 	}
-	result := strings.Join(parts, "")
-	if replacement, ok := keywords[result]; ok {
-		return replacement
+	return strings.Join(parts, "")
+}
+
+func (g *Generator) propertyName(s string) string {
+	n := g.name(s)
+	if r, ok := keywords[n]; ok {
+		return r
 	}
 
-	return result
+	return n
 }
 
 func (g *Generator) name(s string) string {

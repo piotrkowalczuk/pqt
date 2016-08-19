@@ -37,15 +37,22 @@ func schema(sn string) *pqt.Schema {
 				pqt.WithColumnName("parent_id"),
 			),
 		)
+
+	pkg := pqt.NewTable("package", pqt.WithTableIfNotExists()).
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(pqt.NewColumn("break", pqt.TypeText()))
+
 	timestampable(news)
 	timestampable(comment)
 	timestampable(category)
+	timestampable(pkg)
 
 	comment.AddRelationship(pqt.ManyToOne(news, pqt.WithBidirectional()), pqt.WithNotNull())
 
 	pqt.ManyToMany(category, news, pqt.WithBidirectional())
 
 	return pqt.NewSchema(sn, pqt.WithSchemaIfNotExists()).
+		AddTable(pkg).
 		AddTable(news).
 		AddTable(comment).
 		AddTable(category)
