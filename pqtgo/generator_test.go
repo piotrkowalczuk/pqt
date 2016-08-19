@@ -218,7 +218,7 @@ name *ntypes.String
 			dbg bool
 			log log.Logger
 		}
-	func ScanFirstRows(rows *sql.Rows) ([]*firstEntity, error) {
+	func scanFirstRows(rows *sql.Rows) ([]*firstEntity, error) {
 	var (
 		entities []*firstEntity
 		err error
@@ -303,7 +303,7 @@ func (r *firstRepositoryBase) find(c *firstCriteria) ([]*firstEntity, error) {
 
 	defer rows.Close()
 
-	return ScanFirstRows(rows)
+	return scanFirstRows(rows)
 }
 func (r *firstRepositoryBase) findIter(c *firstCriteria) (*firstIterator, error) {
 

@@ -936,8 +936,8 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 
 func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	entityName := g.name(t.Name)
-	fmt.Fprintf(w, `func Scan%sRows(rows *sql.Rows) ([]*%sEntity, error) {
-	`, g.public(t.Name), entityName)
+	fmt.Fprintf(w, `func %s%sRows(rows *sql.Rows) ([]*%sEntity, error) {
+	`, g.name("Scan"), g.public(t.Name), entityName)
 	fmt.Fprintf(w, `var (
 		entities []*%sEntity
 		err error
@@ -1008,9 +1008,9 @@ func (r *%sRepositoryBase) %s(c *%sCriteria) ([]*%sEntity, error) {
 	fmt.Fprintf(w, `
 	defer rows.Close()
 
-	return Scan%sRows(rows)
+	return %s%sRows(rows)
 }
-`, g.public(t.Name))
+`, g.name("Scan"), g.public(t.Name))
 }
 
 func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {

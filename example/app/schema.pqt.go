@@ -459,7 +459,7 @@ type newsRepositoryBase struct {
 	log     log.Logger
 }
 
-func ScanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
+func scanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
 	var (
 		entities []*newsEntity
 		err      error
@@ -548,7 +548,7 @@ func (r *newsRepositoryBase) find(c *newsCriteria) ([]*newsEntity, error) {
 
 	defer rows.Close()
 
-	return ScanNewsRows(rows)
+	return scanNewsRows(rows)
 }
 func (r *newsRepositoryBase) findIter(c *newsCriteria) (*newsIterator, error) {
 
@@ -1316,7 +1316,7 @@ type commentRepositoryBase struct {
 	log     log.Logger
 }
 
-func ScanCommentRows(rows *sql.Rows) ([]*commentEntity, error) {
+func scanCommentRows(rows *sql.Rows) ([]*commentEntity, error) {
 	var (
 		entities []*commentEntity
 		err      error
@@ -1405,7 +1405,7 @@ func (r *commentRepositoryBase) find(c *commentCriteria) ([]*commentEntity, erro
 
 	defer rows.Close()
 
-	return ScanCommentRows(rows)
+	return scanCommentRows(rows)
 }
 func (r *commentRepositoryBase) findIter(c *commentCriteria) (*commentIterator, error) {
 
@@ -2025,7 +2025,7 @@ type categoryRepositoryBase struct {
 	log     log.Logger
 }
 
-func ScanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
+func scanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
 	var (
 		entities []*categoryEntity
 		err      error
@@ -2114,7 +2114,7 @@ func (r *categoryRepositoryBase) find(c *categoryCriteria) ([]*categoryEntity, e
 
 	defer rows.Close()
 
-	return ScanCategoryRows(rows)
+	return scanCategoryRows(rows)
 }
 func (r *categoryRepositoryBase) findIter(c *categoryCriteria) (*categoryIterator, error) {
 
