@@ -10,6 +10,7 @@ func schema(sn string) *pqt.Schema {
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(title).
 		AddColumn(lead).
+		AddColumn(pqt.NewColumn("continue", pqt.TypeBool(), pqt.WithNotNull(), pqt.WithDefault("false"))).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
 		AddUnique(title, lead)
 

@@ -22,6 +22,7 @@ import (
 const (
 	tableNews                          = "example.news"
 	tableNewsColumnContent             = "content"
+	tableNewsColumnContinue            = "continue"
 	tableNewsColumnCreatedAt           = "created_at"
 	tableNewsColumnID                  = "id"
 	tableNewsColumnLead                = "lead"
@@ -35,6 +36,7 @@ const (
 var (
 	tableNewsColumns = []string{
 		tableNewsColumnContent,
+		tableNewsColumnContinue,
 		tableNewsColumnCreatedAt,
 		tableNewsColumnID,
 		tableNewsColumnLead,
@@ -45,6 +47,7 @@ var (
 
 type newsEntity struct {
 	content   string
+	cont      bool
 	createdAt time.Time
 	id        int64
 	lead      *ntypes.String
@@ -57,6 +60,8 @@ func (e *newsEntity) prop(cn string) (interface{}, bool) {
 	switch cn {
 	case tableNewsColumnContent:
 		return &e.content, true
+	case tableNewsColumnContinue:
+		return &e.cont, true
 	case tableNewsColumnCreatedAt:
 		return &e.createdAt, true
 	case tableNewsColumnID:
@@ -140,6 +145,7 @@ type newsCriteria struct {
 	offset, limit int64
 	sort          map[string]bool
 	content       *qtypes.String
+	cont          *ntypes.Bool
 	createdAt     *qtypes.Timestamp
 	id            *qtypes.Int64
 	lead          *qtypes.String
@@ -151,6 +157,16 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 
 	if err = pqtgo.WriteCompositionQueryString(c.content, tableNewsColumnContent, com, pqtgo.And); err != nil {
 		return
+	}
+	if c.cont != nil && c.cont.Valid {
+		if com.Dirty {
+			com.WriteString(" AND ")
+		}
+		com.Dirty = true
+		com.WriteString(tableNewsColumnContinue)
+		com.WriteString(" = ")
+		com.WritePlaceholder()
+		com.Add(c.cont)
 	}
 
 	if c.createdAt != nil && c.createdAt.Valid {
@@ -445,6 +461,7 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 
 type newsPatch struct {
 	content   *ntypes.String
+	cont      *ntypes.Bool
 	createdAt *time.Time
 	lead      *ntypes.String
 	title     *ntypes.String
@@ -468,6 +485,7 @@ func scanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
 		var ent newsEntity
 		err = rows.Scan(
 			&ent.content,
+			&ent.cont,
 			&ent.createdAt,
 			&ent.id,
 			&ent.lead,
@@ -489,7 +507,7 @@ func scanNewsRows(rows *sql.Rows) ([]*newsEntity, error) {
 
 func (r *newsRepositoryBase) count(c *newsCriteria) (int64, error) {
 
-	com := pqtgo.NewComposer(6)
+	com := pqtgo.NewComposer(7)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
 	buf.WriteString(r.table)
 
@@ -587,6 +605,7 @@ func (r *newsRepositoryBase) findOneByID(id int64) (*newsEntity, error) {
 		entity newsEntity
 	)
 	query := `SELECT content,
+continue,
 created_at,
 id,
 lead,
@@ -595,6 +614,7 @@ updated_at
  FROM example.news WHERE id = $1`
 	err := r.db.QueryRow(query, id).Scan(
 		&entity.content,
+		&entity.cont,
 		&entity.createdAt,
 		&entity.id,
 		&entity.lead,
@@ -611,9 +631,10 @@ func (r *newsRepositoryBase) findOneByTitleAndLead(title string, lead string) (*
 	var (
 		entity newsEntity
 	)
-	query := `SELECT content, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
+	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
 	err := r.db.QueryRow(query, title, lead).Scan(
 		&entity.content,
+		&entity.cont,
 		&entity.createdAt,
 		&entity.id,
 		&entity.lead,
@@ -627,8 +648,9 @@ func (r *newsRepositoryBase) findOneByTitleAndLead(title string, lead string) (*
 	return &entity, nil
 }
 func (r *newsRepositoryBase) insert(e *newsEntity) (*newsEntity, error) {
-	insert := pqcomp.New(0, 6)
+	insert := pqcomp.New(0, 7)
 	insert.AddExpr(tableNewsColumnContent, "", e.content)
+	insert.AddExpr(tableNewsColumnContinue, "", e.cont)
 	insert.AddExpr(tableNewsColumnCreatedAt, "", e.createdAt)
 	insert.AddExpr(tableNewsColumnLead, "", e.lead)
 	insert.AddExpr(tableNewsColumnTitle, "", e.title)
@@ -669,6 +691,7 @@ func (r *newsRepositoryBase) insert(e *newsEntity) (*newsEntity, error) {
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
 		&e.content,
+		&e.cont,
 		&e.createdAt,
 		&e.id,
 		&e.lead,
@@ -682,15 +705,17 @@ func (r *newsRepositoryBase) insert(e *newsEntity) (*newsEntity, error) {
 	return e, nil
 }
 func (r *newsRepositoryBase) upsert(e *newsEntity, p *newsPatch, inf ...string) (*newsEntity, error) {
-	insert := pqcomp.New(0, 6)
-	update := insert.Compose(6)
+	insert := pqcomp.New(0, 7)
+	update := insert.Compose(7)
 	insert.AddExpr(tableNewsColumnContent, "", e.content)
+	insert.AddExpr(tableNewsColumnContinue, "", e.cont)
 	insert.AddExpr(tableNewsColumnCreatedAt, "", e.createdAt)
 	insert.AddExpr(tableNewsColumnLead, "", e.lead)
 	insert.AddExpr(tableNewsColumnTitle, "", e.title)
 	insert.AddExpr(tableNewsColumnUpdatedAt, "", e.updatedAt)
 	if len(inf) > 0 {
 		update.AddExpr(tableNewsColumnContent, "=", p.content)
+		update.AddExpr(tableNewsColumnContinue, "=", p.cont)
 		update.AddExpr(tableNewsColumnCreatedAt, "=", p.createdAt)
 		update.AddExpr(tableNewsColumnLead, "=", p.lead)
 		update.AddExpr(tableNewsColumnTitle, "=", p.title)
@@ -759,6 +784,7 @@ func (r *newsRepositoryBase) upsert(e *newsEntity, p *newsPatch, inf ...string) 
 
 	err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
 		&e.content,
+		&e.cont,
 		&e.createdAt,
 		&e.id,
 		&e.lead,
@@ -772,10 +798,11 @@ func (r *newsRepositoryBase) upsert(e *newsEntity, p *newsPatch, inf ...string) 
 	return e, nil
 }
 func (r *newsRepositoryBase) updateOneByID(id int64, patch *newsPatch) (*newsEntity, error) {
-	update := pqcomp.New(1, 6)
+	update := pqcomp.New(1, 7)
 	update.AddArg(id)
 
 	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
+	update.AddExpr(tableNewsColumnContinue, pqcomp.Equal, patch.cont)
 	if patch.createdAt != nil {
 		update.AddExpr(tableNewsColumnCreatedAt, pqcomp.Equal, patch.createdAt)
 
@@ -803,6 +830,7 @@ func (r *newsRepositoryBase) updateOneByID(id int64, patch *newsPatch) (*newsEnt
 	var e newsEntity
 	err := r.db.QueryRow(query, update.Args()...).Scan(
 		&e.content,
+		&e.cont,
 		&e.createdAt,
 		&e.id,
 		&e.lead,
@@ -816,10 +844,11 @@ func (r *newsRepositoryBase) updateOneByID(id int64, patch *newsPatch) (*newsEnt
 	return &e, nil
 }
 func (r *newsRepositoryBase) updateOneByTitleAndLead(title string, lead string, patch *newsPatch) (*newsEntity, error) {
-	update := pqcomp.New(2, 6)
+	update := pqcomp.New(2, 7)
 	update.AddArg(title)
 	update.AddArg(lead)
 	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
+	update.AddExpr(tableNewsColumnContinue, pqcomp.Equal, patch.cont)
 	if patch.createdAt != nil {
 		update.AddExpr(tableNewsColumnCreatedAt, pqcomp.Equal, patch.createdAt)
 
@@ -852,6 +881,7 @@ func (r *newsRepositoryBase) updateOneByTitleAndLead(title string, lead string, 
 	var e newsEntity
 	err := r.db.QueryRow(query, update.Args()...).Scan(
 		&e.content,
+		&e.cont,
 		&e.createdAt,
 		&e.id,
 		&e.lead,
@@ -2381,6 +2411,7 @@ CREATE SCHEMA IF NOT EXISTS example;
 
 CREATE TABLE IF NOT EXISTS example.news (
 	content TEXT NOT NULL,
+	continue BOOL DEFAULT false NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 	id BIGSERIAL,
 	lead TEXT,

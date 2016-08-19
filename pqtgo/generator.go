@@ -33,6 +33,34 @@ const (
 	Private Visibility = "private"
 )
 
+var keywords = map[string]string{
+	"break":       "brk",
+	"default":     "def",
+	"func":        "fn",
+	"interface":   "intf",
+	"select":      "selec",
+	"case":        "cas",
+	"defer":       "defe",
+	"go":          "g",
+	"map":         "ma",
+	"struct":      "struc",
+	"chan":        "cha",
+	"else":        "els",
+	"goto":        "got",
+	"package":     "pkg",
+	"switch":      "switc",
+	"const":       "cons",
+	"fallthrough": "fallthroug",
+	"if":          "i",
+	"range":       "rang",
+	"type":        "typ",
+	"continue":    "cont",
+	"for":         "fo",
+	"import":      "impor",
+	"return":      "rtn",
+	"var":         "va",
+}
+
 // Generator ...
 type Generator struct {
 	ver      float32
@@ -1648,8 +1676,12 @@ func snake(s string, private bool, acronyms map[string]string) string {
 	if private {
 		parts[0] = xstrings.FirstRuneToLower(parts[0])
 	}
+	result := strings.Join(parts, "")
+	if replacement, ok := keywords[result]; ok {
+		return replacement
+	}
 
-	return strings.Join(parts, "")
+	return result
 }
 
 func (g *Generator) name(s string) string {
