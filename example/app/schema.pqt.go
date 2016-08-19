@@ -42,6 +42,7 @@ type packageEntity struct {
 	createdAt time.Time
 	id        int64
 	updatedAt *time.Time
+	category  *categoryEntity
 }
 
 func (e *packageEntity) prop(cn string) (interface{}, bool) {
@@ -2360,15 +2361,17 @@ func (r *commentRepositoryBase) upsert(e *commentEntity, p *commentPatch, inf ..
 }
 
 const (
-	tableCategory                             = "example.category"
-	tableCategoryColumnContent                = "content"
-	tableCategoryColumnCreatedAt              = "created_at"
-	tableCategoryColumnID                     = "id"
-	tableCategoryColumnName                   = "name"
-	tableCategoryColumnParentID               = "parent_id"
-	tableCategoryColumnUpdatedAt              = "updated_at"
-	tableCategoryConstraintPrimaryKey         = "example.category_id_pkey"
-	tableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
+	tableCategory                              = "example.category"
+	tableCategoryColumnContent                 = "content"
+	tableCategoryColumnCreatedAt               = "created_at"
+	tableCategoryColumnID                      = "id"
+	tableCategoryColumnName                    = "name"
+	tableCategoryColumnPackageID               = "package_id"
+	tableCategoryColumnParentID                = "parent_id"
+	tableCategoryColumnUpdatedAt               = "updated_at"
+	tableCategoryConstraintPrimaryKey          = "example.category_id_pkey"
+	tableCategoryConstraintPackageIDForeignKey = "example.category_package_id_fkey"
+	tableCategoryConstraintParentIDForeignKey  = "example.category_parent_id_fkey"
 )
 
 var (
@@ -2377,6 +2380,7 @@ var (
 		tableCategoryColumnCreatedAt,
 		tableCategoryColumnID,
 		tableCategoryColumnName,
+		tableCategoryColumnPackageID,
 		tableCategoryColumnParentID,
 		tableCategoryColumnUpdatedAt,
 	}
@@ -2387,9 +2391,11 @@ type categoryEntity struct {
 	createdAt      time.Time
 	id             int64
 	name           string
+	packageID      *ntypes.Int64
 	parentID       *ntypes.Int64
 	updatedAt      *time.Time
 	childCategory  []*categoryEntity
+	pkg            *packageEntity
 	parentCategory *categoryEntity
 }
 
@@ -2403,6 +2409,8 @@ func (e *categoryEntity) prop(cn string) (interface{}, bool) {
 		return &e.id, true
 	case tableCategoryColumnName:
 		return &e.name, true
+	case tableCategoryColumnPackageID:
+		return &e.packageID, true
 	case tableCategoryColumnParentID:
 		return &e.parentID, true
 	case tableCategoryColumnUpdatedAt:
@@ -2483,6 +2491,7 @@ type categoryCriteria struct {
 	createdAt     *qtypes.Timestamp
 	id            *qtypes.Int64
 	name          *qtypes.String
+	packageID     *qtypes.Int64
 	parentID      *qtypes.Int64
 	updatedAt     *qtypes.Timestamp
 }
@@ -2616,6 +2625,10 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 	}
 
 	if err = pqtgo.WriteCompositionQueryString(c.name, tableCategoryColumnName, com, pqtgo.And); err != nil {
+		return
+	}
+
+	if err = pqtgo.WriteCompositionQueryInt64(c.packageID, tableCategoryColumnPackageID, com, pqtgo.And); err != nil {
 		return
 	}
 
@@ -2787,6 +2800,7 @@ type categoryPatch struct {
 	content   *ntypes.String
 	createdAt *time.Time
 	name      *ntypes.String
+	packageID *ntypes.Int64
 	parentID  *ntypes.Int64
 	updatedAt *time.Time
 }
@@ -2811,6 +2825,7 @@ func scanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
 			&ent.createdAt,
 			&ent.id,
 			&ent.name,
+			&ent.packageID,
 			&ent.parentID,
 			&ent.updatedAt,
 		)
@@ -2829,7 +2844,7 @@ func scanCategoryRows(rows *sql.Rows) ([]*categoryEntity, error) {
 
 func (r *categoryRepositoryBase) count(c *categoryCriteria) (int64, error) {
 
-	com := pqtgo.NewComposer(6)
+	com := pqtgo.NewComposer(7)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
 	buf.WriteString(r.table)
 
@@ -2930,6 +2945,7 @@ func (r *categoryRepositoryBase) findOneByID(id int64) (*categoryEntity, error) 
 created_at,
 id,
 name,
+package_id,
 parent_id,
 updated_at
  FROM example.category WHERE id = $1`
@@ -2938,6 +2954,7 @@ updated_at
 		&ent.createdAt,
 		&ent.id,
 		&ent.name,
+		&ent.packageID,
 		&ent.parentID,
 		&ent.updatedAt,
 	)
@@ -2948,10 +2965,11 @@ updated_at
 	return &ent, nil
 }
 func (r *categoryRepositoryBase) insert(e *categoryEntity) (*categoryEntity, error) {
-	insert := pqcomp.New(0, 6)
+	insert := pqcomp.New(0, 7)
 	insert.AddExpr(tableCategoryColumnContent, "", e.content)
 	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.createdAt)
 	insert.AddExpr(tableCategoryColumnName, "", e.name)
+	insert.AddExpr(tableCategoryColumnPackageID, "", e.packageID)
 	insert.AddExpr(tableCategoryColumnParentID, "", e.parentID)
 	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.updatedAt)
 
@@ -2993,6 +3011,7 @@ func (r *categoryRepositoryBase) insert(e *categoryEntity) (*categoryEntity, err
 		&e.createdAt,
 		&e.id,
 		&e.name,
+		&e.packageID,
 		&e.parentID,
 		&e.updatedAt,
 	)
@@ -3003,17 +3022,19 @@ func (r *categoryRepositoryBase) insert(e *categoryEntity) (*categoryEntity, err
 	return e, nil
 }
 func (r *categoryRepositoryBase) upsert(e *categoryEntity, p *categoryPatch, inf ...string) (*categoryEntity, error) {
-	insert := pqcomp.New(0, 6)
-	update := insert.Compose(6)
+	insert := pqcomp.New(0, 7)
+	update := insert.Compose(7)
 	insert.AddExpr(tableCategoryColumnContent, "", e.content)
 	insert.AddExpr(tableCategoryColumnCreatedAt, "", e.createdAt)
 	insert.AddExpr(tableCategoryColumnName, "", e.name)
+	insert.AddExpr(tableCategoryColumnPackageID, "", e.packageID)
 	insert.AddExpr(tableCategoryColumnParentID, "", e.parentID)
 	insert.AddExpr(tableCategoryColumnUpdatedAt, "", e.updatedAt)
 	if len(inf) > 0 {
 		update.AddExpr(tableCategoryColumnContent, "=", p.content)
 		update.AddExpr(tableCategoryColumnCreatedAt, "=", p.createdAt)
 		update.AddExpr(tableCategoryColumnName, "=", p.name)
+		update.AddExpr(tableCategoryColumnPackageID, "=", p.packageID)
 		update.AddExpr(tableCategoryColumnParentID, "=", p.parentID)
 		update.AddExpr(tableCategoryColumnUpdatedAt, "=", p.updatedAt)
 	}
@@ -3083,6 +3104,7 @@ func (r *categoryRepositoryBase) upsert(e *categoryEntity, p *categoryPatch, inf
 		&e.createdAt,
 		&e.id,
 		&e.name,
+		&e.packageID,
 		&e.parentID,
 		&e.updatedAt,
 	)
@@ -3093,7 +3115,7 @@ func (r *categoryRepositoryBase) upsert(e *categoryEntity, p *categoryPatch, inf
 	return e, nil
 }
 func (r *categoryRepositoryBase) updateOneByID(id int64, patch *categoryPatch) (*categoryEntity, error) {
-	update := pqcomp.New(1, 6)
+	update := pqcomp.New(1, 7)
 	update.AddArg(id)
 
 	update.AddExpr(tableCategoryColumnContent, pqcomp.Equal, patch.content)
@@ -3102,6 +3124,7 @@ func (r *categoryRepositoryBase) updateOneByID(id int64, patch *categoryPatch) (
 
 	}
 	update.AddExpr(tableCategoryColumnName, pqcomp.Equal, patch.name)
+	update.AddExpr(tableCategoryColumnPackageID, pqcomp.Equal, patch.packageID)
 	update.AddExpr(tableCategoryColumnParentID, pqcomp.Equal, patch.parentID)
 	if patch.updatedAt != nil {
 		update.AddExpr(tableCategoryColumnUpdatedAt, pqcomp.Equal, patch.updatedAt)
@@ -3127,6 +3150,7 @@ func (r *categoryRepositoryBase) updateOneByID(id int64, patch *categoryPatch) (
 		&e.createdAt,
 		&e.id,
 		&e.name,
+		&e.packageID,
 		&e.parentID,
 		&e.updatedAt,
 	)
@@ -3193,10 +3217,12 @@ CREATE TABLE IF NOT EXISTS example.category (
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 	id BIGSERIAL,
 	name TEXT NOT NULL,
+	package_id BIGINT,
 	parent_id BIGINT,
 	updated_at TIMESTAMPTZ,
 
 	CONSTRAINT "example.category_id_pkey" PRIMARY KEY (id),
+	CONSTRAINT "example.category_package_id_fkey" FOREIGN KEY (package_id) REFERENCES example.package (id),
 	CONSTRAINT "example.category_parent_id_fkey" FOREIGN KEY (parent_id) REFERENCES example.category (id)
 );
 
