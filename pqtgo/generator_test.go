@@ -68,7 +68,9 @@ tableFirstColumnId,
 tableFirstColumnName,
 })
 type firstEntity struct{
+// id ...
 id *ntypes.Int64
+// name ...
 name *ntypes.String
 }
 
