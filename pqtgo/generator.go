@@ -1456,7 +1456,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 		}
 		fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(%s, patch *%sPatch) (*%sEntity, error) {
 		`, entityName, g.name(methodName), arguments, entityName, entityName)
-		fmt.Fprintf(w, "update := pqcomp.New(2, %d)\n", len(table.Columns))
+		fmt.Fprintf(w, "update := pqcomp.New(%d, %d)\n", len(u.Columns), len(table.Columns))
 		for _, c := range u.Columns {
 			fmt.Fprintf(w, "update.AddArg(%s)\n", g.private(c.Name))
 		}
