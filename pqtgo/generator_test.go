@@ -169,15 +169,21 @@ func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *p
 	if len(c.sort) > 0 {
 		i:=0
 		com.WriteString(" ORDER BY ")
+
 		for cn, asc := range c.sort {
-			if i > 0 {
-				com.WriteString(", ")
+			for _, tcn := range tableFirstColumns {
+				if cn == tcn {
+					if i > 0 {
+						com.WriteString(", ")
+					}
+					com.WriteString(cn)
+					if !asc {
+						com.WriteString(" DESC ")
+					}
+					i++
+					break
+				}
 			}
-			com.WriteString(cn)
-			if !asc {
-				com.WriteString(" DESC ")
-			}
-			i++
 		}
 	}
 	if c.offset > 0 {

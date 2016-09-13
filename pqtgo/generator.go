@@ -922,15 +922,21 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 	if len(c.%s) > 0 {
 		i:=0
 		com.WriteString(" ORDER BY ")
+
 		for cn, asc := range c.%s {
-			if i > 0 {
-				com.WriteString(", ")
+			for _, tcn := range table%sColumns {
+				if cn == tcn {
+					if i > 0 {
+						com.WriteString(", ")
+					}
+					com.WriteString(cn)
+					if !asc {
+						com.WriteString(" DESC ")
+					}
+					i++
+					break
+				}
 			}
-			com.WriteString(cn)
-			if !asc {
-				com.WriteString(" DESC ")
-			}
-			i++
 		}
 	}
 	if c.%s > 0 {
@@ -961,6 +967,7 @@ func (g *Generator) generateCriteriaWriteComposition(w io.Writer, t *pqt.Table) 
 	return
 }
 `, g.name("sort"), g.name("sort"),
+		g.public(t.Name),
 		g.name("offset"), g.name("offset"),
 		g.name("limit"), g.name("limit"))
 }

@@ -104,16 +104,21 @@ func main() {
 
 	iter, err := repo.comment.findIter(&commentCriteria{
 		newsID: qtypes.EqualInt64(news.id),
+		sort: map[string]bool{
+			"id": false,
+			"non_existing_column": true,
+		},
 	})
 	if err != nil {
 		sklog.Fatal(log, err)
 	}
 	got := 0
 	for iter.Next() {
-		_, err = iter.Comment()
+		com, err := iter.Comment()
 		if err != nil {
 			sklog.Fatal(log, err)
 		}
+		sklog.Debug(log, "comment fetched", "comment_id", com.id)
 		got++
 	}
 	if err = iter.Err(); err != nil {

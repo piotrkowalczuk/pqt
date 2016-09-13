@@ -56,10 +56,10 @@ func schema(sn string) *pqt.Schema {
 	pqt.ManyToMany(category, news, pqt.WithBidirectional())
 
 	return pqt.NewSchema(sn, pqt.WithSchemaIfNotExists()).
+		AddTable(category).
 		AddTable(pkg).
 		AddTable(news).
-		AddTable(comment).
-		AddTable(category)
+		AddTable(comment)
 }
 
 func timestampable(t *pqt.Table) {
