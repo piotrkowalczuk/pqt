@@ -53,6 +53,7 @@ func (t *Table) FullName() string {
 // AddColumn adds column to the table.
 func (t *Table) AddColumn(c *Column) *Table {
 	if c.Reference != nil {
+		t.OwnedRelationships = append(t.OwnedRelationships, newRelationship(t, c.Reference.Table, nil, RelationshipTypeManyToOne, c.ReferenceOptions...))
 		t.AddConstraint(&Constraint{
 			Type:             ConstraintTypeForeignKey,
 			Table:            t,

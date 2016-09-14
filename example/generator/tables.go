@@ -21,7 +21,7 @@ func schema(sn string) *pqt.Schema {
 			"news_title",
 			pqt.TypeText(),
 			pqt.WithNotNull(),
-			pqt.WithReference(title),
+			pqt.WithReference(title, pqt.WithBidirectional(), pqt.WithInversedName("news_by_title")),
 		))
 
 	category := pqt.NewTable("category", pqt.WithTableIfNotExists()).
@@ -50,8 +50,7 @@ func schema(sn string) *pqt.Schema {
 	timestampable(comment)
 	timestampable(category)
 	timestampable(pkg)
-
-	comment.AddRelationship(pqt.ManyToOne(news, pqt.WithBidirectional()), pqt.WithNotNull())
+	comment.AddRelationship(pqt.ManyToOne(news, pqt.WithBidirectional(), pqt.WithInversedName("news_by_id")), pqt.WithNotNull())
 
 	pqt.ManyToMany(category, news, pqt.WithBidirectional())
 
