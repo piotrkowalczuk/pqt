@@ -21,7 +21,7 @@ func schema(sn string) *pqt.Schema {
 			"news_title",
 			pqt.TypeText(),
 			pqt.WithNotNull(),
-			pqt.WithReference(title, pqt.WithBidirectional(), pqt.WithInversedName("news_by_title")),
+			pqt.WithReference(title, pqt.WithBidirectional(), pqt.WithOwnerName("comments_by_news_title"), pqt.WithInversedName("news_by_title")),
 		))
 
 	category := pqt.NewTable("category", pqt.WithTableIfNotExists()).

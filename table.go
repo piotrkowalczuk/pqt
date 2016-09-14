@@ -53,7 +53,12 @@ func (t *Table) FullName() string {
 // AddColumn adds column to the table.
 func (t *Table) AddColumn(c *Column) *Table {
 	if c.Reference != nil {
-		t.OwnedRelationships = append(t.OwnedRelationships, newRelationship(t, c.Reference.Table, nil, RelationshipTypeManyToOne, c.ReferenceOptions...))
+		r := newRelationship(t, c.Reference.Table, nil, RelationshipTypeManyToOne, c.ReferenceOptions...)
+		t.OwnedRelationships = append(t.OwnedRelationships, r)
+		if r.Bidirectional && r.InversedTable != nil {
+			r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
+		}
+
 		t.AddConstraint(&Constraint{
 			Type:             ConstraintTypeForeignKey,
 			Table:            t,
