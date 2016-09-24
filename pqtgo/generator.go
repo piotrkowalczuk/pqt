@@ -26,10 +26,13 @@ const (
 `
 )
 
+// Visibility ...
 type Visibility string
 
 const (
-	Public  Visibility = "public"
+	// Public ...
+	Public Visibility = "public"
+	// Private ...
 	Private Visibility = "private"
 )
 
@@ -328,7 +331,7 @@ func (i *%sIterator) Columns() ([]string, error) {
 	return i.cols, nil
 }
 
-// Ent is wrapper arround %s method that makes iterator more generic.
+// Ent is wrapper around %s method that makes iterator more generic.
 func (i *%sIterator) Ent() (interface{}, error) {
 	return i.%s()
 }

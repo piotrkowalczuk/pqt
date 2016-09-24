@@ -30,7 +30,7 @@ func TestWithColumnName(t *testing.T) {
 	}
 
 	if !exists {
-		t.Errorf("comment table should have collumn with name %s", icn)
+		t.Errorf("comment table should have column with name %s", icn)
 	}
 }
 

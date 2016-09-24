@@ -44,6 +44,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Fprint(file, "/// SQL ...\n")
 	fmt.Fprint(file, "const SQL = `\n")
 	if err := pqtsql.NewGenerator().GenerateTo(sch, file); err != nil {
 		log.Fatal(err)

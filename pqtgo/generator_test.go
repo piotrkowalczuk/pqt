@@ -128,7 +128,7 @@ func (i *firstIterator) Columns() ([]string, error) {
 	return i.cols, nil
 }
 
-// Ent is wrapper arround first method that makes iterator more generic.
+// Ent is wrapper around first method that makes iterator more generic.
 func (i *firstIterator) Ent() (interface{}, error) {
 	return i.First()
 }
