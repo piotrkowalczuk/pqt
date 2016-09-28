@@ -1150,7 +1150,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(code *bytes.Buffer, ta
 func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buffer, table *pqt.Table) {
 	entityName := g.name(table.Name)
 	var unique []*pqt.Constraint
-	for _, c := range table.Constraints {
+	for _, c := range tableConstraints(table) {
 		if c.Type == pqt.ConstraintTypeUnique {
 			unique = append(unique, c)
 		}
@@ -1444,7 +1444,7 @@ UpdateLoop:
 func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
 	entityName := g.name(table.Name)
 	var unique []*pqt.Constraint
-	for _, c := range table.Constraints {
+	for _, c := range tableConstraints(table) {
 		if c.Type == pqt.ConstraintTypeUnique {
 			unique = append(unique, c)
 		}

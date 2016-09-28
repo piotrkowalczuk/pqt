@@ -2227,6 +2227,26 @@ updated_at
 
 	return &ent, nil
 }
+func (r *newsRepositoryBase) findOneByTitle(title string) (*newsEntity, error) {
+	var (
+		ent newsEntity
+	)
+	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1`
+	err := r.db.QueryRow(query, title).Scan(
+		&ent.content,
+		&ent.cont,
+		&ent.createdAt,
+		&ent.id,
+		&ent.lead,
+		&ent.title,
+		&ent.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
 func (r *newsRepositoryBase) findOneByTitleAndLead(title string, lead string) (*newsEntity, error) {
 	var (
 		ent newsEntity
@@ -2427,6 +2447,56 @@ func (r *newsRepositoryBase) updateOneByID(id int64, patch *newsPatch) (*newsEnt
 		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
 	}
 	query += " WHERE id = $1 RETURNING " + strings.Join(r.columns, ", ")
+	var e newsEntity
+	err := r.db.QueryRow(query, update.Args()...).Scan(
+		&e.content,
+		&e.cont,
+		&e.createdAt,
+		&e.id,
+		&e.lead,
+		&e.title,
+		&e.updatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &e, nil
+}
+func (r *newsRepositoryBase) updateOneByTitle(title string, patch *newsPatch) (*newsEntity, error) {
+	update := pqcomp.New(1, 7)
+	update.AddArg(title)
+	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
+	update.AddExpr(tableNewsColumnContinue, pqcomp.Equal, patch.cont)
+	if patch.createdAt != nil {
+		update.AddExpr(tableNewsColumnCreatedAt, pqcomp.Equal, patch.createdAt)
+
+	}
+	update.AddExpr(tableNewsColumnLead, pqcomp.Equal, patch.lead)
+	update.AddExpr(tableNewsColumnTitle, pqcomp.Equal, patch.title)
+	if patch.updatedAt != nil {
+		update.AddExpr(tableNewsColumnUpdatedAt, pqcomp.Equal, patch.updatedAt)
+	} else {
+		update.AddExpr(tableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
+	}
+
+	if update.Len() == 0 {
+		return nil, errors.New("news update failure, nothing to update")
+	}
+	query := "UPDATE example.news SET "
+	for update.Next() {
+		if !update.First() {
+			query += ", "
+		}
+
+		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
+	}
+	query += " WHERE title = $1 RETURNING " + strings.Join(r.columns, ", ")
+	if r.dbg {
+		if err := r.log.Log("msg", query, "function", "UpdateOneByTitle"); err != nil {
+			return nil, err
+		}
+	}
 	var e newsEntity
 	err := r.db.QueryRow(query, update.Args()...).Scan(
 		&e.content,
