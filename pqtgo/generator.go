@@ -1843,13 +1843,13 @@ func generateBuiltinType(t BuiltinType, m int32) (r string) {
 	case types.Bool:
 		r = chooseType("bool", "*ntypes.Bool", "*ntypes.Bool", m)
 	case types.Int:
-		r = chooseType("int", "*ntypes.Int", "*ntypes.Int", m)
+		r = chooseType("int", "*ntypes.Int", "*qtypes.Int64", m)
 	case types.Int8:
 		r = chooseType("int8", "*int8", "*int8", m)
 	case types.Int16:
 		r = chooseType("int16", "*int16", "*int16", m)
 	case types.Int32:
-		r = chooseType("int32", "*ntypes.Int32", "*ntypes.Int32", m)
+		r = chooseType("int32", "*ntypes.Int32", "*qtypes.Int64", m)
 	case types.Int64:
 		r = chooseType("int64", "*ntypes.Int64", "*qtypes.Int64", m)
 	case types.Uint:
@@ -1863,7 +1863,7 @@ func generateBuiltinType(t BuiltinType, m int32) (r string) {
 	case types.Uint64:
 		r = chooseType("uint64", "*uint64", "*uint64", m)
 	case types.Float32:
-		r = chooseType("float32", "*ntypes.Float32", "*ntypes.Float32", m)
+		r = chooseType("float32", "*ntypes.Float32", "*qtypes.Float64", m)
 	case types.Float64:
 		r = chooseType("float64", "*ntypes.Float64", "*qtypes.Float64", m)
 	case types.Complex64:
