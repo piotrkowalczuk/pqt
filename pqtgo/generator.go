@@ -1168,7 +1168,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 				arguments += ", "
 			}
 			methodName += g.public(c.Name)
-			arguments += fmt.Sprintf("%s %s", g.private(c.Name), g.generateColumnTypeString(c, modeMandatory))
+			arguments += fmt.Sprintf("%s %s", g.private(columnForeignName(c)), g.generateColumnTypeString(c, modeMandatory))
 		}
 		fmt.Fprintf(code, `func (r *%sRepositoryBase) %s(%s) (*%sEntity, error) {`, entityName, g.name(methodName), arguments, entityName)
 		fmt.Fprintf(code, `var (
@@ -1196,7 +1196,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(code *bytes.Buff
 			if i != 0 {
 				fmt.Fprint(code, ", ")
 			}
-			fmt.Fprintf(code, "%s", g.private(c.Name))
+			fmt.Fprintf(code, "%s", g.private(columnForeignName(c)))
 		}
 		fmt.Fprint(code, ").Scan(\n")
 		for _, c := range table.Columns {
@@ -1462,13 +1462,13 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 				arguments += ", "
 			}
 			methodName += g.public(c.Name)
-			arguments += fmt.Sprintf("%s %s", g.private(c.Name), g.generateColumnTypeString(c, modeMandatory))
+			arguments += fmt.Sprintf("%s %s", g.private(columnForeignName(c)), g.generateColumnTypeString(c, modeMandatory))
 		}
 		fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(%s, patch *%sPatch) (*%sEntity, error) {
 		`, entityName, g.name(methodName), arguments, entityName, entityName)
 		fmt.Fprintf(w, "update := pqcomp.New(%d, %d)\n", len(u.Columns), len(table.Columns))
 		for _, c := range u.Columns {
-			fmt.Fprintf(w, "update.AddArg(%s)\n", g.private(c.Name))
+			fmt.Fprintf(w, "update.AddArg(%s)\n", g.private(columnForeignName(c)))
 		}
 		pk, pkOK := table.PrimaryKey()
 	ColumnsLoop:
@@ -1942,4 +1942,8 @@ func or(s1, s2 string) string {
 		return s2
 	}
 	return s1
+}
+
+func columnForeignName(c *pqt.Column) string {
+	return c.Table.Name + "_" + c.Name
 }
