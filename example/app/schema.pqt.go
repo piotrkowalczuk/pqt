@@ -2227,12 +2227,12 @@ updated_at
 
 	return &ent, nil
 }
-func (r *newsRepositoryBase) findOneByTitle(title string) (*newsEntity, error) {
+func (r *newsRepositoryBase) findOneByTitle(newsTitle string) (*newsEntity, error) {
 	var (
 		ent newsEntity
 	)
 	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1`
-	err := r.db.QueryRow(query, title).Scan(
+	err := r.db.QueryRow(query, newsTitle).Scan(
 		&ent.content,
 		&ent.cont,
 		&ent.createdAt,
@@ -2247,12 +2247,12 @@ func (r *newsRepositoryBase) findOneByTitle(title string) (*newsEntity, error) {
 
 	return &ent, nil
 }
-func (r *newsRepositoryBase) findOneByTitleAndLead(title string, lead string) (*newsEntity, error) {
+func (r *newsRepositoryBase) findOneByTitleAndLead(newsTitle string, newsLead string) (*newsEntity, error) {
 	var (
 		ent newsEntity
 	)
 	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
-	err := r.db.QueryRow(query, title, lead).Scan(
+	err := r.db.QueryRow(query, newsTitle, newsLead).Scan(
 		&ent.content,
 		&ent.cont,
 		&ent.createdAt,
@@ -2463,9 +2463,9 @@ func (r *newsRepositoryBase) updateOneByID(id int64, patch *newsPatch) (*newsEnt
 
 	return &e, nil
 }
-func (r *newsRepositoryBase) updateOneByTitle(title string, patch *newsPatch) (*newsEntity, error) {
+func (r *newsRepositoryBase) updateOneByTitle(newsTitle string, patch *newsPatch) (*newsEntity, error) {
 	update := pqcomp.New(1, 7)
-	update.AddArg(title)
+	update.AddArg(newsTitle)
 	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
 	update.AddExpr(tableNewsColumnContinue, pqcomp.Equal, patch.cont)
 	if patch.createdAt != nil {
@@ -2513,10 +2513,10 @@ func (r *newsRepositoryBase) updateOneByTitle(title string, patch *newsPatch) (*
 
 	return &e, nil
 }
-func (r *newsRepositoryBase) updateOneByTitleAndLead(title string, lead string, patch *newsPatch) (*newsEntity, error) {
+func (r *newsRepositoryBase) updateOneByTitleAndLead(newsTitle string, newsLead string, patch *newsPatch) (*newsEntity, error) {
 	update := pqcomp.New(2, 7)
-	update.AddArg(title)
-	update.AddArg(lead)
+	update.AddArg(newsTitle)
+	update.AddArg(newsLead)
 	update.AddExpr(tableNewsColumnContent, pqcomp.Equal, patch.content)
 	update.AddExpr(tableNewsColumnContinue, pqcomp.Equal, patch.cont)
 	if patch.createdAt != nil {
