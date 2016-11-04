@@ -231,9 +231,6 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
 			case pqt.RelationshipTypeManyToOne:
 				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
-			case pqt.RelationshipTypeManyToMany:
-				out <- structField{Name: g.propertyName(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.OwnerTable.Name))}
-				out <- structField{Name: g.propertyName(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.name(r.InversedTable.Name))}
 			}
 		}
 
