@@ -114,6 +114,17 @@ func TestWriteCompositionQueryString(t *testing.T) {
 			exp:  " AND name LIKE $1",
 			args: []interface{}{string("%xyz%")},
 		},
+		"in": {
+			sel: "name",
+			obj: &qtypes.String{
+				Type:   qtypes.QueryType_IN,
+				Values: []string{"a", "b", "c"},
+				Valid:  true,
+			},
+			opt:  And,
+			exp:  " AND name IN ($1,$2,$3)",
+			args: []interface{}{"a", "b", "c"},
+		},
 		"null": {
 			sel:  "name",
 			obj:  qtypes.NullString(),

@@ -644,6 +644,41 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 			com.Add(pqt.ArrayString(s.Values))
 			com.Dirty = true
 		}
+	case qtypes.QueryType_IN:
+		if len(s.Values) > 0 {
+			if com.Dirty {
+				if _, err = com.WriteString(opt.Joint); err != nil {
+					return
+				}
+			}
+			if _, err = com.WriteString(sel); err != nil {
+				return
+			}
+			if s.Negation {
+				if _, err = com.WriteString(" NOT IN ("); err != nil {
+					return
+				}
+			} else {
+				if _, err = com.WriteString(" IN ("); err != nil {
+					return
+				}
+			}
+			for i, v := range s.Values {
+				if i != 0 {
+					if _, err = com.WriteString(","); err != nil {
+						return
+					}
+				}
+				if err = com.WritePlaceholder(); err != nil {
+					return
+				}
+				com.Add(v)
+				com.Dirty = true
+			}
+			if _, err = com.WriteString(")"); err != nil {
+				return
+			}
+		}
 	default:
 		return fmt.Errorf("pqtgo: unknown string query type %s", s.Type.String())
 	}
