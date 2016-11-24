@@ -1226,7 +1226,7 @@ ColumnsLoop:
 		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 			continue ColumnsLoop
 		default:
-			if g.canBeNil(c, modeOptional) {
+			if g.canBeNil(c, modeMandatory) {
 				fmt.Fprintf(w, `
 					if e.%s != nil {
 						insert.AddExpr(%s, "", e.%s)
@@ -1318,7 +1318,7 @@ InsertLoop:
 		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 			continue InsertLoop
 		default:
-			if g.canBeNil(c, modeOptional) {
+			if g.canBeNil(c, modeMandatory) {
 				fmt.Fprintf(code, `
 					if e.%s != nil {
 						insert.AddExpr(%s, "", e.%s)
