@@ -845,6 +845,12 @@ func (g *Generator) generateRepositoryFindSingleExpression(w io.Writer, c *pqt.C
 			switch mtt := mt.(type) {
 			case CustomType:
 				if gct := generateCustomType(mtt, modeCriteria); strings.HasPrefix(gct, "*qtypes.") {
+					columnName := g.propertyName(c.Name)
+					columnNameWithTable := g.columnNameWithTableName(c.Table.Name, c.Name)
+
+					if !g.generateRepositoryFindPropertyQueryByGoType(w, c, gct, columnName, columnNameWithTable) {
+						panic("custom type criteria variant cannot be generated")
+					}
 					break MappingLoop
 				}
 
