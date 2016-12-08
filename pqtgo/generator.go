@@ -536,6 +536,11 @@ func (g *Generator) generateRepositoryFindPropertyQuery(w io.Writer, c *pqt.Colu
 }
 
 func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col *pqt.Column, goType, columnName, columnNameWithTable string) (done bool) {
+	var isJSON bool
+	switch col.Type {
+	case pqt.TypeJSON(), pqt.TypeJSONB():
+		isJSON = true
+	}
 	switch goType {
 	case "uuid.UUID":
 		fmt.Fprintf(w, `
@@ -679,9 +684,12 @@ func (g *Generator) generateRepositoryFindPropertyQueryByGoType(w io.Writer, col
 		)
 	case "*qtypes.Int64":
 		fmt.Fprintf(w, `
-		if err = pqtgo.WriteCompositionQueryInt64(c.%s, %s, com, pqtgo.And); err != nil {
+		if err = pqtgo.WriteCompositionQueryInt64(c.%s, %s, com, &pqtgo.CompositionOpts{
+		Joint: " AND ",
+		IsJSON: %v,
+	}); err != nil {
 			return
-		}`, columnName, columnNameWithTable)
+		}`, columnName, columnNameWithTable, isJSON)
 	case "*qtypes.Int32", "*qtypes.Float64":
 		fmt.Fprintf(w, `
 				if c.%s != nil && c.%s.Valid {

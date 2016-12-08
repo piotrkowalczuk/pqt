@@ -281,7 +281,10 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 		}
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCategoryColumnID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCategoryColumnID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 
@@ -289,7 +292,10 @@ func (c *categoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt
 		return
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.parentID, tableCategoryColumnParentID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.parentID, tableCategoryColumnParentID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 
@@ -957,7 +963,10 @@ func (c *packageCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 		return
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.categoryID, tablePackageColumnCategoryID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.categoryID, tablePackageColumnCategoryID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 
@@ -1079,7 +1088,10 @@ func (c *packageCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 		}
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.id, tablePackageColumnID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tablePackageColumnID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 
@@ -1881,7 +1893,10 @@ func (c *newsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pq
 		}
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableNewsColumnID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableNewsColumnID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 
@@ -2836,11 +2851,17 @@ func (c *commentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt 
 		}
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCommentColumnID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.id, tableCommentColumnID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 
-	if err = pqtgo.WriteCompositionQueryInt64(c.newsID, tableCommentColumnNewsID, com, pqtgo.And); err != nil {
+	if err = pqtgo.WriteCompositionQueryInt64(c.newsID, tableCommentColumnNewsID, com, &pqtgo.CompositionOpts{
+		Joint:  " AND ",
+		IsJSON: false,
+	}); err != nil {
 		return
 	}
 

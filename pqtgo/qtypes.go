@@ -162,7 +162,12 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.JSONArrayInt64(i.Values))
+			switch opt.IsJSON {
+			case true:
+				com.Add(pqt.JSONArrayInt64(i.Values))
+			case false:
+				com.Add(pqt.ArrayInt64(i.Values))
+			}
 			com.Dirty = true
 		}
 	case qtypes.QueryType_IS_CONTAINED_BY:
@@ -181,7 +186,12 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.JSONArrayInt64(i.Values))
+			switch opt.IsJSON {
+			case true:
+				com.Add(pqt.JSONArrayInt64(i.Values))
+			case false:
+				com.Add(pqt.ArrayInt64(i.Values))
+			}
 			com.Dirty = true
 		}
 	case qtypes.QueryType_OVERLAP:
@@ -200,7 +210,12 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.JSONArrayInt64(i.Values))
+			switch opt.IsJSON {
+			case true:
+				com.Add(pqt.JSONArrayInt64(i.Values))
+			case false:
+				com.Add(pqt.ArrayInt64(i.Values))
+			}
 			com.Dirty = true
 		}
 	case qtypes.QueryType_HAS_ANY_ELEMENT:
@@ -219,7 +234,12 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.ArrayInt64(i.Values))
+			switch opt.IsJSON {
+			case true:
+				com.Add(pqt.JSONArrayInt64(i.Values))
+			case false:
+				com.Add(pqt.ArrayInt64(i.Values))
+			}
 			com.Dirty = true
 		}
 	case qtypes.QueryType_HAS_ALL_ELEMENTS:
@@ -238,7 +258,12 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.ArrayInt64(i.Values))
+			switch opt.IsJSON {
+			case true:
+				com.Add(pqt.JSONArrayInt64(i.Values))
+			case false:
+				com.Add(pqt.ArrayInt64(i.Values))
+			}
 			com.Dirty = true
 		}
 	case qtypes.QueryType_HAS_ELEMENT:
