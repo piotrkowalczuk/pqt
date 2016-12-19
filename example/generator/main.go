@@ -19,6 +19,7 @@ var (
 		"uuid": "UUID",
 		"url":  "URL",
 		"html": "HTML",
+		"db":   "DB",
 	}
 )
 
@@ -38,8 +39,9 @@ func main() {
     `)
 	err = pqtgo.NewGenerator().
 		SetPostgresVersion(9.5).
+		SetPackage("model").
 		SetAcronyms(acronyms).
-		SetVisibility(pqtgo.Private).
+		SetVisibility(pqtgo.Public).
 		GenerateTo(sch, file)
 	if err != nil {
 		log.Fatal(err)

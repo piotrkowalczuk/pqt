@@ -264,7 +264,7 @@ tags pq.StringArray
 			table string
 			columns []string
 			db *sql.DB
-			dbg bool
+			debug bool
 			log log.Logger
 		}
 	func scanFirstRows(rows *sql.Rows) ([]*firstEntity, error) {
@@ -292,7 +292,7 @@ tags pq.StringArray
 		return entities, nil
 	}
 
-	func (r *firstRepositoryBase) count(c *firstCriteria) (int64, error) {
+	func (r *firstRepositoryBase) count(ctx context.Context, c *firstCriteria) (int64, error) {
 
 	com := pqtgo.NewComposer(3)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
@@ -308,20 +308,20 @@ tags pq.StringArray
 		buf.ReadFrom(com)
 	}
 
-	if r.dbg {
+	if r.debug {
 		if err := r.log.Log("msg", buf.String(), "function", "Count"); err != nil {
 			return 0, err
 		}
 	}
 
 	var count int64
-	if err := r.db.QueryRow(buf.String(), com.Args()...).Scan(&count); err != nil {
+	if err := r.db.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
 		return 0, err
 	}
 	return count, nil
 }
 
-func (r *firstRepositoryBase) find(c *firstCriteria) ([]*firstEntity, error) {
+func (r *firstRepositoryBase) find(ctx context.Context, c *firstCriteria) ([]*firstEntity, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -340,13 +340,13 @@ func (r *firstRepositoryBase) find(c *firstCriteria) ([]*firstEntity, error) {
 		buf.ReadFrom(com)
 	}
 
-	if r.dbg {
+	if r.debug {
 		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(buf.String(), com.Args()...)
+	rows, err := r.db.QueryContext(ctx, buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -355,7 +355,7 @@ func (r *firstRepositoryBase) find(c *firstCriteria) ([]*firstEntity, error) {
 
 	return scanFirstRows(rows)
 }
-func (r *firstRepositoryBase) findIter(c *firstCriteria) (*firstIterator, error) {
+func (r *firstRepositoryBase) findIter(ctx context.Context, c *firstCriteria) (*firstIterator, error) {
 
 	com := pqtgo.NewComposer(1)
 	buf := bytes.NewBufferString("SELECT ")
@@ -374,13 +374,13 @@ func (r *firstRepositoryBase) findIter(c *firstCriteria) (*firstIterator, error)
 		buf.ReadFrom(com)
 	}
 
-	if r.dbg {
+	if r.debug {
 		if err := r.log.Log("msg", buf.String(), "function", "Find"); err != nil {
 			return nil, err
 		}
 	}
 
-	rows, err := r.db.Query(buf.String(), com.Args()...)
+	rows, err := r.db.QueryContext(ctx, buf.String(), com.Args()...)
 	if err != nil {
 		return nil, err
 	}
@@ -388,7 +388,8 @@ func (r *firstRepositoryBase) findIter(c *firstCriteria) (*firstIterator, error)
 
 	return &firstIterator{rows: rows}, nil
 }
-func (r *firstRepositoryBase) insert(e *firstEntity) (*firstEntity, error) {
+
+func (r *firstRepositoryBase) insert(ctx context.Context, e *firstEntity) (*firstEntity, error) {
 		insert := pqcomp.New(0, 3)
 	insert.AddExpr(tableFirstColumnName, "", e.name)
 insert.AddExpr(tableFirstColumnTags, "", e.tags)
@@ -420,13 +421,13 @@ insert.AddExpr(tableFirstColumnTags, "", e.tags)
 			}
 		}
 
-		if r.dbg {
+		if r.debug {
 			if err := r.log.Log("msg", b.String(), "function", "Insert"); err != nil {
 				return nil, err
 			}
 		}
 
-		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		err := r.db.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
 	&e.id,
 &e.name,
 &e.tags,
@@ -437,7 +438,8 @@ insert.AddExpr(tableFirstColumnTags, "", e.tags)
 
 		return e, nil
 	}
-func (r *firstRepositoryBase) upsert(e *firstEntity, p *firstPatch, inf ...string) (*firstEntity, error) {
+
+func (r *firstRepositoryBase) upsert(ctx context.Context, e *firstEntity, p *firstPatch, inf ...string) (*firstEntity, error) {
 		insert := pqcomp.New(0, 3)
 		update := insert.Compose(3)
 	insert.AddExpr(tableFirstColumnName, "", e.name)
@@ -501,13 +503,13 @@ update.AddExpr(tableFirstColumnTags, "=", p.tags)
 			}
 		}
 
-		if r.dbg {
+		if r.debug {
 			if err := r.log.Log("msg", b.String(), "function", "Upsert"); err != nil {
 				return nil, err
 			}
 		}
 
-		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
+		err := r.db.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
 	&e.id,
 &e.name,
 &e.tags,
