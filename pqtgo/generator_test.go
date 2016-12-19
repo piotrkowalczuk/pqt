@@ -158,7 +158,10 @@ name *qtypes.String
 
 func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
 	
-		if err = pqtgo.WriteCompositionQueryInt64(c.id, tableFirstColumnId, com, pqtgo.And); err != nil {
+		if err = pqtgo.WriteCompositionQueryInt64(c.id, tableFirstColumnId, com, &pqtgo.CompositionOpts{
+		Joint: " AND ",
+		IsJSON: false,
+	}); err != nil {
 			return
 		}
 
