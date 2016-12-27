@@ -17,10 +17,7 @@ It relies to a large degree on packages:
 	- [pqtgo.CompositionWriter](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#CompositionWriter) - interface used by generator, allows custom structs to be used as a criteria parameter
 	- [pqtgo.WriteCompositionQueryInt64](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryInt64) - helper function that generate SQL for [qtypes.Int64](https://godoc.org/github.com/piotrkowalczuk/qtypes#Int64) object.
 	- [pqtgo.WriteCompositionQueryString](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryString) - helper function that generate SQL for [qtypes.String](https://godoc.org/github.com/piotrkowalczuk/qtypes#String) object.
-- __array support__ - golang postgres driver do not support arrays natively, pqt comes with help:
-	- [pqt.ArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayInt64) - wrapper for []int64, it generates regular SQL array
-	- [pqt.ArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayFloat64) - wrapper for []float64, it generates regular SQL array
-	- [pqt.ArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#ArrayString) - wrapper for []string, it generates regular SQL array
+- __array support__
 	- [pqt.JSONArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayInt64) - wrapper for []int64, it generates JSONB compatible array `[]` instead of `{}`
 	- [pqt.JSONArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayFloat64) - wrapper for []float64, it generates JSONB compatible array `[]` instead of `{}`
 	- [pqt.JSONArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayString) - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
