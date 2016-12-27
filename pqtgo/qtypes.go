@@ -3,6 +3,7 @@ package pqtgo
 import (
 	"fmt"
 
+	"github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/qtypes"
 )
@@ -166,7 +167,7 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			case true:
 				com.Add(pqt.JSONArrayInt64(i.Values))
 			case false:
-				com.Add(pqt.ArrayInt64(i.Values))
+				com.Add(pq.Int64Array(i.Values))
 			}
 			com.Dirty = true
 		}
@@ -190,7 +191,7 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			case true:
 				com.Add(pqt.JSONArrayInt64(i.Values))
 			case false:
-				com.Add(pqt.ArrayInt64(i.Values))
+				com.Add(pq.Int64Array(i.Values))
 			}
 			com.Dirty = true
 		}
@@ -214,7 +215,7 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			case true:
 				com.Add(pqt.JSONArrayInt64(i.Values))
 			case false:
-				com.Add(pqt.ArrayInt64(i.Values))
+				com.Add(pq.Int64Array(i.Values))
 			}
 			com.Dirty = true
 		}
@@ -238,7 +239,7 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			case true:
 				com.Add(pqt.JSONArrayInt64(i.Values))
 			case false:
-				com.Add(pqt.ArrayInt64(i.Values))
+				com.Add(pq.Int64Array(i.Values))
 			}
 			com.Dirty = true
 		}
@@ -262,7 +263,7 @@ func WriteCompositionQueryInt64(i *qtypes.Int64, sel string, com *Composer, opt 
 			case true:
 				com.Add(pqt.JSONArrayInt64(i.Values))
 			case false:
-				com.Add(pqt.ArrayInt64(i.Values))
+				com.Add(pq.Int64Array(i.Values))
 			}
 			com.Dirty = true
 		}
@@ -647,7 +648,7 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.ArrayString(s.Values))
+			com.Add(pq.StringArray(s.Values))
 			com.Dirty = true
 		}
 	case qtypes.QueryType_HAS_ALL_ELEMENTS:
@@ -666,7 +667,7 @@ func WriteCompositionQueryString(s *qtypes.String, sel string, com *Composer, op
 			if err = com.WritePlaceholder(); err != nil {
 				return
 			}
-			com.Add(pqt.ArrayString(s.Values))
+			com.Add(pq.StringArray(s.Values))
 			com.Dirty = true
 		}
 	case qtypes.QueryType_IN:

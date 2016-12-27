@@ -48,6 +48,8 @@ import (
 					pqt.NewColumn("id", pqt.TypeSerialBig()),
 				).AddColumn(
 					pqt.NewColumn("name", pqt.TypeText()),
+				).AddColumn(
+					pqt.NewColumn("tags", pqt.TypeTextArray(0)),
 				),
 			),
 			generator: pqtgo.NewGenerator().
@@ -61,17 +63,21 @@ const (
 tableFirst = "text.first"
 	tableFirstColumnId = "id"
 		tableFirstColumnName = "name"
+		tableFirstColumnTags = "tags"
 		)
 var (
 tableFirstColumns = []string{
 tableFirstColumnId,
 tableFirstColumnName,
+tableFirstColumnTags,
 })
 type firstEntity struct{
 // id ...
 id *ntypes.Int64
 // name ...
 name *ntypes.String
+// tags ...
+tags pq.StringArray
 }
 
 func (e *firstEntity) prop(cn string) (interface{}, bool) {
@@ -80,6 +86,8 @@ case tableFirstColumnId:
 return &e.id, true
 case tableFirstColumnName:
 return &e.name, true
+case tableFirstColumnTags:
+return &e.tags, true
 default:
 return nil, false
 }
@@ -154,6 +162,7 @@ offset, limit int64
 sort map[string]bool
 id *qtypes.Int64
 name *qtypes.String
+tags pq.StringArray
 }
 
 func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
@@ -167,6 +176,34 @@ func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *p
 
 		if err = pqtgo.WriteCompositionQueryString(c.name, tableFirstColumnName, com, pqtgo.And); err != nil {
 			return
+		}
+ if c.tags != nil {if com.Dirty {
+		com.WriteString(" AND ")
+	}
+	com.Dirty = true
+if _, err = com.WriteString(tableFirstColumnTags); err != nil {
+			return
+		}
+		if _, err = com.WriteString(" = "); err != nil {
+			return
+		}
+		if err = com.WritePlaceholder(); err != nil {
+			return
+		}
+		
+if com.Dirty {
+			if opt.Cast != "" {
+				if _, err = com.WriteString(opt.Cast); err != nil {
+					return
+				}
+			} else {
+				if _, err = com.WriteString(" "); err != nil {
+					return
+				}
+			}
+		}
+		
+com.Add(c.tags)
 		}
 
 	if len(c.sort) > 0 {
@@ -219,6 +256,7 @@ func (c *firstCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *p
 type firstPatch struct {
 id *ntypes.Int64
 name *ntypes.String
+tags pq.StringArray
 }
 
 
@@ -239,6 +277,7 @@ name *ntypes.String
 		err = rows.Scan(
 	&ent.id,
 &ent.name,
+&ent.tags,
 )
 			if err != nil {
 				return nil, err
@@ -255,7 +294,7 @@ name *ntypes.String
 
 	func (r *firstRepositoryBase) count(c *firstCriteria) (int64, error) {
 
-	com := pqtgo.NewComposer(2)
+	com := pqtgo.NewComposer(3)
 	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
 	buf.WriteString(r.table)
 
@@ -350,8 +389,9 @@ func (r *firstRepositoryBase) findIter(c *firstCriteria) (*firstIterator, error)
 	return &firstIterator{rows: rows}, nil
 }
 func (r *firstRepositoryBase) insert(e *firstEntity) (*firstEntity, error) {
-		insert := pqcomp.New(0, 2)
+		insert := pqcomp.New(0, 3)
 	insert.AddExpr(tableFirstColumnName, "", e.name)
+insert.AddExpr(tableFirstColumnTags, "", e.tags)
 
 		b := bytes.NewBufferString("INSERT INTO " + r.table)
 
@@ -389,6 +429,7 @@ func (r *firstRepositoryBase) insert(e *firstEntity) (*firstEntity, error) {
 		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
 	&e.id,
 &e.name,
+&e.tags,
 )
 		if err != nil {
 			return nil, err
@@ -397,11 +438,13 @@ func (r *firstRepositoryBase) insert(e *firstEntity) (*firstEntity, error) {
 		return e, nil
 	}
 func (r *firstRepositoryBase) upsert(e *firstEntity, p *firstPatch, inf ...string) (*firstEntity, error) {
-		insert := pqcomp.New(0, 2)
-		update := insert.Compose(2)
+		insert := pqcomp.New(0, 3)
+		update := insert.Compose(3)
 	insert.AddExpr(tableFirstColumnName, "", e.name)
+insert.AddExpr(tableFirstColumnTags, "", e.tags)
 if len(inf) > 0 {
 update.AddExpr(tableFirstColumnName, "=", p.name)
+update.AddExpr(tableFirstColumnTags, "=", p.tags)
 }
 
 		b := bytes.NewBufferString("INSERT INTO " + r.table)
@@ -467,6 +510,7 @@ update.AddExpr(tableFirstColumnName, "=", p.name)
 		err := r.db.QueryRow(b.String(), insert.Args()...).Scan(
 	&e.id,
 &e.name,
+&e.tags,
 )
 		if err != nil {
 			return nil, err
