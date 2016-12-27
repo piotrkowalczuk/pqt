@@ -1830,15 +1830,15 @@ func generateBaseType(t pqt.Type, m int32) string {
 		gt := t.String()
 		switch {
 		case strings.HasPrefix(gt, "SMALLINT["):
-			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*qtypes.Int64", m)
+			return chooseType("pq.Int64Array", "pq.Int64Array", "*qtypes.Int64", m)
 		case strings.HasPrefix(gt, "INTEGER["):
-			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*qtypes.Int64", m)
+			return chooseType("pq.Int64Array", "pq.Int64Array", "*qtypes.Int64", m)
 		case strings.HasPrefix(gt, "BIGINT["):
-			return chooseType("pqt.ArrayInt64", "pqt.ArrayInt64", "*qtypes.Int64", m)
+			return chooseType("pq.Int64Array", "pq.Int64Array", "*qtypes.Int64", m)
 		case strings.HasPrefix(gt, "DOUBLE PRECISION["):
-			return chooseType("pqt.ArrayFloat64", "pqt.ArrayFloat64", "*qtypes.Float64", m)
+			return chooseType("pq.Float64Array", "pq.Float64Array", "*qtypes.Float64", m)
 		case strings.HasPrefix(gt, "TEXT["):
-			return "pqt.ArrayString"
+			return "pq.StringArray"
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):
 			return chooseType("float64", "*ntypes.Float64", "*qtypes.Float64", m)
 		case strings.HasPrefix(gt, "VARCHAR"):
