@@ -1,7 +1,7 @@
 gen:
 	@go install ./generator
-	@go generate ./app
+	@go generate ./app/internal/model
 
 run:
-	@go run app/main.go app/schema.pqt.go
+	@go run app/main.go
 

@@ -1,10 +1,17 @@
 language: go
 go:
-- tip
+  - tip
+addons:
+  postgresql: '9.3'
+before_script:
+  - psql -c 'create database travis_ci_test;' -U postgres
 install:
-- go get github.com/aryann/difflib
-- go get ./...
+  - go get github.com/aryann/difflib
+  - go get ./...
 script:
-- ./test.sh
+  - ./test.sh
+env:
+  global:
+    - PQT_POSTGRES_ADDRESS=postgres://postgres:@localhost/travis_ci_test?sslmode=disable
 after_success:
-- bash <(curl -s https://codecov.io/bash)
+  - bash <(curl -s https://codecov.io/bash)
