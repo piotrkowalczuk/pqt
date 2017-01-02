@@ -130,18 +130,20 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	g.generatePackage(b)
 	g.generateImports(b, s)
 	for _, t := range s.Tables {
+		g.generateConstants(b, t)
+		g.generateColumns(b, t)
+		g.generateEntity(b, t)
+		g.generateIterator(b, t)
+		g.generateCriteria(b, t)
 		g.generateEntityProp(b, t)
 		g.generateEntityProps(b, t)
 		g.generateRepositoryScanRows(b, t)
-		g.generateEntity(b, t)
-		g.generateCriteria(b, t)
-		g.generateConstants(b, t)
-		g.generateColumns(b, t)
 		g.generateRepository(b, t)
 		g.generateRepositoryInsertQuery(b, t)
 		g.generateRepositoryInsert(b, t)
 		g.generateRepositoryFindQuery(b, t)
 		g.generateRepositoryFind(b, t)
+		g.generateRepositoryFindIter(b, t)
 		g.generateRepositoryFindOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
 	}
@@ -174,6 +176,79 @@ func (g *Gen) generateCriteria(w io.Writer, t *pqt.Table) {
 		}
 	}
 	fmt.Fprintln(w, "}")
+}
+
+
+func (g *Gen) generateIterator(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+	fmt.Fprintf(w, `
+
+// %sIterator is not thread safe.
+type %sIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *%sIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *%sIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *%sIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *%sIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around %s method that makes iterator more generic.
+func (i *%sIterator) Ent() (interface{}, error) {
+	return i.%s()
+}
+
+func (i *%sIterator) %s() (*%sEntity, error) {
+	var ent %sEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.%s(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+`, entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		g.Formatter.Identifier(t.Name),
+		entityName,
+		g.Formatter.Identifier(t.Name),
+		entityName,
+		entityName,
+		g.Formatter.Identifier("props"),
+	)
 }
 
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
@@ -495,6 +570,30 @@ func (g *Gen) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
 		g.Formatter.Identifier("Scan", table.Name, "rows"),
+	)
+}
+
+func (g *Gen) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (*%sIterator, error) {
+`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+	fmt.Fprintf(w, `
+			query, args, err := r.%sQuery(r.%s, c)
+			if err != nil {
+				return nil, err
+			}
+			rows, err := r.%s.QueryContext(ctx, query, args...)
+			if err != nil {
+				return nil, err
+			}
+			return &%sIterator{rows: rows}, nil
+}
+`,
+		g.Formatter.Identifier("find"),
+		g.Formatter.Identifier("columns"),
+		g.Formatter.Identifier("db"),
+		g.Formatter.Identifier(t.Name),
 	)
 }
 

@@ -286,6 +286,31 @@ func TestNewsRepositoryBase_Find(t *testing.T) {
 	}
 }
 
+func TestNewsRepositoryBase_FindIter(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+	iter, err := s.news.FindIter(context.Background(), &model.NewsCriteria{})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+
+	var got []*model.NewsEntity
+	for iter.Next() {
+		ent, err := iter.News()
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		got = append(got, ent)
+	}
+
+	if len(got) != expected {
+		t.Errorf("wrong output, expected %d but got %d", expected, got)
+	}
+}
+
 func TestNewsRepositoryBase_FindOneByID(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)

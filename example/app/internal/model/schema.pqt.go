@@ -16,6 +16,114 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+const (
+	TableCategory                             = "example.category"
+	TableCategoryColumnContent                = "content"
+	TableCategoryColumnCreatedAt              = "created_at"
+	TableCategoryColumnID                     = "id"
+	TableCategoryColumnName                   = "name"
+	TableCategoryColumnParentID               = "parent_id"
+	TableCategoryColumnUpdatedAt              = "updated_at"
+	TableCategoryConstraintPrimaryKey         = "example.category_id_pkey"
+	TableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
+)
+
+var (
+	TableCategoryColumns = []string{
+		TableCategoryColumnContent,
+		TableCategoryColumnCreatedAt,
+		TableCategoryColumnID,
+		TableCategoryColumnName,
+		TableCategoryColumnParentID,
+		TableCategoryColumnUpdatedAt,
+	}
+)
+
+// CategoryEntity ...
+type CategoryEntity struct {
+	// Content ...
+	Content string
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID int64
+	// Name ...
+	Name string
+	// ParentID ...
+	ParentID sql.NullInt64
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// ChildCategory ...
+	ChildCategory []*CategoryEntity
+	// ParentCategory ...
+	ParentCategory *CategoryEntity
+	// Packages ...
+	Packages []*PackageEntity
+}
+
+// CategoryIterator is not thread safe.
+type CategoryIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *CategoryIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *CategoryIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *CategoryIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *CategoryIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around Category method that makes iterator more generic.
+func (i *CategoryIterator) Ent() (interface{}, error) {
+	return i.Category()
+}
+
+func (i *CategoryIterator) Category() (*CategoryEntity, error) {
+	var ent CategoryEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type CategoryCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Content       sql.NullString
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	Name          sql.NullString
+	ParentID      sql.NullInt64
+	UpdatedAt     pq.NullTime
+}
+
 func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
 	case TableCategoryColumnContent:
@@ -68,62 +176,6 @@ func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
 
 	return
 }
-
-// CategoryEntity ...
-type CategoryEntity struct {
-	// Content ...
-	Content string
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID int64
-	// Name ...
-	Name string
-	// ParentID ...
-	ParentID sql.NullInt64
-	// UpdatedAt ...
-	UpdatedAt pq.NullTime
-	// ChildCategory ...
-	ChildCategory []*CategoryEntity
-	// ParentCategory ...
-	ParentCategory *CategoryEntity
-	// Packages ...
-	Packages []*PackageEntity
-}
-
-type CategoryCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       sql.NullString
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	Name          sql.NullString
-	ParentID      sql.NullInt64
-	UpdatedAt     pq.NullTime
-}
-
-const (
-	TableCategory                             = "example.category"
-	TableCategoryColumnContent                = "content"
-	TableCategoryColumnCreatedAt              = "created_at"
-	TableCategoryColumnID                     = "id"
-	TableCategoryColumnName                   = "name"
-	TableCategoryColumnParentID               = "parent_id"
-	TableCategoryColumnUpdatedAt              = "updated_at"
-	TableCategoryConstraintPrimaryKey         = "example.category_id_pkey"
-	TableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
-)
-
-var (
-	TableCategoryColumns = []string{
-		TableCategoryColumnContent,
-		TableCategoryColumnCreatedAt,
-		TableCategoryColumnID,
-		TableCategoryColumnName,
-		TableCategoryColumnParentID,
-		TableCategoryColumnUpdatedAt,
-	}
-)
 
 type CategoryRepositoryBase struct {
 	Table   string
@@ -376,6 +428,18 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) 
 
 	return ScanCategoryRows(rows)
 }
+func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriteria) (*CategoryIterator, error) {
+
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &CategoryIterator{rows: rows}, nil
+}
 func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
 	find := pqtgo.NewComposer(6)
 	find.WriteString("SELECT ")
@@ -421,6 +485,106 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria)
 
 	return count, nil
 }
+
+const (
+	TablePackage                               = "example.package"
+	TablePackageColumnBreak                    = "break"
+	TablePackageColumnCategoryID               = "category_id"
+	TablePackageColumnCreatedAt                = "created_at"
+	TablePackageColumnID                       = "id"
+	TablePackageColumnUpdatedAt                = "updated_at"
+	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
+	TablePackageConstraintPrimaryKey           = "example.package_id_pkey"
+)
+
+var (
+	TablePackageColumns = []string{
+		TablePackageColumnBreak,
+		TablePackageColumnCategoryID,
+		TablePackageColumnCreatedAt,
+		TablePackageColumnID,
+		TablePackageColumnUpdatedAt,
+	}
+)
+
+// PackageEntity ...
+type PackageEntity struct {
+	// Break ...
+	Break sql.NullString
+	// CategoryID ...
+	CategoryID sql.NullInt64
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID int64
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// Category ...
+	Category *CategoryEntity
+}
+
+// PackageIterator is not thread safe.
+type PackageIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *PackageIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *PackageIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *PackageIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *PackageIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around Package method that makes iterator more generic.
+func (i *PackageIterator) Ent() (interface{}, error) {
+	return i.Package()
+}
+
+func (i *PackageIterator) Package() (*PackageEntity, error) {
+	var ent PackageEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type PackageCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Break         sql.NullString
+	CategoryID    sql.NullInt64
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	UpdatedAt     pq.NullTime
+}
+
 func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
 	case TablePackageColumnBreak:
@@ -470,53 +634,6 @@ func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
 
 	return
 }
-
-// PackageEntity ...
-type PackageEntity struct {
-	// Break ...
-	Break sql.NullString
-	// CategoryID ...
-	CategoryID sql.NullInt64
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID int64
-	// UpdatedAt ...
-	UpdatedAt pq.NullTime
-	// Category ...
-	Category *CategoryEntity
-}
-
-type PackageCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Break         sql.NullString
-	CategoryID    sql.NullInt64
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	UpdatedAt     pq.NullTime
-}
-
-const (
-	TablePackage                               = "example.package"
-	TablePackageColumnBreak                    = "break"
-	TablePackageColumnCategoryID               = "category_id"
-	TablePackageColumnCreatedAt                = "created_at"
-	TablePackageColumnID                       = "id"
-	TablePackageColumnUpdatedAt                = "updated_at"
-	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
-	TablePackageConstraintPrimaryKey           = "example.package_id_pkey"
-)
-
-var (
-	TablePackageColumns = []string{
-		TablePackageColumnBreak,
-		TablePackageColumnCategoryID,
-		TablePackageColumnCreatedAt,
-		TablePackageColumnID,
-		TablePackageColumnUpdatedAt,
-	}
-)
 
 type PackageRepositoryBase struct {
 	Table   string
@@ -740,6 +857,18 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([
 
 	return ScanPackageRows(rows)
 }
+func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria) (*PackageIterator, error) {
+
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &PackageIterator{rows: rows}, nil
+}
 func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
 	find := pqtgo.NewComposer(5)
 	find.WriteString("SELECT ")
@@ -785,6 +914,119 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (
 
 	return count, nil
 }
+
+const (
+	TableNews                          = "example.news"
+	TableNewsColumnContent             = "content"
+	TableNewsColumnContinue            = "continue"
+	TableNewsColumnCreatedAt           = "created_at"
+	TableNewsColumnID                  = "id"
+	TableNewsColumnLead                = "lead"
+	TableNewsColumnTitle               = "title"
+	TableNewsColumnUpdatedAt           = "updated_at"
+	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
+	TableNewsConstraintTitleUnique     = "example.news_title_key"
+	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
+)
+
+var (
+	TableNewsColumns = []string{
+		TableNewsColumnContent,
+		TableNewsColumnContinue,
+		TableNewsColumnCreatedAt,
+		TableNewsColumnID,
+		TableNewsColumnLead,
+		TableNewsColumnTitle,
+		TableNewsColumnUpdatedAt,
+	}
+)
+
+// NewsEntity ...
+type NewsEntity struct {
+	// Content ...
+	Content string
+	// Continue ...
+	Continue bool
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID int64
+	// Lead ...
+	Lead sql.NullString
+	// Title ...
+	Title string
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// CommentsByNewsTitle ...
+	CommentsByNewsTitle []*CommentEntity
+	// Comments ...
+	Comments []*CommentEntity
+}
+
+// NewsIterator is not thread safe.
+type NewsIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *NewsIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *NewsIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *NewsIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *NewsIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around News method that makes iterator more generic.
+func (i *NewsIterator) Ent() (interface{}, error) {
+	return i.News()
+}
+
+func (i *NewsIterator) News() (*NewsEntity, error) {
+	var ent NewsEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type NewsCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Content       sql.NullString
+	Continue      sql.NullBool
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	Lead          sql.NullString
+	Title         sql.NullString
+	UpdatedAt     pq.NullTime
+}
+
 func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
 	case TableNewsColumnContent:
@@ -840,66 +1082,6 @@ func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 
 	return
 }
-
-// NewsEntity ...
-type NewsEntity struct {
-	// Content ...
-	Content string
-	// Continue ...
-	Continue bool
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID int64
-	// Lead ...
-	Lead sql.NullString
-	// Title ...
-	Title string
-	// UpdatedAt ...
-	UpdatedAt pq.NullTime
-	// CommentsByNewsTitle ...
-	CommentsByNewsTitle []*CommentEntity
-	// Comments ...
-	Comments []*CommentEntity
-}
-
-type NewsCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       sql.NullString
-	Continue      sql.NullBool
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	Lead          sql.NullString
-	Title         sql.NullString
-	UpdatedAt     pq.NullTime
-}
-
-const (
-	TableNews                          = "example.news"
-	TableNewsColumnContent             = "content"
-	TableNewsColumnContinue            = "continue"
-	TableNewsColumnCreatedAt           = "created_at"
-	TableNewsColumnID                  = "id"
-	TableNewsColumnLead                = "lead"
-	TableNewsColumnTitle               = "title"
-	TableNewsColumnUpdatedAt           = "updated_at"
-	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
-	TableNewsConstraintTitleUnique     = "example.news_title_key"
-	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
-)
-
-var (
-	TableNewsColumns = []string{
-		TableNewsColumnContent,
-		TableNewsColumnContinue,
-		TableNewsColumnCreatedAt,
-		TableNewsColumnID,
-		TableNewsColumnLead,
-		TableNewsColumnTitle,
-		TableNewsColumnUpdatedAt,
-	}
-)
 
 type NewsRepositoryBase struct {
 	Table   string
@@ -1183,6 +1365,18 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*News
 
 	return ScanNewsRows(rows)
 }
+func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*NewsIterator, error) {
+
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &NewsIterator{rows: rows}, nil
+}
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
 	find := pqtgo.NewComposer(7)
 	find.WriteString("SELECT ")
@@ -1228,6 +1422,113 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64,
 
 	return count, nil
 }
+
+const (
+	TableComment                              = "example.comment"
+	TableCommentColumnContent                 = "content"
+	TableCommentColumnCreatedAt               = "created_at"
+	TableCommentColumnID                      = "id"
+	TableCommentColumnNewsID                  = "news_id"
+	TableCommentColumnNewsTitle               = "news_title"
+	TableCommentColumnUpdatedAt               = "updated_at"
+	TableCommentConstraintNewsIDForeignKey    = "example.comment_news_id_fkey"
+	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
+)
+
+var (
+	TableCommentColumns = []string{
+		TableCommentColumnContent,
+		TableCommentColumnCreatedAt,
+		TableCommentColumnID,
+		TableCommentColumnNewsID,
+		TableCommentColumnNewsTitle,
+		TableCommentColumnUpdatedAt,
+	}
+)
+
+// CommentEntity ...
+type CommentEntity struct {
+	// Content ...
+	Content string
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID sql.NullInt64
+	// NewsID ...
+	NewsID int64
+	// NewsTitle ...
+	NewsTitle string
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// NewsByTitle ...
+	NewsByTitle *NewsEntity
+	// NewsByID ...
+	NewsByID *NewsEntity
+}
+
+// CommentIterator is not thread safe.
+type CommentIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *CommentIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *CommentIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *CommentIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *CommentIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around Comment method that makes iterator more generic.
+func (i *CommentIterator) Ent() (interface{}, error) {
+	return i.Comment()
+}
+
+func (i *CommentIterator) Comment() (*CommentEntity, error) {
+	var ent CommentEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type CommentCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Content       sql.NullString
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	NewsID        sql.NullInt64
+	NewsTitle     sql.NullString
+	UpdatedAt     pq.NullTime
+}
+
 func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
 	case TableCommentColumnContent:
@@ -1280,60 +1581,6 @@ func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
 
 	return
 }
-
-// CommentEntity ...
-type CommentEntity struct {
-	// Content ...
-	Content string
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID sql.NullInt64
-	// NewsID ...
-	NewsID int64
-	// NewsTitle ...
-	NewsTitle string
-	// UpdatedAt ...
-	UpdatedAt pq.NullTime
-	// NewsByTitle ...
-	NewsByTitle *NewsEntity
-	// NewsByID ...
-	NewsByID *NewsEntity
-}
-
-type CommentCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       sql.NullString
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	NewsID        sql.NullInt64
-	NewsTitle     sql.NullString
-	UpdatedAt     pq.NullTime
-}
-
-const (
-	TableComment                              = "example.comment"
-	TableCommentColumnContent                 = "content"
-	TableCommentColumnCreatedAt               = "created_at"
-	TableCommentColumnID                      = "id"
-	TableCommentColumnNewsID                  = "news_id"
-	TableCommentColumnNewsTitle               = "news_title"
-	TableCommentColumnUpdatedAt               = "updated_at"
-	TableCommentConstraintNewsIDForeignKey    = "example.comment_news_id_fkey"
-	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
-)
-
-var (
-	TableCommentColumns = []string{
-		TableCommentColumnContent,
-		TableCommentColumnCreatedAt,
-		TableCommentColumnID,
-		TableCommentColumnNewsID,
-		TableCommentColumnNewsTitle,
-		TableCommentColumnUpdatedAt,
-	}
-)
 
 type CommentRepositoryBase struct {
 	Table   string
@@ -1583,6 +1830,18 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([
 	}
 
 	return ScanCommentRows(rows)
+}
+func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
+
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &CommentIterator{rows: rows}, nil
 }
 func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
