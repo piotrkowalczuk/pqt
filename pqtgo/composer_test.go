@@ -66,7 +66,7 @@ func TestComposer(t *testing.T) {
 
 	for i := 1; i < expected; i++ {
 		if err := com.WritePlaceholder(); err != nil {
-			t.Fatal("unexpected error: %s", err.Error())
+			t.Fatalf("unexpected error: %s", err.Error())
 		}
 	}
 

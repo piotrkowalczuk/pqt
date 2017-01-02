@@ -344,3 +344,66 @@ func TestNewsRepositoryBase_Count(t *testing.T) {
 		t.Errorf("wrong output, expected %d but got %d", expected, got)
 	}
 }
+
+var testNewsUpdateData = map[string]struct {
+	patch model.NewsPatch
+	query    string
+}{
+	"minimum": {
+		patch: model.NewsPatch{
+			Title:   sql.NullString{String: "title - minimum", Valid: true},
+			Content: sql.NullString{String: "content - minimum", Valid: true},
+		},
+		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING content, continue, created_at, id, lead, title, updated_at",
+	},
+	"full": {
+		patch: model.NewsPatch{
+			Title: sql.NullString{String: "title - full", Valid: true},
+			Lead: sql.NullString{
+				Valid:  true,
+				String: "lead - full",
+			},
+			Content:  sql.NullString{String: "content - full", Valid: true},
+			Continue: sql.NullBool{Bool: true, Valid: true},
+		},
+		query: "UPDATE example.news SET content=$1, continue=$2, lead=$3, title=$4, updated_at=NOW() WHERE id=$5 RETURNING content, continue, created_at, id, lead, title, updated_at",
+	},
+}
+
+func BenchmarkNewsRepositoryBase_UpdateOneByIDQuery(b *testing.B) {
+	s := setup(b)
+	defer s.teardown(b)
+	b.ResetTimer()
+
+	for hint, given := range testNewsUpdateData {
+		b.Run(hint, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				query, args, err := s.news.UpdateOneByIDQuery(1, &given.patch)
+				if err != nil {
+					b.Fatalf("unexpected error: %s", err.Error())
+				}
+				benchQuery = query
+				benchArgs = args
+			}
+		})
+	}
+}
+
+
+func TestNewsRepositoryBase_UpdateOneByIDQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsUpdateData {
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.news.UpdateOneByIDQuery(1, &given.patch)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+

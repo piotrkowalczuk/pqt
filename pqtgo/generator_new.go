@@ -135,6 +135,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateEntity(b, t)
 		g.generateIterator(b, t)
 		g.generateCriteria(b, t)
+		g.generatePatch(b, t)
 		g.generateEntityProp(b, t)
 		g.generateEntityProps(b, t)
 		g.generateRepositoryScanRows(b, t)
@@ -145,6 +146,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryFind(b, t)
 		g.generateRepositoryFindIter(b, t)
 		g.generateRepositoryFindOneByPrimaryKey(b, t)
+		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
 	}
 
@@ -172,6 +174,22 @@ func (g *Gen) generateCriteria(w io.Writer, t *pqt.Table) {
 
 	for _, c := range t.Columns {
 		if t := g.generateColumnTypeString(c, modeCriteria); t != "<nil>" {
+			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(c.Name), t)
+		}
+	}
+	fmt.Fprintln(w, "}")
+}
+
+func (g *Gen) generatePatch(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, "type %sPatch struct {\n", g.Formatter.Identifier(t.Name))
+
+ArgumentsLoop:
+	for _, c := range t.Columns {
+		if c.PrimaryKey {
+			continue ArgumentsLoop
+		}
+
+		if t := g.generateColumnTypeString(c, modeOptional); t != "<nil>" {
 			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(c.Name), t)
 		}
 	}
@@ -396,7 +414,9 @@ ColumnsLoop:
 			}
 			fmt.Fprintf(w,
 				`if col.Len() > 0 {
-						col.WriteString(", ")
+						if _, err := col.WriteString(", "); err != nil {
+							return "", nil, err
+						}
 					}
 					if _, err := col.WriteString(%s); err != nil {
 						return "", nil, err
@@ -473,6 +493,99 @@ func (g *Gen) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
 	)
+}
+
+
+func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+	pk, ok := table.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, patch *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name),  g.generateColumnTypeString(pk, modeMandatory), entityName)
+	fmt.Fprintf(w, `buf := bytes.NewBufferString("UPDATE ")
+		buf.WriteString(r.%s)
+		update := pqtgo.NewComposer(%d)
+	`, g.Formatter.Identifier("table"), len(table.Columns))
+	fmt.Fprintln(w, "update.Add(pk)")
+
+ColumnsLoop:
+	for _, c := range table.Columns {
+		if c == pk {
+			continue ColumnsLoop
+		}
+		if g.canBeNil(c, modeOptional) {
+			fmt.Fprintf(w, "if patch.%s != nil {\n", g.Formatter.Identifier(c.Name))
+		}
+		if  g.isNullable(c, modeOptional) {
+			fmt.Fprintf(w, "if patch.%s.Valid {\n", g.Formatter.Identifier(c.Name))
+		}
+
+		fmt.Fprintf(w, `if update.Dirty {
+				if _, err := update.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := update.WriteString(%s); err != nil {
+				return "", nil, err
+			}
+			if _, err := update.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := update.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			update.Add(patch.%s)
+			update.Dirty=true`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.Identifier(c.Name))
+
+		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
+			switch c.Type {
+			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+				fmt.Fprintf(w, `
+					} else {
+						if update.Dirty {
+							if _, err := update.WriteString(", "); err != nil {
+								return "", nil, err
+							}
+						}
+						if _, err := update.WriteString(%s); err != nil {
+							return "", nil, err
+						}
+						if _, err := update.WriteString("=%s"); err != nil {
+							return "", nil, err
+						}
+				`, g.Formatter.Identifier("table", table.Name, "column", c.Name), d)
+			}
+		}
+
+		if g.canBeNil(c, modeOptional) || g.isNullable(c, modeOptional) {
+			fmt.Fprint(w, "\n}\n")
+		}
+	}
+	fmt.Fprintf(w, `
+	if !update.Dirty {
+		return "", nil, errors.New("%s update failure, nothing to update")
+	}`, entityName)
+
+
+	fmt.Fprintf(w, `
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
+
+	update.WriteString(%s)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(pk)
+
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.%s, ", "))
+
+	return buf.String(), update.Args(), nil
+}
+`, g.Formatter.Identifier("table", table.Name, "column", pk.Name), g.Formatter.Identifier("columns"))
 }
 
 func (g *Gen) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
@@ -596,7 +709,6 @@ func (g *Gen) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 		g.Formatter.Identifier(t.Name),
 	)
 }
-
 
 func (g *Gen) generateRepositoryCount(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
