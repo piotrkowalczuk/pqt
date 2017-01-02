@@ -130,6 +130,8 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	g.generatePackage(b)
 	g.generateImports(b, s)
 	for _, t := range s.Tables {
+		g.generateEntityProp(b, t)
+		g.generateEntityProps(b, t)
 		g.generateRepositoryScanRows(b, t)
 		g.generateEntity(b, t)
 		g.generateCriteria(b, t)
@@ -140,6 +142,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryInsert(b, t)
 		g.generateRepositoryFindQuery(b, t)
 		g.generateRepositoryFind(b, t)
+		g.generateRepositoryFindOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
 	}
 
@@ -532,12 +535,96 @@ func (g *Gen) generateRepositoryCount(w io.Writer, table *pqt.Table) {
 	)
 }
 
+func (g *Gen) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+	pk, ok := table.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
+		entityName,
+		g.Formatter.Identifier("FindOneBy", pk.Name),
+		g.generateColumnTypeString(pk, modeMandatory),
+		entityName,
+	)
+	fmt.Fprintf(w, `
+	find := pqtgo.NewComposer(%d)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.%s, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(%s)
+	find.WriteString(" WHERE ")
+	find.WriteString(%s)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	var (
+		ent %sEntity
+	)
+`, len(table.Columns),
+		g.Formatter.Identifier("columns"),
+		g.Formatter.Identifier("table", table.Name),
+		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
+		entityName,
+	)
+
+
+	fmt.Fprintf(w, `
+	props, err := ent.%s(r.%s...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+		g.Formatter.Identifier("props"),
+		g.Formatter.Identifier("columns"),
+		g.Formatter.Identifier("db"),
+	)
+	fmt.Fprint(w, `
+		if err != nil {
+			return nil, err
+		}
+
+		return &ent, nil
+}
+`)
+}
+
+func (g *Gen) generateEntityProp(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, "func (e *%sEntity) %s(cn string) (interface{}, bool) {\n", g.Formatter.Identifier(t.Name), g.Formatter.Identifier("prop"))
+	fmt.Fprintln(w, "switch cn {")
+	for _, c := range t.Columns {
+		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
+		if g.canBeNil(c, modeDefault) {
+			fmt.Fprintf(w, "return e.%s, true\n", g.Formatter.Identifier(c.Name))
+		} else {
+			fmt.Fprintf(w, "return &e.%s, true\n", g.Formatter.Identifier(c.Name))
+		}
+	}
+	fmt.Fprint(w, "default:\n")
+	fmt.Fprint(w, "return nil, false\n")
+	fmt.Fprint(w, "}\n}\n")
+}
+
+func (g *Gen) generateEntityProps(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, "func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {\n", g.Formatter.Identifier(t.Name), g.Formatter.Identifier("props"))
+	fmt.Fprintf(w, `res := make([]interface{}, 0, len(cns))
+		for _, cn := range cns {
+			if prop, ok := e.%s(cn); ok {
+				res = append(res, prop)
+			} else {
+				return nil, fmt.Errorf("unexpected column provided: %%s", cn)
+			}
+		}
+		return res, nil`, g.Formatter.Identifier("prop"))
+	fmt.Fprint(w, "\n}\n")
+}
+
 func (g *Gen) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 	fmt.Fprintf(w, `func %s(rows *sql.Rows) (entities []*%sEntity, err error) {
 	`, g.Formatter.Identifier("scan", t.Name, "rows"), entityName)
-	fmt.Fprintf(w, `
-	for rows.Next() {
+	fmt.Fprintf(w, `for rows.Next() {
 		var ent %sEntity
 		err = rows.Scan(
 	`, entityName)

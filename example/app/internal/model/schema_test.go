@@ -234,6 +234,25 @@ var testNewsFindData = map[string]struct {
 	},
 }
 
+func BenchmarkNewsRepositoryBase_FindQuery(b *testing.B) {
+	s := setup(b)
+	defer s.teardown(b)
+	b.ResetTimer()
+
+	for hint, given := range testNewsFindData {
+		b.Run(hint, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				query, args, err := s.news.FindQuery(s.news.Columns, &given.criteria)
+				if err != nil {
+					b.Fatalf("unexpected error: %s", err.Error())
+				}
+				benchQuery = query
+				benchArgs = args
+			}
+		})
+	}
+}
+
 func TestNewsRepositoryBase_FindQuery(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
@@ -251,7 +270,6 @@ func TestNewsRepositoryBase_FindQuery(t *testing.T) {
 	}
 }
 
-
 func TestNewsRepositoryBase_Find(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
@@ -265,6 +283,24 @@ func TestNewsRepositoryBase_Find(t *testing.T) {
 
 	if len(got) != expected {
 		t.Errorf("wrong output, expected %d but got %d", expected, got)
+	}
+}
+
+func TestNewsRepositoryBase_FindOneByID(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+
+	for i := 1; i <= expected; i++ {
+		got, err := s.news.FindOneByID(context.Background(), int64(i))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got.ID != int64(i) {
+			t.Errorf("wrong id, expected %d but got %d", i, got.ID)
+		}
 	}
 }
 

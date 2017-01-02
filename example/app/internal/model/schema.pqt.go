@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"fmt"
 	"strings"
 	"time"
 
@@ -15,8 +16,36 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableCategoryColumnContent:
+		return &e.Content, true
+	case TableCategoryColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TableCategoryColumnID:
+		return &e.ID, true
+	case TableCategoryColumnName:
+		return &e.Name, true
+	case TableCategoryColumnParentID:
+		return &e.ParentID, true
+	case TableCategoryColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
 func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
-
 	for rows.Next() {
 		var ent CategoryEntity
 		err = rows.Scan(
@@ -347,6 +376,32 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) 
 
 	return ScanCategoryRows(rows)
 }
+func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
+	find := pqtgo.NewComposer(6)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableCategory)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableCategoryColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	var (
+		ent CategoryEntity
+	)
+
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
 func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -366,8 +421,34 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria)
 
 	return count, nil
 }
+func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TablePackageColumnBreak:
+		return &e.Break, true
+	case TablePackageColumnCategoryID:
+		return &e.CategoryID, true
+	case TablePackageColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TablePackageColumnID:
+		return &e.ID, true
+	case TablePackageColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
 func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
-
 	for rows.Next() {
 		var ent PackageEntity
 		err = rows.Scan(
@@ -659,6 +740,32 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([
 
 	return ScanPackageRows(rows)
 }
+func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
+	find := pqtgo.NewComposer(5)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TablePackage)
+	find.WriteString(" WHERE ")
+	find.WriteString(TablePackageColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	var (
+		ent PackageEntity
+	)
+
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
 func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -678,8 +785,38 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (
 
 	return count, nil
 }
+func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableNewsColumnContent:
+		return &e.Content, true
+	case TableNewsColumnContinue:
+		return &e.Continue, true
+	case TableNewsColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TableNewsColumnID:
+		return &e.ID, true
+	case TableNewsColumnLead:
+		return &e.Lead, true
+	case TableNewsColumnTitle:
+		return &e.Title, true
+	case TableNewsColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
 func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
-
 	for rows.Next() {
 		var ent NewsEntity
 		err = rows.Scan(
@@ -1046,6 +1183,32 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*News
 
 	return ScanNewsRows(rows)
 }
+func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
+	find := pqtgo.NewComposer(7)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	var (
+		ent NewsEntity
+	)
+
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
 func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -1065,8 +1228,36 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64,
 
 	return count, nil
 }
+func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableCommentColumnContent:
+		return &e.Content, true
+	case TableCommentColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TableCommentColumnID:
+		return &e.ID, true
+	case TableCommentColumnNewsID:
+		return &e.NewsID, true
+	case TableCommentColumnNewsTitle:
+		return &e.NewsTitle, true
+	case TableCommentColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
 func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
-
 	for rows.Next() {
 		var ent CommentEntity
 		err = rows.Scan(
