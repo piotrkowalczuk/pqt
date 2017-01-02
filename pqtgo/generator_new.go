@@ -196,7 +196,6 @@ ArgumentsLoop:
 	fmt.Fprintln(w, "}")
 }
 
-
 func (g *Gen) generateIterator(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 	fmt.Fprintf(w, `
@@ -422,7 +421,9 @@ ColumnsLoop:
 						return "", nil, err
 					}
 					if ins.Dirty {
-						ins.WriteString(", ")
+						if _, err := ins.WriteString(", "); err != nil {
+							return "", nil, err
+						}
 					}
 					if err := ins.WritePlaceholder(); err != nil {
 						return "", nil, err
@@ -495,7 +496,6 @@ func (g *Gen) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 	)
 }
 
-
 func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 	pk, ok := table.PrimaryKey()
@@ -503,7 +503,7 @@ func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Ta
 		return
 	}
 
-	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, patch *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name),  g.generateColumnTypeString(pk, modeMandatory), entityName)
+	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, patch *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName)
 	fmt.Fprintf(w, `buf := bytes.NewBufferString("UPDATE ")
 		buf.WriteString(r.%s)
 		update := pqtgo.NewComposer(%d)
@@ -518,7 +518,7 @@ ColumnsLoop:
 		if g.canBeNil(c, modeOptional) {
 			fmt.Fprintf(w, "if patch.%s != nil {\n", g.Formatter.Identifier(c.Name))
 		}
-		if  g.isNullable(c, modeOptional) {
+		if g.isNullable(c, modeOptional) {
 			fmt.Fprintf(w, "if patch.%s.Valid {\n", g.Formatter.Identifier(c.Name))
 		}
 
@@ -567,7 +567,6 @@ ColumnsLoop:
 	if !update.Dirty {
 		return "", nil, errors.New("%s update failure, nothing to update")
 	}`, entityName)
-
 
 	fmt.Fprintf(w, `
 	buf.WriteString(" SET ")
@@ -779,7 +778,6 @@ func (g *Gen) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pqt.Tabl
 		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
 		entityName,
 	)
-
 
 	fmt.Fprintf(w, `
 	props, err := ent.%s(r.%s...)

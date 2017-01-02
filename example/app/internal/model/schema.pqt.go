@@ -206,7 +206,9 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -222,7 +224,9 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -238,7 +242,9 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -255,7 +261,9 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -273,7 +281,9 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -808,7 +818,9 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -826,7 +838,9 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -843,7 +857,9 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -860,7 +876,9 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -1380,7 +1398,9 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -1396,7 +1416,9 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -1412,7 +1434,9 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -1429,7 +1453,9 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -1446,7 +1472,9 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -1463,7 +1491,9 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
@@ -2044,7 +2074,9 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -2060,7 +2092,9 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -2076,7 +2110,9 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -2092,7 +2128,9 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		return "", nil, err
 	}
 	if ins.Dirty {
-		ins.WriteString(", ")
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
 	}
 	if err := ins.WritePlaceholder(); err != nil {
 		return "", nil, err
@@ -2109,7 +2147,9 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 			return "", nil, err
 		}
 		if ins.Dirty {
-			ins.WriteString(", ")
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
 		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err

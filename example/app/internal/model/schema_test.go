@@ -10,10 +10,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
 	_ "github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
-	"github.com/piotrkowalczuk/sklog"
 )
 
 var (
@@ -64,7 +62,6 @@ func setup(t testing.TB) *suite {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 
-	log := sklog.NewTestLogger(t)
 	return &suite{
 		db: db,
 		news: &model.NewsRepositoryBase{
@@ -72,21 +69,18 @@ func setup(t testing.TB) *suite {
 			Columns: model.TableNewsColumns,
 			DB:      db,
 			Debug:   testPostgresDebug,
-			Log:     log,
 		},
 		comment: &model.CommentRepositoryBase{
 			Table:   model.TableComment,
 			Columns: model.TableCommentColumns,
 			DB:      db,
 			Debug:   testPostgresDebug,
-			Log:     log,
 		},
 		category: &model.CategoryRepositoryBase{
 			Table:   model.TableCategory,
 			Columns: model.TableCategoryColumns,
 			DB:      db,
 			Debug:   testPostgresDebug,
-			Log:     log,
 		},
 	}
 }
@@ -347,7 +341,7 @@ func TestNewsRepositoryBase_Count(t *testing.T) {
 
 var testNewsUpdateData = map[string]struct {
 	patch model.NewsPatch
-	query    string
+	query string
 }{
 	"minimum": {
 		patch: model.NewsPatch{
@@ -389,7 +383,6 @@ func BenchmarkNewsRepositoryBase_UpdateOneByIDQuery(b *testing.B) {
 	}
 }
 
-
 func TestNewsRepositoryBase_UpdateOneByIDQuery(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
@@ -406,4 +399,3 @@ func TestNewsRepositoryBase_UpdateOneByIDQuery(t *testing.T) {
 		})
 	}
 }
-
