@@ -23,9 +23,9 @@ It relies to a large degree on packages:
 	- [pqt.JSONArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayString) - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
 - __sql generation__
 - __go generation__ - it includes:
-	- `entity` - struct that reflects single row within the database
+	- `criteria` - struct that reflects single row within the database
 	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
-	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing entity
+	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing criteria
 	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
 		- `table names`
@@ -35,13 +35,13 @@ It relies to a large degree on packages:
 		- `Count` - returns number of entities for given criteria
 		- `Find` - returns collection of entities that match given criteria
 		- `FindIter` - works like `Find` but returns `iterator`
-		- `Insert` - saves given entity into the database
-		- `FindOneBy<primary-key>` - retrieves single entity, search by primary key
-		- `FindOneBy<unique-key>` - retrieves single entity, search by unique key
-		- `UpdateOneBy<primary-key>` - modifies single entity, search by primary key
-		- `UpdateOneBy<unique-key>` - modifies single entity, search by unique key
-		- `DeleteOneBy<primary-key>` - modifies single entity, search by primary key
-	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<entity>Entity, error) {` helper function
+		- `Insert` - saves given criteria into the database
+		- `FindOneBy<primary-key>` - retrieves single criteria, search by primary key
+		- `FindOneBy<unique-key>` - retrieves single criteria, search by unique key
+		- `UpdateOneBy<primary-key>` - modifies single criteria, search by primary key
+		- `UpdateOneBy<unique-key>` - modifies single criteria, search by unique key
+		- `DeleteOneBy<primary-key>` - modifies single criteria, search by primary key
+	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<criteria>Entity, error) {` helper function
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
 	- `tables`
@@ -66,7 +66,7 @@ By default example is trying to connect to local `test` database on default port
 To run it simply call:
 
 ```bash
-$ make gen // not necessary, since generated code is already part of the repo
+$ make gen // not necessary, since generated w is already part of the repo
 $ make run
 ```
 
@@ -76,5 +76,5 @@ Very welcome in general. Especially in fields like:
 
 * postgres types better support
 * support for functions
-* better control over if generated code is private or public
+* better control over if generated w is private or public
 

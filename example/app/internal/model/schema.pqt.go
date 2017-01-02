@@ -7,18 +7,71 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"errors"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/piotrkowalczuk/ntypes"
-	"github.com/piotrkowalczuk/pqcomp"
+	"github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
-	"github.com/piotrkowalczuk/qtypes"
 )
+
+func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
+
+	for rows.Next() {
+		var ent CategoryEntity
+		err = rows.Scan(
+			&ent.Content,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.Name,
+			&ent.ParentID,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
+// CategoryEntity ...
+type CategoryEntity struct {
+	// Content ...
+	Content string
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID int64
+	// Name ...
+	Name string
+	// ParentID ...
+	ParentID sql.NullInt64
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// ChildCategory ...
+	ChildCategory []*CategoryEntity
+	// ParentCategory ...
+	ParentCategory *CategoryEntity
+	// Packages ...
+	Packages []*PackageEntity
+}
+
+type CategoryCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Content       sql.NullString
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	Name          sql.NullString
+	ParentID      sql.NullInt64
+	UpdatedAt     pq.NullTime
+}
 
 const (
 	TableCategory                             = "example.category"
@@ -43,437 +96,6 @@ var (
 	}
 )
 
-type CategoryEntity struct {
-	// Content ...
-	Content string
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID int64
-	// Name ...
-	Name string
-	// ParentID ...
-	ParentID *ntypes.Int64
-	// UpdatedAt ...
-	UpdatedAt *time.Time
-	// ChildCategory ...
-	ChildCategory []*CategoryEntity
-	// ParentCategory ...
-	ParentCategory *CategoryEntity
-	// Packages ...
-	Packages []*PackageEntity
-}
-
-func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableCategoryColumnContent:
-		return &e.Content, true
-	case TableCategoryColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TableCategoryColumnID:
-		return &e.ID, true
-	case TableCategoryColumnName:
-		return &e.Name, true
-	case TableCategoryColumnParentID:
-		return &e.ParentID, true
-	case TableCategoryColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
-
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
-
-// CategoryIterator is not thread safe.
-type CategoryIterator struct {
-	rows *sql.Rows
-	cols []string
-}
-
-func (i *CategoryIterator) Next() bool {
-	return i.rows.Next()
-}
-
-func (i *CategoryIterator) Close() error {
-	return i.rows.Close()
-}
-
-func (i *CategoryIterator) Err() error {
-	return i.rows.Err()
-}
-
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
-func (i *CategoryIterator) Columns() ([]string, error) {
-	if i.cols == nil {
-		cols, err := i.rows.Columns()
-		if err != nil {
-			return nil, err
-		}
-		i.cols = cols
-	}
-	return i.cols, nil
-}
-
-// Ent is wrapper around Category method that makes iterator more generic.
-func (i *CategoryIterator) Ent() (interface{}, error) {
-	return i.Category()
-}
-
-func (i *CategoryIterator) Category() (*CategoryEntity, error) {
-	var ent CategoryEntity
-	cols, err := i.rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	props, err := ent.Props(cols...)
-	if err != nil {
-		return nil, err
-	}
-	if err := i.rows.Scan(props...); err != nil {
-		return nil, err
-	}
-	return &ent, nil
-}
-
-type CategoryCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       *qtypes.String
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	Name          *qtypes.String
-	ParentID      *qtypes.Int64
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *CategoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Content, TableCategoryColumnContent, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCategoryColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCategoryColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCategoryColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TableCategoryColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.Name, TableCategoryColumnName, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ParentID, TableCategoryColumnParentID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCategoryColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCategoryColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCategoryColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TableCategoryColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
-}
-
-type CategoryPatch struct {
-	Content   *ntypes.String
-	CreatedAt *time.Time
-	Name      *ntypes.String
-	ParentID  *ntypes.Int64
-	UpdatedAt *time.Time
-}
-
 type CategoryRepositoryBase struct {
 	Table   string
 	Columns []string
@@ -482,353 +104,316 @@ type CategoryRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanCategoryRows(rows *sql.Rows) ([]*CategoryEntity, error) {
-	var (
-		entities []*CategoryEntity
-		err      error
-	)
+func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []interface{}, error) {
+	ins := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
+	col := bytes.NewBuffer(nil)
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCategoryColumnContent); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Content)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCategoryColumnCreatedAt); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.CreatedAt)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCategoryColumnName); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Name)
+	ins.Dirty = true
+	if e.ParentID.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ParentID)
+		ins.Dirty = true
+	}
+	if e.UpdatedAt.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.UpdatedAt)
+		ins.Dirty = true
+	}
+	if col.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(col)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(ins)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), ins.Args(), nil
+}
+func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Name,
+		&e.ParentID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (string, []interface{}, error) {
+	where := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Content.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Content)
+		where.Dirty = true
+	}
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+	if c.ID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ID)
+		where.Dirty = true
+	}
+	if c.Name.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnName); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Name)
+		where.Dirty = true
+	}
+	if c.ParentID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ParentID)
+		where.Dirty = true
+	}
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		buf.WriteString("WHERE ")
+		buf.ReadFrom(where)
+	}
+	return buf.String(), where.Args(), nil
+}
+func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) ([]*CategoryEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return ScanCategoryRows(rows)
+}
+func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return count, nil
+}
+func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
+
 	for rows.Next() {
-		var ent CategoryEntity
+		var ent PackageEntity
 		err = rows.Scan(
-			&ent.Content,
+			&ent.Break,
+			&ent.CategoryID,
 			&ent.CreatedAt,
 			&ent.ID,
-			&ent.Name,
-			&ent.ParentID,
 			&ent.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return
 		}
 
 		entities = append(entities, &ent)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	if err = rows.Err(); err != nil {
+		return
 	}
 
-	return entities, nil
+	return
 }
 
-func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(6)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
-	buf.WriteString(r.Table)
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
-		}
-	}
-
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
-	}
-	return count, nil
+// PackageEntity ...
+type PackageEntity struct {
+	// Break ...
+	Break sql.NullString
+	// CategoryID ...
+	CategoryID sql.NullInt64
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID int64
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// Category ...
+	Category *CategoryEntity
 }
 
-func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) ([]*CategoryEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	return ScanCategoryRows(rows)
-}
-func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriteria) (*CategoryIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CategoryIterator{rows: rows}, nil
-}
-func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, id int64) (*CategoryEntity, error) {
-	var (
-		ent CategoryEntity
-	)
-	query := `SELECT content,
-created_at,
-id,
-name,
-parent_id,
-updated_at
- FROM example.category WHERE id = $1`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&ent.Content,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Name,
-		&ent.ParentID,
-		&ent.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ent, nil
-}
-func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
-	insert := pqcomp.New(0, 6)
-	insert.AddExpr(TableCategoryColumnContent, "", e.Content)
-	insert.AddExpr(TableCategoryColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCategoryColumnName, "", e.Name)
-	insert.AddExpr(TableCategoryColumnParentID, "", e.ParentID)
-	insert.AddExpr(TableCategoryColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, p *CategoryPatch, inf ...string) (*CategoryEntity, error) {
-	insert := pqcomp.New(0, 6)
-	update := insert.Compose(6)
-	insert.AddExpr(TableCategoryColumnContent, "", e.Content)
-	insert.AddExpr(TableCategoryColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCategoryColumnName, "", e.Name)
-	insert.AddExpr(TableCategoryColumnParentID, "", e.ParentID)
-	insert.AddExpr(TableCategoryColumnUpdatedAt, "", e.UpdatedAt)
-	if len(inf) > 0 {
-		update.AddExpr(TableCategoryColumnContent, "=", p.Content)
-		update.AddExpr(TableCategoryColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TableCategoryColumnName, "=", p.Name)
-		update.AddExpr(TableCategoryColumnParentID, "=", p.ParentID)
-		update.AddExpr(TableCategoryColumnUpdatedAt, "=", p.UpdatedAt)
-	}
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
-		for j, i := range inf {
-			if j != 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(i)
-		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
-	} else {
-		b.WriteString(" DO NOTHING ")
-	}
-	if insert.Len() > 0 {
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, id int64, patch *CategoryPatch) (*CategoryEntity, error) {
-	update := pqcomp.New(1, 6)
-	update.AddArg(id)
-
-	update.AddExpr(TableCategoryColumnContent, pqcomp.Equal, patch.Content)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableCategoryColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableCategoryColumnName, pqcomp.Equal, patch.Name)
-	update.AddExpr(TableCategoryColumnParentID, pqcomp.Equal, patch.ParentID)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableCategoryColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableCategoryColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("Category update failure, nothing to update")
-	}
-	query := "UPDATE " + r.Table + " SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE id = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	var e CategoryEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-
-func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64, error) {
-	query := "DELETE FROM example.category WHERE id = $1"
-
-	res, err := r.DB.ExecContext(ctx, query, id)
-	if err != nil {
-		return 0, err
-	}
-
-	return res.RowsAffected()
+type PackageCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Break         sql.NullString
+	CategoryID    sql.NullInt64
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	UpdatedAt     pq.NullTime
 }
 
 const (
@@ -852,423 +437,6 @@ var (
 	}
 )
 
-type PackageEntity struct {
-	// Break ...
-	Break *ntypes.String
-	// CategoryID ...
-	CategoryID *ntypes.Int64
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID int64
-	// UpdatedAt ...
-	UpdatedAt *time.Time
-	// Category ...
-	Category *CategoryEntity
-}
-
-func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TablePackageColumnBreak:
-		return &e.Break, true
-	case TablePackageColumnCategoryID:
-		return &e.CategoryID, true
-	case TablePackageColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TablePackageColumnID:
-		return &e.ID, true
-	case TablePackageColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
-
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
-
-// PackageIterator is not thread safe.
-type PackageIterator struct {
-	rows *sql.Rows
-	cols []string
-}
-
-func (i *PackageIterator) Next() bool {
-	return i.rows.Next()
-}
-
-func (i *PackageIterator) Close() error {
-	return i.rows.Close()
-}
-
-func (i *PackageIterator) Err() error {
-	return i.rows.Err()
-}
-
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
-func (i *PackageIterator) Columns() ([]string, error) {
-	if i.cols == nil {
-		cols, err := i.rows.Columns()
-		if err != nil {
-			return nil, err
-		}
-		i.cols = cols
-	}
-	return i.cols, nil
-}
-
-// Ent is wrapper around Package method that makes iterator more generic.
-func (i *PackageIterator) Ent() (interface{}, error) {
-	return i.Package()
-}
-
-func (i *PackageIterator) Package() (*PackageEntity, error) {
-	var ent PackageEntity
-	cols, err := i.rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	props, err := ent.Props(cols...)
-	if err != nil {
-		return nil, err
-	}
-	if err := i.rows.Scan(props...); err != nil {
-		return nil, err
-	}
-	return &ent, nil
-}
-
-type PackageCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Break         *qtypes.String
-	CategoryID    *qtypes.Int64
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *PackageCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Break, TablePackageColumnBreak, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.CategoryID, TablePackageColumnCategoryID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TablePackageColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TablePackageColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TablePackageColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TablePackageColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TablePackageColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TablePackageColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TablePackageColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TablePackageColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
-}
-
-type PackagePatch struct {
-	Break      *ntypes.String
-	CategoryID *ntypes.Int64
-	CreatedAt  *time.Time
-	UpdatedAt  *time.Time
-}
-
 type PackageRepositoryBase struct {
 	Table   string
 	Columns []string
@@ -1277,343 +445,297 @@ type PackageRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanPackageRows(rows *sql.Rows) ([]*PackageEntity, error) {
-	var (
-		entities []*PackageEntity
-		err      error
-	)
+func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interface{}, error) {
+	ins := pqtgo.NewComposer(5)
+	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
+	col := bytes.NewBuffer(nil)
+	if e.Break.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.Break)
+		ins.Dirty = true
+	}
+	if e.CategoryID.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.CategoryID)
+		ins.Dirty = true
+	}
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TablePackageColumnCreatedAt); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.CreatedAt)
+	ins.Dirty = true
+	if e.UpdatedAt.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.UpdatedAt)
+		ins.Dirty = true
+	}
+	if col.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(col)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(ins)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), ins.Args(), nil
+}
+func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Break,
+		&e.CategoryID,
+		&e.CreatedAt,
+		&e.ID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (string, []interface{}, error) {
+	where := pqtgo.NewComposer(5)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Break.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Break)
+		where.Dirty = true
+	}
+	if c.CategoryID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CategoryID)
+		where.Dirty = true
+	}
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+	if c.ID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ID)
+		where.Dirty = true
+	}
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		buf.WriteString("WHERE ")
+		buf.ReadFrom(where)
+	}
+	return buf.String(), where.Args(), nil
+}
+func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([]*PackageEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return ScanPackageRows(rows)
+}
+func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return count, nil
+}
+func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
+
 	for rows.Next() {
-		var ent PackageEntity
+		var ent NewsEntity
 		err = rows.Scan(
-			&ent.Break,
-			&ent.CategoryID,
+			&ent.Content,
+			&ent.Continue,
 			&ent.CreatedAt,
 			&ent.ID,
+			&ent.Lead,
+			&ent.Title,
 			&ent.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return
 		}
 
 		entities = append(entities, &ent)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	if err = rows.Err(); err != nil {
+		return
 	}
 
-	return entities, nil
+	return
 }
 
-func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(5)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
-	buf.WriteString(r.Table)
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
-		}
-	}
-
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
-	}
-	return count, nil
+// NewsEntity ...
+type NewsEntity struct {
+	// Content ...
+	Content string
+	// Continue ...
+	Continue bool
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID int64
+	// Lead ...
+	Lead sql.NullString
+	// Title ...
+	Title string
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// CommentsByNewsTitle ...
+	CommentsByNewsTitle []*CommentEntity
+	// Comments ...
+	Comments []*CommentEntity
 }
 
-func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([]*PackageEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	return ScanPackageRows(rows)
-}
-func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria) (*PackageIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PackageIterator{rows: rows}, nil
-}
-func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, id int64) (*PackageEntity, error) {
-	var (
-		ent PackageEntity
-	)
-	query := `SELECT break,
-category_id,
-created_at,
-id,
-updated_at
- FROM example.package WHERE id = $1`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&ent.Break,
-		&ent.CategoryID,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ent, nil
-}
-func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
-	insert := pqcomp.New(0, 5)
-	insert.AddExpr(TablePackageColumnBreak, "", e.Break)
-	insert.AddExpr(TablePackageColumnCategoryID, "", e.CategoryID)
-	insert.AddExpr(TablePackageColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TablePackageColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Break,
-		&e.CategoryID,
-		&e.CreatedAt,
-		&e.ID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p *PackagePatch, inf ...string) (*PackageEntity, error) {
-	insert := pqcomp.New(0, 5)
-	update := insert.Compose(5)
-	insert.AddExpr(TablePackageColumnBreak, "", e.Break)
-	insert.AddExpr(TablePackageColumnCategoryID, "", e.CategoryID)
-	insert.AddExpr(TablePackageColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TablePackageColumnUpdatedAt, "", e.UpdatedAt)
-	if len(inf) > 0 {
-		update.AddExpr(TablePackageColumnBreak, "=", p.Break)
-		update.AddExpr(TablePackageColumnCategoryID, "=", p.CategoryID)
-		update.AddExpr(TablePackageColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TablePackageColumnUpdatedAt, "=", p.UpdatedAt)
-	}
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
-		for j, i := range inf {
-			if j != 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(i)
-		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
-	} else {
-		b.WriteString(" DO NOTHING ")
-	}
-	if insert.Len() > 0 {
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Break,
-		&e.CategoryID,
-		&e.CreatedAt,
-		&e.ID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, id int64, patch *PackagePatch) (*PackageEntity, error) {
-	update := pqcomp.New(1, 5)
-	update.AddArg(id)
-
-	update.AddExpr(TablePackageColumnBreak, pqcomp.Equal, patch.Break)
-	update.AddExpr(TablePackageColumnCategoryID, pqcomp.Equal, patch.CategoryID)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TablePackageColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TablePackageColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TablePackageColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("Package update failure, nothing to update")
-	}
-	query := "UPDATE " + r.Table + " SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE id = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	var e PackageEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Break,
-		&e.CategoryID,
-		&e.CreatedAt,
-		&e.ID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-
-func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64, error) {
-	query := "DELETE FROM example.package WHERE id = $1"
-
-	res, err := r.DB.ExecContext(ctx, query, id)
-	if err != nil {
-		return 0, err
-	}
-
-	return res.RowsAffected()
+type NewsCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Content       sql.NullString
+	Continue      sql.NullBool
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	Lead          sql.NullString
+	Title         sql.NullString
+	UpdatedAt     pq.NullTime
 }
 
 const (
@@ -1642,448 +764,6 @@ var (
 	}
 )
 
-type NewsEntity struct {
-	// Content ...
-	Content string
-	// Continue ...
-	Continue bool
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID int64
-	// Lead ...
-	Lead *ntypes.String
-	// Title ...
-	Title string
-	// UpdatedAt ...
-	UpdatedAt *time.Time
-	// CommentsByNewsTitle ...
-	CommentsByNewsTitle []*CommentEntity
-	// Comments ...
-	Comments []*CommentEntity
-}
-
-func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableNewsColumnContent:
-		return &e.Content, true
-	case TableNewsColumnContinue:
-		return &e.Continue, true
-	case TableNewsColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TableNewsColumnID:
-		return &e.ID, true
-	case TableNewsColumnLead:
-		return &e.Lead, true
-	case TableNewsColumnTitle:
-		return &e.Title, true
-	case TableNewsColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
-
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
-
-// NewsIterator is not thread safe.
-type NewsIterator struct {
-	rows *sql.Rows
-	cols []string
-}
-
-func (i *NewsIterator) Next() bool {
-	return i.rows.Next()
-}
-
-func (i *NewsIterator) Close() error {
-	return i.rows.Close()
-}
-
-func (i *NewsIterator) Err() error {
-	return i.rows.Err()
-}
-
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
-func (i *NewsIterator) Columns() ([]string, error) {
-	if i.cols == nil {
-		cols, err := i.rows.Columns()
-		if err != nil {
-			return nil, err
-		}
-		i.cols = cols
-	}
-	return i.cols, nil
-}
-
-// Ent is wrapper around News method that makes iterator more generic.
-func (i *NewsIterator) Ent() (interface{}, error) {
-	return i.News()
-}
-
-func (i *NewsIterator) News() (*NewsEntity, error) {
-	var ent NewsEntity
-	cols, err := i.rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	props, err := ent.Props(cols...)
-	if err != nil {
-		return nil, err
-	}
-	if err := i.rows.Scan(props...); err != nil {
-		return nil, err
-	}
-	return &ent, nil
-}
-
-type NewsCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       *qtypes.String
-	Continue      *ntypes.Bool
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	Lead          *qtypes.String
-	Title         *qtypes.String
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *NewsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Content, TableNewsColumnContent, com, pqtgo.And); err != nil {
-		return
-	}
-	if c.Continue != nil && c.Continue.Valid {
-		if com.Dirty {
-			com.WriteString(" AND ")
-		}
-		com.Dirty = true
-		com.WriteString(TableNewsColumnContinue)
-		com.WriteString(" = ")
-		com.WritePlaceholder()
-		com.Add(c.Continue)
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableNewsColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableNewsColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableNewsColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TableNewsColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.Lead, TableNewsColumnLead, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.Title, TableNewsColumnTitle, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableNewsColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableNewsColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableNewsColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TableNewsColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
-}
-
-type NewsPatch struct {
-	Content   *ntypes.String
-	Continue  *ntypes.Bool
-	CreatedAt *time.Time
-	Lead      *ntypes.String
-	Title     *ntypes.String
-	UpdatedAt *time.Time
-}
-
 type NewsRepositoryBase struct {
 	Table   string
 	Columns []string
@@ -2092,504 +772,353 @@ type NewsRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanNewsRows(rows *sql.Rows) ([]*NewsEntity, error) {
-	var (
-		entities []*NewsEntity
-		err      error
-	)
+func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
+	ins := pqtgo.NewComposer(7)
+	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
+	col := bytes.NewBuffer(nil)
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableNewsColumnContent); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Content)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableNewsColumnContinue); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Continue)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableNewsColumnCreatedAt); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.CreatedAt)
+	ins.Dirty = true
+	if e.Lead.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.Lead)
+		ins.Dirty = true
+	}
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableNewsColumnTitle); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Title)
+	ins.Dirty = true
+	if e.UpdatedAt.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
+		}
+		if _, err := col.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.UpdatedAt)
+		ins.Dirty = true
+	}
+	if col.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(col)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(ins)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), ins.Args(), nil
+}
+func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.Continue,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Lead,
+		&e.Title,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
+	where := pqtgo.NewComposer(7)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Content.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Content)
+		where.Dirty = true
+	}
+	if c.Continue.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Continue)
+		where.Dirty = true
+	}
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+	if c.ID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ID)
+		where.Dirty = true
+	}
+	if c.Lead.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Lead)
+		where.Dirty = true
+	}
+	if c.Title.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Title)
+		where.Dirty = true
+	}
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		buf.WriteString("WHERE ")
+		buf.ReadFrom(where)
+	}
+	return buf.String(), where.Args(), nil
+}
+func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*NewsEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return ScanNewsRows(rows)
+}
+func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return count, nil
+}
+func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
+
 	for rows.Next() {
-		var ent NewsEntity
+		var ent CommentEntity
 		err = rows.Scan(
 			&ent.Content,
-			&ent.Continue,
 			&ent.CreatedAt,
 			&ent.ID,
-			&ent.Lead,
-			&ent.Title,
+			&ent.NewsID,
+			&ent.NewsTitle,
 			&ent.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return
 		}
 
 		entities = append(entities, &ent)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	if err = rows.Err(); err != nil {
+		return
 	}
 
-	return entities, nil
+	return
 }
 
-func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(7)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
-	buf.WriteString(r.Table)
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
-		}
-	}
-
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
-	}
-	return count, nil
+// CommentEntity ...
+type CommentEntity struct {
+	// Content ...
+	Content string
+	// CreatedAt ...
+	CreatedAt time.Time
+	// ID ...
+	ID sql.NullInt64
+	// NewsID ...
+	NewsID int64
+	// NewsTitle ...
+	NewsTitle string
+	// UpdatedAt ...
+	UpdatedAt pq.NullTime
+	// NewsByTitle ...
+	NewsByTitle *NewsEntity
+	// NewsByID ...
+	NewsByID *NewsEntity
 }
 
-func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*NewsEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	return ScanNewsRows(rows)
-}
-func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*NewsIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &NewsIterator{rows: rows}, nil
-}
-func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, id int64) (*NewsEntity, error) {
-	var (
-		ent NewsEntity
-	)
-	query := `SELECT content,
-continue,
-created_at,
-id,
-lead,
-title,
-updated_at
- FROM example.news WHERE id = $1`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&ent.Content,
-		&ent.Continue,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Lead,
-		&ent.Title,
-		&ent.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ent, nil
-}
-func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
-	var (
-		ent NewsEntity
-	)
-	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1`
-	err := r.DB.QueryRowContext(ctx, query, newsTitle).Scan(
-		&ent.Content,
-		&ent.Continue,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Lead,
-		&ent.Title,
-		&ent.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ent, nil
-}
-func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
-	var (
-		ent NewsEntity
-	)
-	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
-	err := r.DB.QueryRowContext(ctx, query, newsTitle, newsLead).Scan(
-		&ent.Content,
-		&ent.Continue,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Lead,
-		&ent.Title,
-		&ent.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ent, nil
-}
-func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
-	insert := pqcomp.New(0, 7)
-	insert.AddExpr(TableNewsColumnContent, "", e.Content)
-	insert.AddExpr(TableNewsColumnContinue, "", e.Continue)
-	insert.AddExpr(TableNewsColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableNewsColumnLead, "", e.Lead)
-	insert.AddExpr(TableNewsColumnTitle, "", e.Title)
-	insert.AddExpr(TableNewsColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsPatch, inf ...string) (*NewsEntity, error) {
-	insert := pqcomp.New(0, 7)
-	update := insert.Compose(7)
-	insert.AddExpr(TableNewsColumnContent, "", e.Content)
-	insert.AddExpr(TableNewsColumnContinue, "", e.Continue)
-	insert.AddExpr(TableNewsColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableNewsColumnLead, "", e.Lead)
-	insert.AddExpr(TableNewsColumnTitle, "", e.Title)
-	insert.AddExpr(TableNewsColumnUpdatedAt, "", e.UpdatedAt)
-	if len(inf) > 0 {
-		update.AddExpr(TableNewsColumnContent, "=", p.Content)
-		update.AddExpr(TableNewsColumnContinue, "=", p.Continue)
-		update.AddExpr(TableNewsColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TableNewsColumnLead, "=", p.Lead)
-		update.AddExpr(TableNewsColumnTitle, "=", p.Title)
-		update.AddExpr(TableNewsColumnUpdatedAt, "=", p.UpdatedAt)
-	}
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
-		for j, i := range inf {
-			if j != 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(i)
-		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
-	} else {
-		b.WriteString(" DO NOTHING ")
-	}
-	if insert.Len() > 0 {
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, id int64, patch *NewsPatch) (*NewsEntity, error) {
-	update := pqcomp.New(1, 7)
-	update.AddArg(id)
-
-	update.AddExpr(TableNewsColumnContent, pqcomp.Equal, patch.Content)
-	update.AddExpr(TableNewsColumnContinue, pqcomp.Equal, patch.Continue)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableNewsColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableNewsColumnLead, pqcomp.Equal, patch.Lead)
-	update.AddExpr(TableNewsColumnTitle, pqcomp.Equal, patch.Title)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("News update failure, nothing to update")
-	}
-	query := "UPDATE " + r.Table + " SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE id = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	var e NewsEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle string, patch *NewsPatch) (*NewsEntity, error) {
-	update := pqcomp.New(1, 7)
-	update.AddArg(newsTitle)
-	update.AddExpr(TableNewsColumnContent, pqcomp.Equal, patch.Content)
-	update.AddExpr(TableNewsColumnContinue, pqcomp.Equal, patch.Continue)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableNewsColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableNewsColumnLead, pqcomp.Equal, patch.Lead)
-	update.AddExpr(TableNewsColumnTitle, pqcomp.Equal, patch.Title)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("News update failure, nothing to update")
-	}
-	query := "UPDATE example.news SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE title = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	if r.Debug {
-		if err := r.Log.Log("msg", query, "function", "UpdateOneByTitle"); err != nil {
-			return nil, err
-		}
-	}
-	var e NewsEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string, patch *NewsPatch) (*NewsEntity, error) {
-	update := pqcomp.New(2, 7)
-	update.AddArg(newsTitle)
-	update.AddArg(newsLead)
-	update.AddExpr(TableNewsColumnContent, pqcomp.Equal, patch.Content)
-	update.AddExpr(TableNewsColumnContinue, pqcomp.Equal, patch.Continue)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableNewsColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableNewsColumnLead, pqcomp.Equal, patch.Lead)
-	update.AddExpr(TableNewsColumnTitle, pqcomp.Equal, patch.Title)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("News update failure, nothing to update")
-	}
-	query := "UPDATE example.news SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE title = $1 AND lead = $2 RETURNING " + strings.Join(r.Columns, ", ")
-	if r.Debug {
-		if err := r.Log.Log("msg", query, "function", "UpdateOneByTitleAndLead"); err != nil {
-			return nil, err
-		}
-	}
-	var e NewsEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-
-func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64, error) {
-	query := "DELETE FROM example.news WHERE id = $1"
-
-	res, err := r.DB.ExecContext(ctx, query, id)
-	if err != nil {
-		return 0, err
-	}
-
-	return res.RowsAffected()
+type CommentCriteria struct {
+	Offset, Limit int64
+	Sort          map[string]bool
+	Content       sql.NullString
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	NewsID        sql.NullInt64
+	NewsTitle     sql.NullString
+	UpdatedAt     pq.NullTime
 }
 
 const (
@@ -2615,436 +1144,6 @@ var (
 	}
 )
 
-type CommentEntity struct {
-	// Content ...
-	Content string
-	// CreatedAt ...
-	CreatedAt time.Time
-	// ID ...
-	ID *ntypes.Int64
-	// NewsID ...
-	NewsID int64
-	// NewsTitle ...
-	NewsTitle string
-	// UpdatedAt ...
-	UpdatedAt *time.Time
-	// NewsByTitle ...
-	NewsByTitle *NewsEntity
-	// NewsByID ...
-	NewsByID *NewsEntity
-}
-
-func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableCommentColumnContent:
-		return &e.Content, true
-	case TableCommentColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TableCommentColumnID:
-		return &e.ID, true
-	case TableCommentColumnNewsID:
-		return &e.NewsID, true
-	case TableCommentColumnNewsTitle:
-		return &e.NewsTitle, true
-	case TableCommentColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
-
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
-
-// CommentIterator is not thread safe.
-type CommentIterator struct {
-	rows *sql.Rows
-	cols []string
-}
-
-func (i *CommentIterator) Next() bool {
-	return i.rows.Next()
-}
-
-func (i *CommentIterator) Close() error {
-	return i.rows.Close()
-}
-
-func (i *CommentIterator) Err() error {
-	return i.rows.Err()
-}
-
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
-func (i *CommentIterator) Columns() ([]string, error) {
-	if i.cols == nil {
-		cols, err := i.rows.Columns()
-		if err != nil {
-			return nil, err
-		}
-		i.cols = cols
-	}
-	return i.cols, nil
-}
-
-// Ent is wrapper around Comment method that makes iterator more generic.
-func (i *CommentIterator) Ent() (interface{}, error) {
-	return i.Comment()
-}
-
-func (i *CommentIterator) Comment() (*CommentEntity, error) {
-	var ent CommentEntity
-	cols, err := i.rows.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	props, err := ent.Props(cols...)
-	if err != nil {
-		return nil, err
-	}
-	if err := i.rows.Scan(props...); err != nil {
-		return nil, err
-	}
-	return &ent, nil
-}
-
-type CommentCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       *qtypes.String
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	NewsID        *qtypes.Int64
-	NewsTitle     *qtypes.String
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *CommentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Content, TableCommentColumnContent, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCommentColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCommentColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCommentColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TableCommentColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.NewsID, TableCommentColumnNewsID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.NewsTitle, TableCommentColumnNewsTitle, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCommentColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCommentColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCommentColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TableCommentColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
-}
-
-type CommentPatch struct {
-	Content   *ntypes.String
-	CreatedAt *time.Time
-	ID        *ntypes.Int64
-	NewsID    *ntypes.Int64
-	NewsTitle *ntypes.String
-	UpdatedAt *time.Time
-}
-
 type CommentRepositoryBase struct {
 	Table   string
 	Columns []string
@@ -3053,273 +1152,265 @@ type CommentRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanCommentRows(rows *sql.Rows) ([]*CommentEntity, error) {
-	var (
-		entities []*CommentEntity
-		err      error
-	)
-	for rows.Next() {
-		var ent CommentEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.NewsID,
-			&ent.NewsTitle,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
+func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interface{}, error) {
+	ins := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
+	col := bytes.NewBuffer(nil)
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCommentColumnContent); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Content)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCommentColumnCreatedAt); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.CreatedAt)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCommentColumnNewsID); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.NewsID)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		col.WriteString(", ")
+	}
+	if _, err := col.WriteString(TableCommentColumnNewsTitle); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		ins.WriteString(", ")
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.NewsTitle)
+	ins.Dirty = true
+	if e.UpdatedAt.Valid {
+		if col.Len() > 0 {
+			col.WriteString(", ")
 		}
-
-		entities = append(entities, &ent)
+		if _, err := col.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			ins.WriteString(", ")
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.UpdatedAt)
+		ins.Dirty = true
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	if col.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(col)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(ins)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
 	}
-
-	return entities, nil
+	return buf.String(), ins.Args(), nil
 }
-
-func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(6)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
-	buf.WriteString(r.Table)
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
-		}
-	}
-
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
-func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
+	query, args, err := r.InsertQuery(e)
 	if err != nil {
 		return nil, err
 	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.NewsID,
+		&e.NewsTitle,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (string, []interface{}, error) {
+	where := pqtgo.NewComposer(6)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Content.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Content)
+		where.Dirty = true
+	}
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+	if c.ID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ID)
+		where.Dirty = true
+	}
+	if c.NewsID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnNewsID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.NewsID)
+		where.Dirty = true
+	}
+	if c.NewsTitle.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnNewsTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.NewsTitle)
+		where.Dirty = true
+	}
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
 
+	if where.Dirty {
+		buf.WriteString("WHERE ")
+		buf.ReadFrom(where)
+	}
+	return buf.String(), where.Args(), nil
+}
+func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
 	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
 
 	return ScanCommentRows(rows)
 }
-func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
+func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
 	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
 	}
 
 	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
 	}
 
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CommentIterator{rows: rows}, nil
-}
-func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
-	insert := pqcomp.New(0, 6)
-	insert.AddExpr(TableCommentColumnContent, "", e.Content)
-	insert.AddExpr(TableCommentColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCommentColumnNewsID, "", e.NewsID)
-	insert.AddExpr(TableCommentColumnNewsTitle, "", e.NewsTitle)
-	insert.AddExpr(TableCommentColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.NewsID,
-		&e.NewsTitle,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
-}
-func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p *CommentPatch, inf ...string) (*CommentEntity, error) {
-	insert := pqcomp.New(0, 6)
-	update := insert.Compose(6)
-	insert.AddExpr(TableCommentColumnContent, "", e.Content)
-	insert.AddExpr(TableCommentColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCommentColumnNewsID, "", e.NewsID)
-	insert.AddExpr(TableCommentColumnNewsTitle, "", e.NewsTitle)
-	insert.AddExpr(TableCommentColumnUpdatedAt, "", e.UpdatedAt)
-	if len(inf) > 0 {
-		update.AddExpr(TableCommentColumnContent, "=", p.Content)
-		update.AddExpr(TableCommentColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TableCommentColumnNewsID, "=", p.NewsID)
-		update.AddExpr(TableCommentColumnNewsTitle, "=", p.NewsTitle)
-		update.AddExpr(TableCommentColumnUpdatedAt, "=", p.UpdatedAt)
-	}
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
-		for j, i := range inf {
-			if j != 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(i)
-		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
-	} else {
-		b.WriteString(" DO NOTHING ")
-	}
-	if insert.Len() > 0 {
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
-	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.NewsID,
-		&e.NewsTitle,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
+	return count, nil
 }
 
 /// SQL ...

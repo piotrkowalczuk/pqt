@@ -55,7 +55,7 @@ type suite struct {
 	pkg      *model.PackageRepositoryBase
 }
 
-func setup(t *testing.T) *suite {
+func setup(t testing.TB) *suite {
 	db, err := sql.Open("postgres", testPostgresAddress)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
@@ -91,13 +91,13 @@ func setup(t *testing.T) *suite {
 	}
 }
 
-func (s *suite) teardown(t *testing.T) {
+func (s *suite) teardown(t testing.TB) {
 	if _, err := s.db.Exec("DROP SCHEMA example CASCADE"); err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 }
 
-func populateNews(t *testing.T, r *model.NewsRepositoryBase, nb int) {
+func populateNews(t testing.TB, r *model.NewsRepositoryBase, nb int) {
 	for i := 0; i < nb; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, err := r.Insert(ctx, &model.NewsEntity{
@@ -109,6 +109,162 @@ func populateNews(t *testing.T, r *model.NewsRepositoryBase, nb int) {
 			t.Fatalf("unexpected error #%d: %s", i, err.Error())
 		}
 		cancel()
+	}
+}
+
+var testNewsInsertData = map[string]struct {
+	entity model.NewsEntity
+	query  string
+}{
+	"minimum": {
+		entity: model.NewsEntity{
+			Title:   "title - minimum",
+			Content: "content - minimum",
+		},
+		query: "INSERT INTO example.news (content, continue, created_at, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, title, updated_at",
+	},
+	"full": {
+		entity: model.NewsEntity{
+			Title: "title - full",
+			Lead: sql.NullString{
+				Valid:  true,
+				String: "lead - full",
+			},
+			Content:  "content - full",
+			Continue: true,
+		},
+		query: "INSERT INTO example.news (content, continue, created_at, lead, title) VALUES ($1, $2, $3, $4, $5) RETURNING content, continue, created_at, id, lead, title, updated_at",
+	},
+}
+
+var (
+	benchQuery string
+	benchArgs  []interface{}
+)
+
+func BenchmarkNewsRepositoryBase_InsertQuery(b *testing.B) {
+	s := setup(b)
+	defer s.teardown(b)
+	b.ResetTimer()
+
+	for hint, given := range testNewsInsertData {
+		b.Run(hint, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				query, args, err := s.news.InsertQuery(&given.entity)
+				if err != nil {
+					b.Fatalf("unexpected error: %s", err.Error())
+				}
+				benchQuery = query
+				benchArgs = args
+			}
+		})
+	}
+}
+
+func TestNewsRepositoryBase_InsertQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsInsertData {
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.news.InsertQuery(&given.entity)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
+func TestNewsRepositoryBase_Insert(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsInsertData {
+		t.Run(hint, func(t *testing.T) {
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			got, err := s.news.Insert(ctx, &given.entity)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.entity.Title != got.Title {
+				t.Errorf("wrong title, expected %s but got %s", given.entity.Title, got.Title)
+			}
+			if given.entity.Lead != got.Lead {
+				t.Errorf("wrong lead, expected %s but got %s", given.entity.Lead, got.Lead)
+			}
+			if given.entity.Content != got.Content {
+				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
+			}
+			if got.UpdatedAt.Valid {
+				t.Error("updated at expected to be invalid")
+			}
+			zero := time.Time{}
+			if got.CreatedAt == zero {
+				t.Error("created at should not be zero value")
+			}
+		})
+	}
+}
+
+var testNewsFindData = map[string]struct {
+	criteria model.NewsCriteria
+	query    string
+}{
+	"minimum": {
+		criteria: model.NewsCriteria{
+			Title:   sql.NullString{String: "title - minimum", Valid: true},
+			Content: sql.NullString{String: "content - minimum", Valid: true},
+		},
+		query: "SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE content=$1 AND title=$2",
+	},
+	"full": {
+		criteria: model.NewsCriteria{
+			Title: sql.NullString{String: "title - full", Valid: true},
+			Lead: sql.NullString{
+				Valid:  true,
+				String: "lead - full",
+			},
+			Content:  sql.NullString{String: "content - full", Valid: true},
+			Continue: sql.NullBool{Bool: true, Valid: true},
+		},
+		query: "SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE content=$1 AND continue=$2 AND lead=$3 AND title=$4",
+	},
+}
+
+func TestNewsRepositoryBase_FindQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsFindData {
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.news.FindQuery(s.news.Columns, &given.criteria)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
+
+func TestNewsRepositoryBase_Find(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+	got, err := s.news.Find(context.Background(), &model.NewsCriteria{})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+
+	if len(got) != expected {
+		t.Errorf("wrong output, expected %d but got %d", expected, got)
 	}
 }
 
