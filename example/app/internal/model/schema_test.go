@@ -10,9 +10,10 @@ import (
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/lib/pq"
 	_ "github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
-	"github.com/lib/pq"
 )
 
 var (
@@ -116,7 +117,7 @@ var testNewsInsertData = map[string]struct {
 			Title:   "title - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.news (content, continue, score, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, score, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, score, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
 	},
 	"full": {
 		entity: model.NewsEntity{
@@ -125,16 +126,20 @@ var testNewsInsertData = map[string]struct {
 				Valid:  true,
 				String: "lead - full",
 			},
-			Score: 10.11,
-			Content:  "content - full",
-			Continue: true,
-			CreatedAt: time.Now(),
+			ViewsDistribution: model.NullFloat64Array{
+				Valid: true,
+				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
+			},
+			Score:             10.11,
+			Content:           "content - full",
+			Continue:          true,
+			CreatedAt:         time.Now(),
 			UpdatedAt: pq.NullTime{
-				Valid:true,
-				Time: time.Now(),
+				Valid: true,
+				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, score, title, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING content, continue, created_at, id, lead, score, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, created_at, lead, score, title, updated_at, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
 	},
 }
 
@@ -205,6 +210,13 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			if got.CreatedAt.IsZero() {
 				t.Error("created at should not be zero value")
 			}
+			if given.entity.ViewsDistribution.Valid {
+				if !got.ViewsDistribution.Valid {
+					t.Error("views distribution should be valid")
+				} else {
+
+				}
+			}
 		})
 	}
 }
@@ -218,16 +230,16 @@ var testNewsFindData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at FROM example.news WHERE content=$1 AND title=$2",
+		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at, views_distribution FROM example.news WHERE content=$1 AND title=$2",
 	},
 	"full": {
 		criteria: model.NewsCriteria{
-			ID : sql.NullInt64{
+			ID: sql.NullInt64{
 				Int64: 1,
 				Valid: true,
 			},
 			Score: sql.NullFloat64{
-				Valid: true,
+				Valid:   true,
 				Float64: 10.11,
 			},
 			Title: sql.NullString{String: "title - full", Valid: true},
@@ -236,17 +248,21 @@ var testNewsFindData = map[string]struct {
 				String: "lead - full",
 			},
 			Content:  sql.NullString{String: "content - full", Valid: true},
+			ViewsDistribution: model.NullFloat64Array{
+				Valid: true,
+				Float64Array: []float64{1.1, 1.2, 1.3},
+			},
 			Continue: sql.NullBool{Bool: true, Valid: true},
 			CreatedAt: pq.NullTime{
-				Valid:true,
-				Time: time.Now(),
+				Valid: true,
+				Time:  time.Now(),
 			},
 			UpdatedAt: pq.NullTime{
-				Valid:true,
-				Time: time.Now(),
+				Valid: true,
+				Time:  time.Now(),
 			},
 		},
-		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND id=$4 AND lead=$5 AND score=$6 AND title=$7 AND updated_at=$8",
+		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at, views_distribution FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND id=$4 AND lead=$5 AND score=$6 AND title=$7 AND updated_at=$8 AND views_distribution=$9",
 	},
 }
 
@@ -373,7 +389,7 @@ var testNewsUpdateData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING content, continue, created_at, id, lead, score, title, updated_at",
+		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
 	},
 	"full": {
 		patch: model.NewsPatch{
@@ -383,21 +399,21 @@ var testNewsUpdateData = map[string]struct {
 				String: "lead - full",
 			},
 			Score: sql.NullFloat64{
-				Valid: true,
+				Valid:   true,
 				Float64: 12.14,
 			},
 			Content:  sql.NullString{String: "content - full", Valid: true},
 			Continue: sql.NullBool{Bool: true, Valid: true},
 			CreatedAt: pq.NullTime{
-				Valid:true,
-				Time: time.Now(),
+				Valid: true,
+				Time:  time.Now(),
 			},
 			UpdatedAt: pq.NullTime{
-				Valid:true,
-				Time: time.Now(),
+				Valid: true,
+				Time:  time.Now(),
 			},
 		},
-		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, score=$5, title=$6, updated_at=$7 WHERE id=$8 RETURNING content, continue, created_at, id, lead, score, title, updated_at",
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, score=$5, title=$6, updated_at=$7 WHERE id=$8 RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
 	},
 }
 

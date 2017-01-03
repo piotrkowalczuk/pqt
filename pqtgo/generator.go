@@ -1736,7 +1736,7 @@ func (g *Generator) public(s string) string {
 	return snake(s, false, g.acronyms)
 }
 
-func (g *Generator) isStruct(c *pqt.Column, m int) bool {
+func (g *Generator) isStruct(c *pqt.Column, m int32) bool {
 	if tp, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range tp.Mapping {
 			if ct, ok := mapto.(CustomType); ok {
@@ -1756,7 +1756,7 @@ func (g *Generator) isStruct(c *pqt.Column, m int) bool {
 	return false
 }
 
-func (g *Generator) canBeNil(c *pqt.Column, m int) bool {
+func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {
 	if tp, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range tp.Mapping {
 			if ct, ok := mapto.(CustomType); ok {

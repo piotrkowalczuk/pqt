@@ -1229,6 +1229,7 @@ const (
 	TableNewsColumnScore               = "score"
 	TableNewsColumnTitle               = "title"
 	TableNewsColumnUpdatedAt           = "updated_at"
+	TableNewsColumnViewsDistribution   = "views_distribution"
 	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
 	TableNewsConstraintTitleUnique     = "example.news_title_key"
 	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
@@ -1244,6 +1245,7 @@ var (
 		TableNewsColumnScore,
 		TableNewsColumnTitle,
 		TableNewsColumnUpdatedAt,
+		TableNewsColumnViewsDistribution,
 	}
 )
 
@@ -1265,6 +1267,8 @@ type NewsEntity struct {
 	Title string
 	// UpdatedAt ...
 	UpdatedAt pq.NullTime
+	// ViewsDistribution ...
+	ViewsDistribution NullFloat64Array
 	// CommentsByNewsTitle ...
 	CommentsByNewsTitle []*CommentEntity
 	// Comments ...
@@ -1324,25 +1328,27 @@ func (i *NewsIterator) News() (*NewsEntity, error) {
 }
 
 type NewsCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       sql.NullString
-	Continue      sql.NullBool
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	Lead          sql.NullString
-	Score         sql.NullFloat64
-	Title         sql.NullString
-	UpdatedAt     pq.NullTime
+	Offset, Limit     int64
+	Sort              map[string]bool
+	Content           sql.NullString
+	Continue          sql.NullBool
+	CreatedAt         pq.NullTime
+	ID                sql.NullInt64
+	Lead              sql.NullString
+	Score             sql.NullFloat64
+	Title             sql.NullString
+	UpdatedAt         pq.NullTime
+	ViewsDistribution NullFloat64Array
 }
 type NewsPatch struct {
-	Content   sql.NullString
-	Continue  sql.NullBool
-	CreatedAt pq.NullTime
-	Lead      sql.NullString
-	Score     sql.NullFloat64
-	Title     sql.NullString
-	UpdatedAt pq.NullTime
+	Content           sql.NullString
+	Continue          sql.NullBool
+	CreatedAt         pq.NullTime
+	Lead              sql.NullString
+	Score             sql.NullFloat64
+	Title             sql.NullString
+	UpdatedAt         pq.NullTime
+	ViewsDistribution NullFloat64Array
 }
 
 func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
@@ -1363,6 +1369,8 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 		return &e.Title, true
 	case TableNewsColumnUpdatedAt:
 		return &e.UpdatedAt, true
+	case TableNewsColumnViewsDistribution:
+		return &e.ViewsDistribution, true
 	default:
 		return nil, false
 	}
@@ -1390,6 +1398,7 @@ func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 			&ent.Score,
 			&ent.Title,
 			&ent.UpdatedAt,
+			&ent.ViewsDistribution,
 		)
 		if err != nil {
 			return
@@ -1413,7 +1422,7 @@ type NewsRepositoryBase struct {
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(8)
+	ins := pqtgo.NewComposer(9)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if col.Len() > 0 {
@@ -1551,6 +1560,27 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		ins.Dirty = true
 	}
 
+	if e.ViewsDistribution.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ViewsDistribution)
+		ins.Dirty = true
+	}
+
 	if col.Len() > 0 {
 		buf.WriteString(" (")
 		buf.ReadFrom(col)
@@ -1577,6 +1607,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 		&e.Score,
 		&e.Title,
 		&e.UpdatedAt,
+		&e.ViewsDistribution,
 	); err != nil {
 		if r.Debug {
 			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
@@ -1589,7 +1620,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	return e, nil
 }
 func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(8)
+	where := pqtgo.NewComposer(9)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -1731,6 +1762,23 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Dirty = true
 	}
 
+	if c.ViewsDistribution.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ViewsDistribution)
+		where.Dirty = true
+	}
+
 	if where.Dirty {
 		buf.WriteString("WHERE ")
 		buf.ReadFrom(where)
@@ -1769,7 +1817,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*Ne
 	return &NewsIterator{rows: rows}, nil
 }
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
-	find := pqtgo.NewComposer(8)
+	find := pqtgo.NewComposer(9)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1797,7 +1845,7 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := pqtgo.NewComposer(8)
+	update := pqtgo.NewComposer(9)
 	update.Add(pk)
 	if p.Content.Valid {
 		if update.Dirty {
@@ -1937,6 +1985,24 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 			return "", nil, err
 		}
 
+	}
+	if p.ViewsDistribution.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ViewsDistribution)
+		update.Dirty = true
 	}
 
 	if !update.Dirty {
@@ -2453,6 +2519,34 @@ func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (
 	return count, nil
 }
 
+type NullInt64Array struct {
+	pq.Int64Array
+	Valid bool
+}
+
+func (n *NullInt64Array) Scan(value interface{}) error {
+	if value == nil {
+		n.Int64Array, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.Int64Array.Scan(value)
+}
+
+type NullFloat64Array struct {
+	pq.Float64Array
+	Valid bool
+}
+
+func (n *NullFloat64Array) Scan(value interface{}) error {
+	if value == nil {
+		n.Float64Array, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.Float64Array.Scan(value)
+}
+
 /// SQL ...
 const SQL = `
 -- do not modify, generated by pqt
@@ -2491,6 +2585,7 @@ CREATE TABLE IF NOT EXISTS example.news (
 	score NUMERIC(20,8) DEFAULT 0 NOT NULL,
 	title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,
+	views_distribution DOUBLE PRECISION[168],
 
 	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id),
 	CONSTRAINT "example.news_title_key" UNIQUE (title),

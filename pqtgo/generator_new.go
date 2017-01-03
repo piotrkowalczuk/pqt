@@ -149,6 +149,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
 	}
+	g.generateStatics(b)
 
 	return b, nil
 }
@@ -401,18 +402,23 @@ func (g *Gen) generateRepositoryInsertQuery(w io.Writer, table *pqt.Table) {
 
 ColumnsLoop:
 	for _, c := range table.Columns {
+		braces := 0
+
 		switch c.Type {
 		case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 			continue ColumnsLoop
 		default:
 			if g.canBeNil(c, modeDefault) {
 				fmt.Fprintf(w, "if e.%s != nil {\n", g.Formatter.Identifier(c.Name))
+				braces++
 			}
 			if g.isNullable(c, modeDefault) {
 				fmt.Fprintf(w, "if e.%s.Valid {\n", g.Formatter.Identifier(c.Name))
+				braces++
 			}
 			if g.isType(c, modeDefault, "time.Time") {
 				fmt.Fprintf(w, "if !e.%s.IsZero() {\n", g.Formatter.Identifier(c.Name))
+				braces++
 			}
 			fmt.Fprintf(w,
 				`if col.Len() > 0 {
@@ -436,15 +442,8 @@ ColumnsLoop:
 				g.Formatter.Identifier("table", table.Name, "column", c.Name),
 				g.Formatter.Identifier(c.Name),
 			)
-			if g.isType(c, modeDefault, "time.Time") {
-				fmt.Fprintln(w, "}")
-			}
-			if g.canBeNil(c, modeDefault) {
-				fmt.Fprintln(w, "}")
-			}
-			if g.isNullable(c, modeDefault) {
-				fmt.Fprintln(w, "}")
-			}
+
+			closeBrace(w, braces)
 			fmt.Fprintln(w, "")
 		}
 	}
@@ -876,7 +875,7 @@ func (g *Gen) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 `)
 }
 
-func (g *Gen) canBeNil(c *pqt.Column, m int) bool {
+func (g *Gen) canBeNil(c *pqt.Column, m int32) bool {
 	if tp, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range tp.Mapping {
 			if ct, ok := mapto.(CustomType); ok {
@@ -892,6 +891,9 @@ func (g *Gen) canBeNil(c *pqt.Column, m int) bool {
 				}
 			}
 		}
+	}
+	if g.isType(c, m, "pq.StringArray", "ByteaArray", "pq.BoolArray", "pq.Int64Array", "pq.Float64Array") {
+		return true
 	}
 	return false
 }
@@ -910,18 +912,64 @@ func (g *Gen) generateColumnTypeString(c *pqt.Column, m int32) string {
 	return g.Formatter.Type(c.Type, m)
 }
 
-func (g *Gen) isType(c *pqt.Column, m int32, t string) bool {
-	return g.generateColumnTypeString(c, m) == t
+func (g *Gen) isType(c *pqt.Column, m int32, types ...string) bool {
+	for _, t := range types {
+		if g.generateColumnTypeString(c, m) == t {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *Gen) isNullable(c *pqt.Column, m int32) bool {
-	switch {
-	case strings.HasPrefix(g.generateColumnTypeString(c, m), "sql.Null"):
-		return true
-	case strings.HasPrefix(g.generateColumnTypeString(c, m), "pq.Null"):
-		return true
+	return g.isType(c, m,
+		// sql
+		"sql.NullString",
+		"sql.NullBool",
+		"sql.NullInt64",
+		"sql.NullFloat64",
+		// pq
+		"pq.NullTime",
+		// generated
+		"NullInt64Array",
+		"NullFloat64Array",
+		"NullBoolArray",
+		"NullByteaArray",
+		"NullStringArray",
+		"NullBoolArray",
+	)
+}
+
+func (g *Gen) generateStatics(w io.Writer) {
+	fmt.Fprint(w, `
+type NullInt64Array struct {
+	pq.Int64Array
+	Valid  bool
+}
+
+func (n *NullInt64Array) Scan(value interface{}) error {
+	if value == nil {
+		n.Int64Array, n.Valid = nil, false
+		return nil
 	}
-	return false
+	n.Valid = true
+	return n.Int64Array.Scan(value)
+}
+
+type NullFloat64Array struct {
+	pq.Float64Array
+	Valid  bool
+}
+
+func (n *NullFloat64Array) Scan(value interface{}) error {
+	if value == nil {
+		n.Float64Array, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.Float64Array.Scan(value)
+}
+`)
 }
 
 func generateTypeBuiltin(t BuiltinType, m int32) (r string) {
@@ -1003,7 +1051,7 @@ func generateTypeBase(t pqt.Type, m int32) string {
 		case strings.HasPrefix(gt, "BIGINT["):
 			return "pq.Int64Array"
 		case strings.HasPrefix(gt, "DOUBLE PRECISION["):
-			return "pq.Float64Array"
+			return chooseType("pq.Float64Array", "NullFloat64Array", "NullFloat64Array", m)
 		case strings.HasPrefix(gt, "TEXT["):
 			return "pq.StringArray"
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):
@@ -1013,5 +1061,11 @@ func generateTypeBase(t pqt.Type, m int32) string {
 		default:
 			return "interface{}"
 		}
+	}
+}
+
+func closeBrace(w io.Writer, n int) {
+	for i := 0; i < n; i++ {
+		fmt.Fprintln(w, "}")
 	}
 }
