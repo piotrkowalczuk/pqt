@@ -12,6 +12,7 @@ import (
 	"time"
 	_ "github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
+	"github.com/lib/pq"
 )
 
 var (
@@ -126,8 +127,13 @@ var testNewsInsertData = map[string]struct {
 			},
 			Content:  "content - full",
 			Continue: true,
+			CreatedAt: time.Now(),
+			UpdatedAt: pq.NullTime{
+				Valid:true,
+				Time: time.Now(),
+			},
 		},
-		query: "INSERT INTO example.news (content, continue, lead, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, created_at, lead, title, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING content, continue, created_at, id, lead, title, updated_at",
 	},
 }
 
@@ -192,10 +198,9 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			if given.entity.Content != got.Content {
 				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
 			}
-			if got.UpdatedAt.Valid {
+			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
 				t.Error("updated at expected to be invalid")
 			}
-			fmt.Println(got.CreatedAt, got.CreatedAt.IsZero())
 			if got.CreatedAt.IsZero() {
 				t.Error("created at should not be zero value")
 			}
