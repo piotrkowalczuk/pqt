@@ -14,6 +14,7 @@ func schema(sn string) *pqt.Schema {
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
 		AddColumn(pqt.NewColumn("score", pqt.TypeNumeric(20, 8), pqt.WithNotNull(), pqt.WithDefault("0"))).
 		AddColumn(pqt.NewColumn("views_distribution", pqt.TypeDoubleArray(168))).
+		AddColumn(pqt.NewColumn("meta_data", pqt.TypeJSONB())).
 		AddUnique(title, lead)
 
 	comment := pqt.NewTable("comment", pqt.WithTableIfNotExists()).

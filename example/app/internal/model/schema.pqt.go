@@ -525,6 +525,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		}
 		update.Add(p.Content)
 		update.Dirty = true
+
 	}
 	if p.CreatedAt.Valid {
 		if update.Dirty {
@@ -543,6 +544,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		}
 		update.Add(p.CreatedAt)
 		update.Dirty = true
+
 	}
 	if p.Name.Valid {
 		if update.Dirty {
@@ -561,6 +563,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		}
 		update.Add(p.Name)
 		update.Dirty = true
+
 	}
 	if p.ParentID.Valid {
 		if update.Dirty {
@@ -579,6 +582,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		}
 		update.Add(p.ParentID)
 		update.Dirty = true
+
 	}
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
@@ -597,6 +601,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		}
 		update.Add(p.UpdatedAt)
 		update.Dirty = true
+
 	} else {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1112,6 +1117,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		}
 		update.Add(p.Break)
 		update.Dirty = true
+
 	}
 	if p.CategoryID.Valid {
 		if update.Dirty {
@@ -1130,6 +1136,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		}
 		update.Add(p.CategoryID)
 		update.Dirty = true
+
 	}
 	if p.CreatedAt.Valid {
 		if update.Dirty {
@@ -1148,6 +1155,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		}
 		update.Add(p.CreatedAt)
 		update.Dirty = true
+
 	}
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
@@ -1166,6 +1174,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		}
 		update.Add(p.UpdatedAt)
 		update.Dirty = true
+
 	} else {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1226,6 +1235,7 @@ const (
 	TableNewsColumnCreatedAt           = "created_at"
 	TableNewsColumnID                  = "id"
 	TableNewsColumnLead                = "lead"
+	TableNewsColumnMetaData            = "meta_data"
 	TableNewsColumnScore               = "score"
 	TableNewsColumnTitle               = "title"
 	TableNewsColumnUpdatedAt           = "updated_at"
@@ -1242,6 +1252,7 @@ var (
 		TableNewsColumnCreatedAt,
 		TableNewsColumnID,
 		TableNewsColumnLead,
+		TableNewsColumnMetaData,
 		TableNewsColumnScore,
 		TableNewsColumnTitle,
 		TableNewsColumnUpdatedAt,
@@ -1261,6 +1272,8 @@ type NewsEntity struct {
 	ID int64
 	// Lead ...
 	Lead sql.NullString
+	// MetaData ...
+	MetaData []byte
 	// Score ...
 	Score float64
 	// Title ...
@@ -1335,6 +1348,7 @@ type NewsCriteria struct {
 	CreatedAt         pq.NullTime
 	ID                sql.NullInt64
 	Lead              sql.NullString
+	MetaData          []byte
 	Score             sql.NullFloat64
 	Title             sql.NullString
 	UpdatedAt         pq.NullTime
@@ -1345,6 +1359,7 @@ type NewsPatch struct {
 	Continue          sql.NullBool
 	CreatedAt         pq.NullTime
 	Lead              sql.NullString
+	MetaData          []byte
 	Score             sql.NullFloat64
 	Title             sql.NullString
 	UpdatedAt         pq.NullTime
@@ -1363,6 +1378,8 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 		return &e.ID, true
 	case TableNewsColumnLead:
 		return &e.Lead, true
+	case TableNewsColumnMetaData:
+		return &e.MetaData, true
 	case TableNewsColumnScore:
 		return &e.Score, true
 	case TableNewsColumnTitle:
@@ -1395,6 +1412,7 @@ func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.Lead,
+			&ent.MetaData,
 			&ent.Score,
 			&ent.Title,
 			&ent.UpdatedAt,
@@ -1422,7 +1440,7 @@ type NewsRepositoryBase struct {
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(9)
+	ins := pqtgo.NewComposer(10)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if col.Len() > 0 {
@@ -1500,6 +1518,27 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 			return "", nil, err
 		}
 		ins.Add(e.Lead)
+		ins.Dirty = true
+	}
+
+	if e.MetaData != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.MetaData)
 		ins.Dirty = true
 	}
 
@@ -1604,6 +1643,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 		&e.CreatedAt,
 		&e.ID,
 		&e.Lead,
+		&e.MetaData,
 		&e.Score,
 		&e.Title,
 		&e.UpdatedAt,
@@ -1620,7 +1660,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	return e, nil
 }
 func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(9)
+	where := pqtgo.NewComposer(10)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -1708,6 +1748,23 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 			return "", nil, err
 		}
 		where.Add(c.Lead)
+		where.Dirty = true
+	}
+
+	if c.MetaData != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.MetaData)
 		where.Dirty = true
 	}
 
@@ -1817,7 +1874,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*Ne
 	return &NewsIterator{rows: rows}, nil
 }
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
-	find := pqtgo.NewComposer(9)
+	find := pqtgo.NewComposer(10)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1845,7 +1902,7 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := pqtgo.NewComposer(9)
+	update := pqtgo.NewComposer(10)
 	update.Add(pk)
 	if p.Content.Valid {
 		if update.Dirty {
@@ -1864,6 +1921,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.Content)
 		update.Dirty = true
+
 	}
 	if p.Continue.Valid {
 		if update.Dirty {
@@ -1882,6 +1940,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.Continue)
 		update.Dirty = true
+
 	}
 	if p.CreatedAt.Valid {
 		if update.Dirty {
@@ -1900,6 +1959,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.CreatedAt)
 		update.Dirty = true
+
 	}
 	if p.Lead.Valid {
 		if update.Dirty {
@@ -1918,6 +1978,26 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.Lead)
 		update.Dirty = true
+
+	}
+	if p.MetaData != nil {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.MetaData)
+		update.Dirty = true
+
 	}
 	if p.Score.Valid {
 		if update.Dirty {
@@ -1936,6 +2016,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.Score)
 		update.Dirty = true
+
 	}
 	if p.Title.Valid {
 		if update.Dirty {
@@ -1954,6 +2035,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.Title)
 		update.Dirty = true
+
 	}
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
@@ -1972,6 +2054,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.UpdatedAt)
 		update.Dirty = true
+
 	} else {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2003,6 +2086,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Add(p.ViewsDistribution)
 		update.Dirty = true
+
 	}
 
 	if !update.Dirty {
@@ -2582,6 +2666,7 @@ CREATE TABLE IF NOT EXISTS example.news (
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 	id BIGSERIAL,
 	lead TEXT,
+	meta_data JSONB,
 	score NUMERIC(20,8) DEFAULT 0 NOT NULL,
 	title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,

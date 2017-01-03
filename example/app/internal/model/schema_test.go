@@ -8,6 +8,7 @@ import (
 	"math/rand"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -117,7 +118,7 @@ var testNewsInsertData = map[string]struct {
 			Title:   "title - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.news (content, continue, score, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
+		query: "INSERT INTO example.news (content, continue, score, title) VALUES ($1, $2, $3, $4) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 	"full": {
 		entity: model.NewsEntity{
@@ -127,19 +128,20 @@ var testNewsInsertData = map[string]struct {
 				String: "lead - full",
 			},
 			ViewsDistribution: model.NullFloat64Array{
-				Valid: true,
+				Valid:        true,
 				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
 			},
-			Score:             10.11,
-			Content:           "content - full",
-			Continue:          true,
-			CreatedAt:         time.Now(),
+			MetaData: []byte(`{"something": 1}`),
+			Score:     10.11,
+			Content:   "content - full",
+			Continue:  true,
+			CreatedAt: time.Now(),
 			UpdatedAt: pq.NullTime{
 				Valid: true,
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, score, title, updated_at, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
+		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 
@@ -213,8 +215,6 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			if given.entity.ViewsDistribution.Valid {
 				if !got.ViewsDistribution.Valid {
 					t.Error("views distribution should be valid")
-				} else {
-
 				}
 			}
 		})
@@ -230,7 +230,7 @@ var testNewsFindData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at, views_distribution FROM example.news WHERE content=$1 AND title=$2",
+		query: "SELECT " + strings.Join(model.TableNewsColumns, ", ") + " FROM example.news WHERE content=$1 AND title=$2",
 	},
 	"full": {
 		criteria: model.NewsCriteria{
@@ -247,9 +247,10 @@ var testNewsFindData = map[string]struct {
 				Valid:  true,
 				String: "lead - full",
 			},
-			Content:  sql.NullString{String: "content - full", Valid: true},
+			MetaData: []byte(`{"something": 1}`),
+			Content: sql.NullString{String: "content - full", Valid: true},
 			ViewsDistribution: model.NullFloat64Array{
-				Valid: true,
+				Valid:        true,
 				Float64Array: []float64{1.1, 1.2, 1.3},
 			},
 			Continue: sql.NullBool{Bool: true, Valid: true},
@@ -262,7 +263,7 @@ var testNewsFindData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at, views_distribution FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND id=$4 AND lead=$5 AND score=$6 AND title=$7 AND updated_at=$8 AND views_distribution=$9",
+		query: "SELECT " + strings.Join(model.TableNewsColumns, ", ") + " FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND id=$4 AND lead=$5 AND meta_data=$6 AND score=$7 AND title=$8 AND updated_at=$9 AND views_distribution=$10",
 	},
 }
 
@@ -389,7 +390,7 @@ var testNewsUpdateData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
+		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 	"full": {
 		patch: model.NewsPatch{
@@ -402,6 +403,7 @@ var testNewsUpdateData = map[string]struct {
 				Valid:   true,
 				Float64: 12.14,
 			},
+			MetaData: []byte(`{"something": 1}`),
 			Content:  sql.NullString{String: "content - full", Valid: true},
 			Continue: sql.NullBool{Bool: true, Valid: true},
 			CreatedAt: pq.NullTime{
@@ -413,7 +415,7 @@ var testNewsUpdateData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, score=$5, title=$6, updated_at=$7 WHERE id=$8 RETURNING content, continue, created_at, id, lead, score, title, updated_at, views_distribution",
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, title=$7, updated_at=$8 WHERE id=$9 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 

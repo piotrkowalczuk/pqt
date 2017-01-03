@@ -174,7 +174,7 @@ func (g *Gen) generateCriteria(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, "%s map[string]bool\n", g.Formatter.Identifier("sort"))
 
 	for _, c := range t.Columns {
-		if t := g.generateColumnTypeString(c, modeCriteria); t != "<nil>" {
+		if t := g.columnType(c, modeCriteria); t != "<nil>" {
 			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(c.Name), t)
 		}
 	}
@@ -190,7 +190,7 @@ ArgumentsLoop:
 			continue ArgumentsLoop
 		}
 
-		if t := g.generateColumnTypeString(c, modeOptional); t != "<nil>" {
+		if t := g.columnType(c, modeOptional); t != "<nil>" {
 			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(c.Name), t)
 		}
 	}
@@ -276,7 +276,7 @@ func (g *Gen) entityPropertiesGenerator(t *pqt.Table) chan structField {
 
 	go func(out chan structField) {
 		for _, c := range t.Columns {
-			if t := g.generateColumnTypeString(c, modeDefault); t != "<nil>" {
+			if t := g.columnType(c, modeDefault); t != "<nil>" {
 				out <- structField{Name: g.Formatter.Identifier(c.Name), Type: t}
 			}
 		}
@@ -508,7 +508,7 @@ func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Ta
 		return
 	}
 
-	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName)
+	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name), g.columnType(pk, modeMandatory), entityName)
 	fmt.Fprintf(w, `buf := bytes.NewBufferString("UPDATE ")
 		buf.WriteString(r.%s)
 		update := pqtgo.NewComposer(%d)
@@ -545,7 +545,8 @@ ColumnsLoop:
 				return "", nil, err
 			}
 			update.Add(p.%s)
-			update.Dirty=true`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.Identifier(c.Name))
+			update.Dirty=true
+		`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.Identifier(c.Name))
 
 		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
 			switch c.Type {
@@ -774,7 +775,7 @@ func (g *Gen) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pqt.Tabl
 	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
 		entityName,
 		g.Formatter.Identifier("FindOneBy", pk.Name),
-		g.generateColumnTypeString(pk, modeMandatory),
+		g.columnType(pk, modeMandatory),
 		entityName,
 	)
 	fmt.Fprintf(w, `
@@ -823,7 +824,7 @@ func (g *Gen) generateEntityProp(w io.Writer, t *pqt.Table) {
 	fmt.Fprintln(w, "switch cn {")
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
-		if g.canBeNil(c, modeDefault) {
+		if g.canBeNil(c, modeDefault) && !g.isArray(c, modeDefault){
 			fmt.Fprintf(w, "return e.%s, true\n", g.Formatter.Identifier(c.Name))
 		} else {
 			fmt.Fprintf(w, "return &e.%s, true\n", g.Formatter.Identifier(c.Name))
@@ -875,6 +876,10 @@ func (g *Gen) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 `)
 }
 
+func (g *Gen) isArray(c *pqt.Column, m int32) bool {
+	return  strings.HasPrefix(g.columnType(c, m), "[]")
+}
+
 func (g *Gen) canBeNil(c *pqt.Column, m int32) bool {
 	if tp, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range tp.Mapping {
@@ -892,13 +897,22 @@ func (g *Gen) canBeNil(c *pqt.Column, m int32) bool {
 			}
 		}
 	}
-	if g.isType(c, m, "pq.StringArray", "ByteaArray", "pq.BoolArray", "pq.Int64Array", "pq.Float64Array") {
+	if g.isArray(c,m) {
+		return true
+	}
+	if g.isType(c, m,
+		"pq.StringArray",
+		"ByteaArray",
+		"pq.BoolArray",
+		"pq.Int64Array",
+		"pq.Float64Array",
+	) {
 		return true
 	}
 	return false
 }
 
-func (g *Gen) generateColumnTypeString(c *pqt.Column, m int32) string {
+func (g *Gen) columnType(c *pqt.Column, m int32) string {
 	switch m {
 	case modeCriteria:
 	case modeMandatory:
@@ -914,7 +928,7 @@ func (g *Gen) generateColumnTypeString(c *pqt.Column, m int32) string {
 
 func (g *Gen) isType(c *pqt.Column, m int32, types ...string) bool {
 	for _, t := range types {
-		if g.generateColumnTypeString(c, m) == t {
+		if g.columnType(c, m) == t {
 			return true
 		}
 	}
