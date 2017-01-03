@@ -709,8 +709,7 @@ func (g *Gen) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 func (g *Gen) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (*%sIterator, error) {
-`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(r.%s, c)
 			if err != nil {

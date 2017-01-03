@@ -467,7 +467,6 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) 
 	return ScanCategoryRows(rows)
 }
 func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriteria) (*CategoryIterator, error) {
-
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
@@ -1055,7 +1054,6 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([
 	return ScanPackageRows(rows)
 }
 func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria) (*PackageIterator, error) {
-
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
@@ -1228,6 +1226,7 @@ const (
 	TableNewsColumnCreatedAt           = "created_at"
 	TableNewsColumnID                  = "id"
 	TableNewsColumnLead                = "lead"
+	TableNewsColumnScore               = "score"
 	TableNewsColumnTitle               = "title"
 	TableNewsColumnUpdatedAt           = "updated_at"
 	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
@@ -1242,6 +1241,7 @@ var (
 		TableNewsColumnCreatedAt,
 		TableNewsColumnID,
 		TableNewsColumnLead,
+		TableNewsColumnScore,
 		TableNewsColumnTitle,
 		TableNewsColumnUpdatedAt,
 	}
@@ -1259,6 +1259,8 @@ type NewsEntity struct {
 	ID int64
 	// Lead ...
 	Lead sql.NullString
+	// Score ...
+	Score float64
 	// Title ...
 	Title string
 	// UpdatedAt ...
@@ -1329,6 +1331,7 @@ type NewsCriteria struct {
 	CreatedAt     pq.NullTime
 	ID            sql.NullInt64
 	Lead          sql.NullString
+	Score         sql.NullFloat64
 	Title         sql.NullString
 	UpdatedAt     pq.NullTime
 }
@@ -1337,6 +1340,7 @@ type NewsPatch struct {
 	Continue  sql.NullBool
 	CreatedAt pq.NullTime
 	Lead      sql.NullString
+	Score     sql.NullFloat64
 	Title     sql.NullString
 	UpdatedAt pq.NullTime
 }
@@ -1353,6 +1357,8 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 		return &e.ID, true
 	case TableNewsColumnLead:
 		return &e.Lead, true
+	case TableNewsColumnScore:
+		return &e.Score, true
 	case TableNewsColumnTitle:
 		return &e.Title, true
 	case TableNewsColumnUpdatedAt:
@@ -1381,6 +1387,7 @@ func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.Lead,
+			&ent.Score,
 			&ent.Title,
 			&ent.UpdatedAt,
 		)
@@ -1406,7 +1413,7 @@ type NewsRepositoryBase struct {
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(7)
+	ins := pqtgo.NewComposer(8)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if col.Len() > 0 {
@@ -1492,6 +1499,24 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 			return "", nil, err
 		}
 	}
+	if _, err := col.WriteString(TableNewsColumnScore); err != nil {
+		return "", nil, err
+	}
+	if ins.Dirty {
+		if _, err := ins.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := ins.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	ins.Add(e.Score)
+	ins.Dirty = true
+	if col.Len() > 0 {
+		if _, err := col.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
 	if _, err := col.WriteString(TableNewsColumnTitle); err != nil {
 		return "", nil, err
 	}
@@ -1549,6 +1574,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 		&e.CreatedAt,
 		&e.ID,
 		&e.Lead,
+		&e.Score,
 		&e.Title,
 		&e.UpdatedAt,
 	); err != nil {
@@ -1563,7 +1589,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	return e, nil
 }
 func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(7)
+	where := pqtgo.NewComposer(8)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -1654,6 +1680,23 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Dirty = true
 	}
 
+	if c.Score.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Score)
+		where.Dirty = true
+	}
+
 	if c.Title.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1715,7 +1758,6 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*News
 	return ScanNewsRows(rows)
 }
 func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*NewsIterator, error) {
-
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
@@ -1727,7 +1769,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*Ne
 	return &NewsIterator{rows: rows}, nil
 }
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
-	find := pqtgo.NewComposer(7)
+	find := pqtgo.NewComposer(8)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1755,7 +1797,7 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := pqtgo.NewComposer(7)
+	update := pqtgo.NewComposer(8)
 	update.Add(pk)
 	if p.Content.Valid {
 		if update.Dirty {
@@ -1827,6 +1869,24 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 			return "", nil, err
 		}
 		update.Add(p.Lead)
+		update.Dirty = true
+	}
+	if p.Score.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Score)
 		update.Dirty = true
 	}
 	if p.Title.Valid {
@@ -2363,7 +2423,6 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([
 	return ScanCommentRows(rows)
 }
 func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
-
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
@@ -2429,6 +2488,7 @@ CREATE TABLE IF NOT EXISTS example.news (
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 	id BIGSERIAL,
 	lead TEXT,
+	score NUMERIC(20,8) DEFAULT 0 NOT NULL,
 	title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,
 

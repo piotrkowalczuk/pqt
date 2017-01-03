@@ -116,7 +116,7 @@ var testNewsInsertData = map[string]struct {
 			Title:   "title - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.news (content, continue, title) VALUES ($1, $2, $3) RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, score, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, score, title, updated_at",
 	},
 	"full": {
 		entity: model.NewsEntity{
@@ -125,6 +125,7 @@ var testNewsInsertData = map[string]struct {
 				Valid:  true,
 				String: "lead - full",
 			},
+			Score: 10.11,
 			Content:  "content - full",
 			Continue: true,
 			CreatedAt: time.Now(),
@@ -133,7 +134,7 @@ var testNewsInsertData = map[string]struct {
 				Time: time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, title, updated_at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, created_at, lead, score, title, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING content, continue, created_at, id, lead, score, title, updated_at",
 	},
 }
 
@@ -217,10 +218,18 @@ var testNewsFindData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE content=$1 AND title=$2",
+		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at FROM example.news WHERE content=$1 AND title=$2",
 	},
 	"full": {
 		criteria: model.NewsCriteria{
+			ID : sql.NullInt64{
+				Int64: 1,
+				Valid: true,
+			},
+			Score: sql.NullFloat64{
+				Valid: true,
+				Float64: 10.11,
+			},
 			Title: sql.NullString{String: "title - full", Valid: true},
 			Lead: sql.NullString{
 				Valid:  true,
@@ -228,8 +237,16 @@ var testNewsFindData = map[string]struct {
 			},
 			Content:  sql.NullString{String: "content - full", Valid: true},
 			Continue: sql.NullBool{Bool: true, Valid: true},
+			CreatedAt: pq.NullTime{
+				Valid:true,
+				Time: time.Now(),
+			},
+			UpdatedAt: pq.NullTime{
+				Valid:true,
+				Time: time.Now(),
+			},
 		},
-		query: "SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE content=$1 AND continue=$2 AND lead=$3 AND title=$4",
+		query: "SELECT content, continue, created_at, id, lead, score, title, updated_at FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND id=$4 AND lead=$5 AND score=$6 AND title=$7 AND updated_at=$8",
 	},
 }
 
@@ -295,6 +312,7 @@ func TestNewsRepositoryBase_FindIter(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
+	defer iter.Close()
 
 	var got []*model.NewsEntity
 	for iter.Next() {
@@ -304,7 +322,9 @@ func TestNewsRepositoryBase_FindIter(t *testing.T) {
 		}
 		got = append(got, ent)
 	}
-
+	if err = iter.Err(); err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
 	if len(got) != expected {
 		t.Errorf("wrong output, expected %d but got %d", expected, got)
 	}
@@ -353,7 +373,7 @@ var testNewsUpdateData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING content, continue, created_at, id, lead, score, title, updated_at",
 	},
 	"full": {
 		patch: model.NewsPatch{
@@ -362,10 +382,22 @@ var testNewsUpdateData = map[string]struct {
 				Valid:  true,
 				String: "lead - full",
 			},
+			Score: sql.NullFloat64{
+				Valid: true,
+				Float64: 12.14,
+			},
 			Content:  sql.NullString{String: "content - full", Valid: true},
 			Continue: sql.NullBool{Bool: true, Valid: true},
+			CreatedAt: pq.NullTime{
+				Valid:true,
+				Time: time.Now(),
+			},
+			UpdatedAt: pq.NullTime{
+				Valid:true,
+				Time: time.Now(),
+			},
 		},
-		query: "UPDATE example.news SET content=$1, continue=$2, lead=$3, title=$4, updated_at=NOW() WHERE id=$5 RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, score=$5, title=$6, updated_at=$7 WHERE id=$8 RETURNING content, continue, created_at, id, lead, score, title, updated_at",
 	},
 }
 
