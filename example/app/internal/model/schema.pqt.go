@@ -215,24 +215,27 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 	}
 	ins.Add(e.Content)
 	ins.Dirty = true
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if !e.CreatedAt.IsZero() {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCategoryColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-	}
-	if _, err := col.WriteString(TableCategoryColumnCreatedAt); err != nil {
-		return "", nil, err
-	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
+		ins.Add(e.CreatedAt)
+		ins.Dirty = true
 	}
-	if err := ins.WritePlaceholder(); err != nil {
-		return "", nil, err
-	}
-	ins.Add(e.CreatedAt)
-	ins.Dirty = true
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -271,6 +274,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		ins.Add(e.ParentID)
 		ins.Dirty = true
 	}
+
 	if e.UpdatedAt.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -291,6 +295,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		ins.Add(e.UpdatedAt)
 		ins.Dirty = true
 	}
+
 	if col.Len() > 0 {
 		buf.WriteString(" (")
 		buf.ReadFrom(col)
@@ -349,6 +354,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 		where.Add(c.Content)
 		where.Dirty = true
 	}
+
 	if c.CreatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -365,6 +371,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 		where.Add(c.CreatedAt)
 		where.Dirty = true
 	}
+
 	if c.ID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -381,6 +388,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 		where.Add(c.ID)
 		where.Dirty = true
 	}
+
 	if c.Name.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -397,6 +405,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 		where.Add(c.Name)
 		where.Dirty = true
 	}
+
 	if c.ParentID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -413,6 +422,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 		where.Add(c.ParentID)
 		where.Dirty = true
 	}
+
 	if c.UpdatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -494,12 +504,12 @@ func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Ca
 
 	return &ent, nil
 }
-func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, patch *CategoryPatch) (string, []interface{}, error) {
+func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
 	update := pqtgo.NewComposer(6)
 	update.Add(pk)
-	if patch.Content.Valid {
+	if p.Content.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -514,10 +524,10 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, patch *CategoryPat
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Content)
+		update.Add(p.Content)
 		update.Dirty = true
 	}
-	if patch.CreatedAt.Valid {
+	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -532,10 +542,10 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, patch *CategoryPat
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.CreatedAt)
+		update.Add(p.CreatedAt)
 		update.Dirty = true
 	}
-	if patch.Name.Valid {
+	if p.Name.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -550,10 +560,10 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, patch *CategoryPat
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Name)
+		update.Add(p.Name)
 		update.Dirty = true
 	}
-	if patch.ParentID.Valid {
+	if p.ParentID.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -568,10 +578,10 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, patch *CategoryPat
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.ParentID)
+		update.Add(p.ParentID)
 		update.Dirty = true
 	}
-	if patch.UpdatedAt.Valid {
+	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -586,7 +596,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, patch *CategoryPat
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.UpdatedAt)
+		update.Add(p.UpdatedAt)
 		update.Dirty = true
 	} else {
 		if update.Dirty {
@@ -828,6 +838,7 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 		ins.Add(e.Break)
 		ins.Dirty = true
 	}
+
 	if e.CategoryID.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -848,24 +859,28 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 		ins.Add(e.CategoryID)
 		ins.Dirty = true
 	}
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+
+	if !e.CreatedAt.IsZero() {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TablePackageColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-	}
-	if _, err := col.WriteString(TablePackageColumnCreatedAt); err != nil {
-		return "", nil, err
-	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
+		ins.Add(e.CreatedAt)
+		ins.Dirty = true
 	}
-	if err := ins.WritePlaceholder(); err != nil {
-		return "", nil, err
-	}
-	ins.Add(e.CreatedAt)
-	ins.Dirty = true
+
 	if e.UpdatedAt.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -886,6 +901,7 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 		ins.Add(e.UpdatedAt)
 		ins.Dirty = true
 	}
+
 	if col.Len() > 0 {
 		buf.WriteString(" (")
 		buf.ReadFrom(col)
@@ -943,6 +959,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 		where.Add(c.Break)
 		where.Dirty = true
 	}
+
 	if c.CategoryID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -959,6 +976,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 		where.Add(c.CategoryID)
 		where.Dirty = true
 	}
+
 	if c.CreatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -975,6 +993,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 		where.Add(c.CreatedAt)
 		where.Dirty = true
 	}
+
 	if c.ID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -991,6 +1010,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 		where.Add(c.ID)
 		where.Dirty = true
 	}
+
 	if c.UpdatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1072,12 +1092,12 @@ func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Pac
 
 	return &ent, nil
 }
-func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, patch *PackagePatch) (string, []interface{}, error) {
+func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
 	update := pqtgo.NewComposer(5)
 	update.Add(pk)
-	if patch.Break.Valid {
+	if p.Break.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1092,10 +1112,10 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, patch *PackagePatch
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Break)
+		update.Add(p.Break)
 		update.Dirty = true
 	}
-	if patch.CategoryID.Valid {
+	if p.CategoryID.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1110,10 +1130,10 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, patch *PackagePatch
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.CategoryID)
+		update.Add(p.CategoryID)
 		update.Dirty = true
 	}
-	if patch.CreatedAt.Valid {
+	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1128,10 +1148,10 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, patch *PackagePatch
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.CreatedAt)
+		update.Add(p.CreatedAt)
 		update.Dirty = true
 	}
-	if patch.UpdatedAt.Valid {
+	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1146,7 +1166,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, patch *PackagePatch
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.UpdatedAt)
+		update.Add(p.UpdatedAt)
 		update.Dirty = true
 	} else {
 		if update.Dirty {
@@ -1425,24 +1445,27 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	}
 	ins.Add(e.Continue)
 	ins.Dirty = true
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if !e.CreatedAt.IsZero() {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableNewsColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-	}
-	if _, err := col.WriteString(TableNewsColumnCreatedAt); err != nil {
-		return "", nil, err
-	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
+		ins.Add(e.CreatedAt)
+		ins.Dirty = true
 	}
-	if err := ins.WritePlaceholder(); err != nil {
-		return "", nil, err
-	}
-	ins.Add(e.CreatedAt)
-	ins.Dirty = true
+
 	if e.Lead.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -1463,6 +1486,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		ins.Add(e.Lead)
 		ins.Dirty = true
 	}
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -1501,6 +1525,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		ins.Add(e.UpdatedAt)
 		ins.Dirty = true
 	}
+
 	if col.Len() > 0 {
 		buf.WriteString(" (")
 		buf.ReadFrom(col)
@@ -1560,6 +1585,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Add(c.Content)
 		where.Dirty = true
 	}
+
 	if c.Continue.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1576,6 +1602,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Add(c.Continue)
 		where.Dirty = true
 	}
+
 	if c.CreatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1592,6 +1619,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Add(c.CreatedAt)
 		where.Dirty = true
 	}
+
 	if c.ID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1608,6 +1636,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Add(c.ID)
 		where.Dirty = true
 	}
+
 	if c.Lead.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1624,6 +1653,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Add(c.Lead)
 		where.Dirty = true
 	}
+
 	if c.Title.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1640,6 +1670,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Add(c.Title)
 		where.Dirty = true
 	}
+
 	if c.UpdatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1721,12 +1752,12 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 
 	return &ent, nil
 }
-func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (string, []interface{}, error) {
+func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
 	update := pqtgo.NewComposer(7)
 	update.Add(pk)
-	if patch.Content.Valid {
+	if p.Content.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1741,10 +1772,10 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (str
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Content)
+		update.Add(p.Content)
 		update.Dirty = true
 	}
-	if patch.Continue.Valid {
+	if p.Continue.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1759,10 +1790,10 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (str
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Continue)
+		update.Add(p.Continue)
 		update.Dirty = true
 	}
-	if patch.CreatedAt.Valid {
+	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1777,10 +1808,10 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (str
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.CreatedAt)
+		update.Add(p.CreatedAt)
 		update.Dirty = true
 	}
-	if patch.Lead.Valid {
+	if p.Lead.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1795,10 +1826,10 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (str
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Lead)
+		update.Add(p.Lead)
 		update.Dirty = true
 	}
-	if patch.Title.Valid {
+	if p.Title.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1813,10 +1844,10 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (str
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.Title)
+		update.Add(p.Title)
 		update.Dirty = true
 	}
-	if patch.UpdatedAt.Valid {
+	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
 				return "", nil, err
@@ -1831,7 +1862,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, patch *NewsPatch) (str
 		if err := update.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		update.Add(patch.UpdatedAt)
+		update.Add(p.UpdatedAt)
 		update.Dirty = true
 	} else {
 		if update.Dirty {
@@ -2083,24 +2114,27 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 	}
 	ins.Add(e.Content)
 	ins.Dirty = true
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if !e.CreatedAt.IsZero() {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCommentColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-	}
-	if _, err := col.WriteString(TableCommentColumnCreatedAt); err != nil {
-		return "", nil, err
-	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
+		ins.Add(e.CreatedAt)
+		ins.Dirty = true
 	}
-	if err := ins.WritePlaceholder(); err != nil {
-		return "", nil, err
-	}
-	ins.Add(e.CreatedAt)
-	ins.Dirty = true
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -2157,6 +2191,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		ins.Add(e.UpdatedAt)
 		ins.Dirty = true
 	}
+
 	if col.Len() > 0 {
 		buf.WriteString(" (")
 		buf.ReadFrom(col)
@@ -2215,6 +2250,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 		where.Add(c.Content)
 		where.Dirty = true
 	}
+
 	if c.CreatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2231,6 +2267,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 		where.Add(c.CreatedAt)
 		where.Dirty = true
 	}
+
 	if c.ID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2247,6 +2284,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 		where.Add(c.ID)
 		where.Dirty = true
 	}
+
 	if c.NewsID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2263,6 +2301,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 		where.Add(c.NewsID)
 		where.Dirty = true
 	}
+
 	if c.NewsTitle.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2279,6 +2318,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 		where.Add(c.NewsTitle)
 		where.Dirty = true
 	}
+
 	if c.UpdatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")

@@ -115,7 +115,7 @@ var testNewsInsertData = map[string]struct {
 			Title:   "title - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, title) VALUES ($1, $2, $3) RETURNING content, continue, created_at, id, lead, title, updated_at",
 	},
 	"full": {
 		entity: model.NewsEntity{
@@ -127,7 +127,7 @@ var testNewsInsertData = map[string]struct {
 			Content:  "content - full",
 			Continue: true,
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, title) VALUES ($1, $2, $3, $4, $5) RETURNING content, continue, created_at, id, lead, title, updated_at",
+		query: "INSERT INTO example.news (content, continue, lead, title) VALUES ($1, $2, $3, $4) RETURNING content, continue, created_at, id, lead, title, updated_at",
 	},
 }
 
@@ -195,6 +195,7 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			if got.UpdatedAt.Valid {
 				t.Error("updated at expected to be invalid")
 			}
+			fmt.Println(got.CreatedAt, got.CreatedAt.IsZero())
 			if got.CreatedAt.IsZero() {
 				t.Error("created at should not be zero value")
 			}

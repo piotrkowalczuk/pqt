@@ -411,6 +411,9 @@ ColumnsLoop:
 			if g.isNullable(c, modeDefault) {
 				fmt.Fprintf(w, "if e.%s.Valid {\n", g.Formatter.Identifier(c.Name))
 			}
+			if g.isType(c, modeDefault, "time.Time") {
+				fmt.Fprintf(w, "if !e.%s.IsZero() {\n", g.Formatter.Identifier(c.Name))
+			}
 			fmt.Fprintf(w,
 				`if col.Len() > 0 {
 						if _, err := col.WriteString(", "); err != nil {
@@ -433,11 +436,14 @@ ColumnsLoop:
 				g.Formatter.Identifier("table", table.Name, "column", c.Name),
 				g.Formatter.Identifier(c.Name),
 			)
+			if g.isType(c, modeDefault, "time.Time") {
+				fmt.Fprintln(w, "}")
+			}
 			if g.canBeNil(c, modeDefault) {
-				fmt.Fprint(w, "}")
+				fmt.Fprintln(w, "}")
 			}
 			if g.isNullable(c, modeDefault) {
-				fmt.Fprint(w, "}")
+				fmt.Fprintln(w, "}")
 			}
 			fmt.Fprintln(w, "")
 		}
@@ -503,7 +509,7 @@ func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Ta
 		return
 	}
 
-	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, patch *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName)
+	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name), g.generateColumnTypeString(pk, modeMandatory), entityName)
 	fmt.Fprintf(w, `buf := bytes.NewBufferString("UPDATE ")
 		buf.WriteString(r.%s)
 		update := pqtgo.NewComposer(%d)
@@ -516,10 +522,13 @@ ColumnsLoop:
 			continue ColumnsLoop
 		}
 		if g.canBeNil(c, modeOptional) {
-			fmt.Fprintf(w, "if patch.%s != nil {\n", g.Formatter.Identifier(c.Name))
+			fmt.Fprintf(w, "if p.%s != nil {\n", g.Formatter.Identifier(c.Name))
 		}
 		if g.isNullable(c, modeOptional) {
-			fmt.Fprintf(w, "if patch.%s.Valid {\n", g.Formatter.Identifier(c.Name))
+			fmt.Fprintf(w, "if p.%s.Valid {\n", g.Formatter.Identifier(c.Name))
+		}
+		if g.isType(c, modeOptional, "time.Time") {
+			fmt.Fprintf(w, "if !p.%s.IsZero() {", g.Formatter.Identifier(c.Name))
 		}
 
 		fmt.Fprintf(w, `if update.Dirty {
@@ -536,7 +545,7 @@ ColumnsLoop:
 			if err := update.WritePlaceholder(); err != nil {
 				return "", nil, err
 			}
-			update.Add(patch.%s)
+			update.Add(p.%s)
 			update.Dirty=true`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.Identifier(c.Name))
 
 		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
@@ -559,7 +568,13 @@ ColumnsLoop:
 			}
 		}
 
-		if g.canBeNil(c, modeOptional) || g.isNullable(c, modeOptional) {
+		if g.isType(c, modeOptional, "time.Time") {
+			fmt.Fprint(w, "\n}\n")
+		}
+		if g.canBeNil(c, modeOptional) {
+			fmt.Fprint(w, "\n}\n")
+		}
+		if g.isNullable(c, modeOptional) {
 			fmt.Fprint(w, "\n}\n")
 		}
 	}
@@ -610,6 +625,9 @@ func (g *Gen) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
 		if g.isNullable(c, modeOptional) {
 			fmt.Fprintf(w, "if c.%s.Valid {\n", g.Formatter.Identifier(c.Name))
 		}
+		if g.isType(c, modeOptional, "time.Time") {
+			fmt.Fprintf(w, "if !c.%s.IsZero() {", g.Formatter.Identifier(c.Name))
+		}
 		fmt.Fprintf(w,
 			`if where.Dirty {
 					where.WriteString(" AND ")
@@ -628,11 +646,14 @@ func (g *Gen) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
 			g.Formatter.Identifier("table", table.Name, "column", c.Name),
 			g.Formatter.Identifier(c.Name),
 		)
-		if g.canBeNil(c, modeMandatory) {
-			fmt.Fprint(w, "}")
+		if g.isType(c, modeOptional, "time.Time") {
+			fmt.Fprintln(w, "}")
+		}
+		if g.canBeNil(c, modeOptional) {
+			fmt.Fprintln(w, "}")
 		}
 		if g.isNullable(c, modeOptional) {
-			fmt.Fprint(w, "}")
+			fmt.Fprintln(w, "}")
 		}
 		fmt.Fprintln(w, "")
 	}
@@ -888,6 +909,10 @@ func (g *Gen) generateColumnTypeString(c *pqt.Column, m int32) string {
 	}
 
 	return g.Formatter.Type(c.Type, m)
+}
+
+func (g *Gen) isType(c *pqt.Column, m int32, t string) bool {
+	return g.generateColumnTypeString(c, m) == t
 }
 
 func (g *Gen) isNullable(c *pqt.Column, m int32) bool {
