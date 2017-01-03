@@ -195,8 +195,7 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			if got.UpdatedAt.Valid {
 				t.Error("updated at expected to be invalid")
 			}
-			zero := time.Time{}
-			if got.CreatedAt == zero {
+			if got.CreatedAt.IsZero() {
 				t.Error("created at should not be zero value")
 			}
 		})
