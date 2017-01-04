@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"strings"
 
+	"text/template"
+
 	"github.com/piotrkowalczuk/pqt"
 )
 
@@ -82,6 +84,7 @@ type Gen struct {
 	Formatter *Formatter
 	Pkg       string
 	Imports   []string
+	Plugins   []Plugin
 }
 
 // Generate ...
@@ -147,11 +150,11 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateConstants(b, t)
 		g.generateColumns(b, t)
 		g.generateEntity(b, t)
+		g.generateEntityProp(b, t)
+		g.generateEntityProps(b, t)
 		g.generateIterator(b, t)
 		g.generateCriteria(b, t)
 		g.generatePatch(b, t)
-		g.generateEntityProp(b, t)
-		g.generateEntityProps(b, t)
 		g.generateRepositoryScanRows(b, t)
 		g.generateRepository(b, t)
 		g.generateRepositoryInsertQuery(b, t)
@@ -673,7 +676,23 @@ func (g *Gen) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
 		g.Formatter.Identifier("table"),
 	)
 
+ColumnsLoop:
 	for _, c := range table.Columns {
+		for _, plugin := range g.Plugins {
+			if txt := plugin.WhereClause(c); txt != "" {
+				tmpl, err := template.New("root").Parse(txt)
+				if err != nil {
+					panic(err)
+				}
+				if err = tmpl.Execute(w, map[string]interface{}{
+					"selector": fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
+					"composer": "where",
+				}); err != nil {
+					panic(err)
+				}
+					continue ColumnsLoop
+			}
+		}
 		if g.canBeNil(c, modeOptional) {
 			fmt.Fprintf(w, "if c.%s != nil {\n", g.Formatter.Identifier(c.Name))
 		}
@@ -1102,7 +1121,11 @@ func (g *Gen) columnType(c *pqt.Column, m int32) string {
 			m = modeMandatory
 		}
 	}
-
+	for _, plugin := range g.Plugins {
+		if txt := plugin.PropertyType(c, m); txt != "" {
+			return txt
+		}
+	}
 	return g.Formatter.Type(c.Type, m)
 }
 

@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	modeDefault = iota
+	modeDefault   = iota
 	modeMandatory
 	modeOptional
 	modeCriteria

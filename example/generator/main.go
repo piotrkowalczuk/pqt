@@ -43,6 +43,9 @@ func main() {
 			Acronyms:   acronyms,
 		},
 		Pkg: "model",
+		Plugins: []pqtgo.Plugin{
+			&generator{},
+		},
 	}
 	err = gen.GenerateTo(file, sch)
 	if err != nil {

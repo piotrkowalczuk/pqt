@@ -62,6 +62,36 @@ type CategoryEntity struct {
 	Packages []*PackageEntity
 }
 
+func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableCategoryColumnContent:
+		return &e.Content, true
+	case TableCategoryColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TableCategoryColumnID:
+		return &e.ID, true
+	case TableCategoryColumnName:
+		return &e.Name, true
+	case TableCategoryColumnParentID:
+		return &e.ParentID, true
+	case TableCategoryColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
 // CategoryIterator is not thread safe.
 type CategoryIterator struct {
 	rows *sql.Rows
@@ -132,35 +162,6 @@ type CategoryPatch struct {
 	UpdatedAt pq.NullTime
 }
 
-func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableCategoryColumnContent:
-		return &e.Content, true
-	case TableCategoryColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TableCategoryColumnID:
-		return &e.ID, true
-	case TableCategoryColumnName:
-		return &e.Name, true
-	case TableCategoryColumnParentID:
-		return &e.ParentID, true
-	case TableCategoryColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
 func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
 	for rows.Next() {
 		var ent CategoryEntity
@@ -372,23 +373,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 		where.Dirty = true
 	}
 
-	if c.ID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
-		}
-		if _, err := where.WriteString(TableCategoryColumnID); err != nil {
-			return "", nil, err
-		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
-		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
-		}
-		where.Add(c.ID)
-		where.Dirty = true
-	}
-
+	// id is an empty struct, ignore
 	if c.Name.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -727,6 +712,34 @@ type PackageEntity struct {
 	Category *CategoryEntity
 }
 
+func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TablePackageColumnBreak:
+		return &e.Break, true
+	case TablePackageColumnCategoryID:
+		return &e.CategoryID, true
+	case TablePackageColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TablePackageColumnID:
+		return &e.ID, true
+	case TablePackageColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
 // PackageIterator is not thread safe.
 type PackageIterator struct {
 	rows *sql.Rows
@@ -795,33 +808,6 @@ type PackagePatch struct {
 	UpdatedAt  pq.NullTime
 }
 
-func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TablePackageColumnBreak:
-		return &e.Break, true
-	case TablePackageColumnCategoryID:
-		return &e.CategoryID, true
-	case TablePackageColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TablePackageColumnID:
-		return &e.ID, true
-	case TablePackageColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
 func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
 	for rows.Next() {
 		var ent PackageEntity
@@ -1033,23 +1019,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 		where.Dirty = true
 	}
 
-	if c.ID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
-		}
-		if _, err := where.WriteString(TablePackageColumnID); err != nil {
-			return "", nil, err
-		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
-		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
-		}
-		where.Add(c.ID)
-		where.Dirty = true
-	}
-
+	// id is an empty struct, ignore
 	if c.UpdatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1358,6 +1328,44 @@ type NewsEntity struct {
 	Comments []*CommentEntity
 }
 
+func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableNewsColumnContent:
+		return &e.Content, true
+	case TableNewsColumnContinue:
+		return &e.Continue, true
+	case TableNewsColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TableNewsColumnID:
+		return &e.ID, true
+	case TableNewsColumnLead:
+		return &e.Lead, true
+	case TableNewsColumnMetaData:
+		return &e.MetaData, true
+	case TableNewsColumnScore:
+		return &e.Score, true
+	case TableNewsColumnTitle:
+		return &e.Title, true
+	case TableNewsColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	case TableNewsColumnViewsDistribution:
+		return &e.ViewsDistribution, true
+	default:
+		return nil, false
+	}
+}
+func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
 // NewsIterator is not thread safe.
 type NewsIterator struct {
 	rows *sql.Rows
@@ -1436,43 +1444,6 @@ type NewsPatch struct {
 	ViewsDistribution NullFloat64Array
 }
 
-func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableNewsColumnContent:
-		return &e.Content, true
-	case TableNewsColumnContinue:
-		return &e.Continue, true
-	case TableNewsColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TableNewsColumnID:
-		return &e.ID, true
-	case TableNewsColumnLead:
-		return &e.Lead, true
-	case TableNewsColumnMetaData:
-		return &e.MetaData, true
-	case TableNewsColumnScore:
-		return &e.Score, true
-	case TableNewsColumnTitle:
-		return &e.Title, true
-	case TableNewsColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	case TableNewsColumnViewsDistribution:
-		return &e.ViewsDistribution, true
-	default:
-		return nil, false
-	}
-}
-func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
 func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 	for rows.Next() {
 		var ent NewsEntity
@@ -1787,23 +1758,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 		where.Dirty = true
 	}
 
-	if c.ID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
-		}
-		if _, err := where.WriteString(TableNewsColumnID); err != nil {
-			return "", nil, err
-		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
-		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
-		}
-		where.Add(c.ID)
-		where.Dirty = true
-	}
-
+	// id is an empty struct, ignore
 	if c.Lead.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2332,6 +2287,36 @@ type CommentEntity struct {
 	NewsByID *NewsEntity
 }
 
+func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableCommentColumnContent:
+		return &e.Content, true
+	case TableCommentColumnCreatedAt:
+		return &e.CreatedAt, true
+	case TableCommentColumnID:
+		return &e.ID, true
+	case TableCommentColumnNewsID:
+		return &e.NewsID, true
+	case TableCommentColumnNewsTitle:
+		return &e.NewsTitle, true
+	case TableCommentColumnUpdatedAt:
+		return &e.UpdatedAt, true
+	default:
+		return nil, false
+	}
+}
+func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
 // CommentIterator is not thread safe.
 type CommentIterator struct {
 	rows *sql.Rows
@@ -2403,35 +2388,6 @@ type CommentPatch struct {
 	UpdatedAt pq.NullTime
 }
 
-func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableCommentColumnContent:
-		return &e.Content, true
-	case TableCommentColumnCreatedAt:
-		return &e.CreatedAt, true
-	case TableCommentColumnID:
-		return &e.ID, true
-	case TableCommentColumnNewsID:
-		return &e.NewsID, true
-	case TableCommentColumnNewsTitle:
-		return &e.NewsTitle, true
-	case TableCommentColumnUpdatedAt:
-		return &e.UpdatedAt, true
-	default:
-		return nil, false
-	}
-}
-func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
 func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
 	for rows.Next() {
 		var ent CommentEntity
@@ -2640,23 +2596,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 		where.Dirty = true
 	}
 
-	if c.ID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
-		}
-		if _, err := where.WriteString(TableCommentColumnID); err != nil {
-			return "", nil, err
-		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
-		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
-		}
-		where.Add(c.ID)
-		where.Dirty = true
-	}
-
+	// id is an empty struct, ignore
 	if c.NewsID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2910,6 +2850,90 @@ type CompleteEntity struct {
 	ColumnUUID sql.NullString
 }
 
+func (e *CompleteEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableCompleteColumnColumnBool:
+		return &e.ColumnBool, true
+	case TableCompleteColumnColumnBytea:
+		return &e.ColumnBytea, true
+	case TableCompleteColumnColumnCharacter0:
+		return &e.ColumnCharacter0, true
+	case TableCompleteColumnColumnCharacter100:
+		return &e.ColumnCharacter100, true
+	case TableCompleteColumnColumnDecimal:
+		return &e.ColumnDecimal, true
+	case TableCompleteColumnColumnDoubleArray0:
+		return &e.ColumnDoubleArray0, true
+	case TableCompleteColumnColumnDoubleArray100:
+		return &e.ColumnDoubleArray100, true
+	case TableCompleteColumnColumnInteger:
+		return e.ColumnInteger, true
+	case TableCompleteColumnColumnIntegerArray0:
+		return &e.ColumnIntegerArray0, true
+	case TableCompleteColumnColumnIntegerArray100:
+		return &e.ColumnIntegerArray100, true
+	case TableCompleteColumnColumnIntegerBig:
+		return &e.ColumnIntegerBig, true
+	case TableCompleteColumnColumnIntegerBigArray0:
+		return &e.ColumnIntegerBigArray0, true
+	case TableCompleteColumnColumnIntegerBigArray100:
+		return &e.ColumnIntegerBigArray100, true
+	case TableCompleteColumnColumnIntegerSmall:
+		return e.ColumnIntegerSmall, true
+	case TableCompleteColumnColumnIntegerSmallArray0:
+		return &e.ColumnIntegerSmallArray0, true
+	case TableCompleteColumnColumnIntegerSmallArray100:
+		return &e.ColumnIntegerSmallArray100, true
+	case TableCompleteColumnColumnJson:
+		return &e.ColumnJson, true
+	case TableCompleteColumnColumnJsonNn:
+		return &e.ColumnJsonNn, true
+	case TableCompleteColumnColumnJsonNnD:
+		return &e.ColumnJsonNnD, true
+	case TableCompleteColumnColumnJsonb:
+		return &e.ColumnJsonb, true
+	case TableCompleteColumnColumnJsonbNn:
+		return &e.ColumnJsonbNn, true
+	case TableCompleteColumnColumnJsonbNnD:
+		return &e.ColumnJsonbNnD, true
+	case TableCompleteColumnColumnNumeric:
+		return &e.ColumnNumeric, true
+	case TableCompleteColumnColumnReal:
+		return e.ColumnReal, true
+	case TableCompleteColumnColumnSerial:
+		return e.ColumnSerial, true
+	case TableCompleteColumnColumnSerialBig:
+		return &e.ColumnSerialBig, true
+	case TableCompleteColumnColumnSerialSmall:
+		return e.ColumnSerialSmall, true
+	case TableCompleteColumnColumnText:
+		return &e.ColumnText, true
+	case TableCompleteColumnColumnTextArray0:
+		return &e.ColumnTextArray0, true
+	case TableCompleteColumnColumnTextArray100:
+		return &e.ColumnTextArray100, true
+	case TableCompleteColumnColumnTimestamp:
+		return &e.ColumnTimestamp, true
+	case TableCompleteColumnColumnTimestamptz:
+		return &e.ColumnTimestamptz, true
+	case TableCompleteColumnColumnUUID:
+		return &e.ColumnUUID, true
+	default:
+		return nil, false
+	}
+}
+func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
 // CompleteIterator is not thread safe.
 type CompleteIterator struct {
 	rows *sql.Rows
@@ -3035,89 +3059,6 @@ type CompletePatch struct {
 	ColumnUUID                 sql.NullString
 }
 
-func (e *CompleteEntity) Prop(cn string) (interface{}, bool) {
-	switch cn {
-	case TableCompleteColumnColumnBool:
-		return &e.ColumnBool, true
-	case TableCompleteColumnColumnBytea:
-		return &e.ColumnBytea, true
-	case TableCompleteColumnColumnCharacter0:
-		return &e.ColumnCharacter0, true
-	case TableCompleteColumnColumnCharacter100:
-		return &e.ColumnCharacter100, true
-	case TableCompleteColumnColumnDecimal:
-		return &e.ColumnDecimal, true
-	case TableCompleteColumnColumnDoubleArray0:
-		return &e.ColumnDoubleArray0, true
-	case TableCompleteColumnColumnDoubleArray100:
-		return &e.ColumnDoubleArray100, true
-	case TableCompleteColumnColumnInteger:
-		return e.ColumnInteger, true
-	case TableCompleteColumnColumnIntegerArray0:
-		return &e.ColumnIntegerArray0, true
-	case TableCompleteColumnColumnIntegerArray100:
-		return &e.ColumnIntegerArray100, true
-	case TableCompleteColumnColumnIntegerBig:
-		return &e.ColumnIntegerBig, true
-	case TableCompleteColumnColumnIntegerBigArray0:
-		return &e.ColumnIntegerBigArray0, true
-	case TableCompleteColumnColumnIntegerBigArray100:
-		return &e.ColumnIntegerBigArray100, true
-	case TableCompleteColumnColumnIntegerSmall:
-		return e.ColumnIntegerSmall, true
-	case TableCompleteColumnColumnIntegerSmallArray0:
-		return &e.ColumnIntegerSmallArray0, true
-	case TableCompleteColumnColumnIntegerSmallArray100:
-		return &e.ColumnIntegerSmallArray100, true
-	case TableCompleteColumnColumnJson:
-		return &e.ColumnJson, true
-	case TableCompleteColumnColumnJsonNn:
-		return &e.ColumnJsonNn, true
-	case TableCompleteColumnColumnJsonNnD:
-		return &e.ColumnJsonNnD, true
-	case TableCompleteColumnColumnJsonb:
-		return &e.ColumnJsonb, true
-	case TableCompleteColumnColumnJsonbNn:
-		return &e.ColumnJsonbNn, true
-	case TableCompleteColumnColumnJsonbNnD:
-		return &e.ColumnJsonbNnD, true
-	case TableCompleteColumnColumnNumeric:
-		return &e.ColumnNumeric, true
-	case TableCompleteColumnColumnReal:
-		return e.ColumnReal, true
-	case TableCompleteColumnColumnSerial:
-		return e.ColumnSerial, true
-	case TableCompleteColumnColumnSerialBig:
-		return &e.ColumnSerialBig, true
-	case TableCompleteColumnColumnSerialSmall:
-		return e.ColumnSerialSmall, true
-	case TableCompleteColumnColumnText:
-		return &e.ColumnText, true
-	case TableCompleteColumnColumnTextArray0:
-		return &e.ColumnTextArray0, true
-	case TableCompleteColumnColumnTextArray100:
-		return &e.ColumnTextArray100, true
-	case TableCompleteColumnColumnTimestamp:
-		return &e.ColumnTimestamp, true
-	case TableCompleteColumnColumnTimestamptz:
-		return &e.ColumnTimestamptz, true
-	case TableCompleteColumnColumnUUID:
-		return &e.ColumnUUID, true
-	default:
-		return nil, false
-	}
-}
-func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
-	res := make([]interface{}, 0, len(cns))
-	for _, cn := range cns {
-		if prop, ok := e.Prop(cn); ok {
-			res = append(res, prop)
-		} else {
-			return nil, fmt.Errorf("unexpected column provided: %s", cn)
-		}
-	}
-	return res, nil
-}
 func ScanCompleteRows(rows *sql.Rows) (entities []*CompleteEntity, err error) {
 	for rows.Next() {
 		var ent CompleteEntity
@@ -4305,23 +4246,7 @@ func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (str
 		where.Dirty = true
 	}
 
-	if c.ColumnSerialBig.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
-		}
-		if _, err := where.WriteString(TableCompleteColumnColumnSerialBig); err != nil {
-			return "", nil, err
-		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
-		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
-		}
-		where.Add(c.ColumnSerialBig)
-		where.Dirty = true
-	}
-
+	// column_serial_big is an empty struct, ignore
 	if c.ColumnSerialSmall != nil {
 		if where.Dirty {
 			where.WriteString(" AND ")

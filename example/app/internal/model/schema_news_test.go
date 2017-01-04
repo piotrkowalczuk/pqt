@@ -270,7 +270,7 @@ var testNewsFindData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "SELECT " + strings.Join(model.TableNewsColumns, ", ") + " FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND id=$4 AND lead=$5 AND meta_data=$6 AND score=$7 AND title=$8 AND updated_at=$9 AND views_distribution=$10",
+		query: "SELECT " + strings.Join(model.TableNewsColumns, ", ") + " FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND lead=$4 AND meta_data=$5 AND score=$6 AND title=$7 AND updated_at=$8 AND views_distribution=$9",
 	},
 }
 
