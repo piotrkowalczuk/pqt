@@ -1057,6 +1057,19 @@ func (g *Gen) isNullable(c *pqt.Column, m int32) bool {
 
 func (g *Gen) generateStatics(w io.Writer) {
 	fmt.Fprint(w, `
+// ErrorConstraint returns the error constraint of err if it was produced by the pq library.
+// Otherwise, it returns empty string.
+func ErrorConstraint(err error) string {
+	if err == nil {
+		return ""
+	}
+	if pqerr, ok := err.(*pq.Error); ok {
+		return pqerr.Constraint
+	}
+
+	return ""
+}
+
 type NullInt64Array struct {
 	pq.Int64Array
 	Valid  bool
