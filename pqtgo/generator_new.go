@@ -448,15 +448,16 @@ ColumnsLoop:
 		}
 	}
 	fmt.Fprintf(w, `if col.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(col)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(ins)
-			buf.WriteString(") ")
-			if len(r.%s) > 0 {
-				buf.WriteString("RETURNING ")
-				buf.WriteString(strings.Join(r.%s, ", "))
-			}}
+				buf.WriteString(" (")
+				buf.ReadFrom(col)
+				buf.WriteString(") VALUES (")
+				buf.ReadFrom(ins)
+				buf.WriteString(") ")
+				if len(r.%s) > 0 {
+					buf.WriteString("RETURNING ")
+					buf.WriteString(strings.Join(r.%s, ", "))
+				}
+			}
 			return buf.String(), ins.Args(), nil
 }
 `,
@@ -824,7 +825,7 @@ func (g *Gen) generateEntityProp(w io.Writer, t *pqt.Table) {
 	fmt.Fprintln(w, "switch cn {")
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
-		if g.canBeNil(c, modeDefault) && !g.isArray(c, modeDefault){
+		if g.canBeNil(c, modeDefault) && !g.isArray(c, modeDefault) {
 			fmt.Fprintf(w, "return e.%s, true\n", g.Formatter.Identifier(c.Name))
 		} else {
 			fmt.Fprintf(w, "return &e.%s, true\n", g.Formatter.Identifier(c.Name))
@@ -877,7 +878,7 @@ func (g *Gen) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Gen) isArray(c *pqt.Column, m int32) bool {
-	return  strings.HasPrefix(g.columnType(c, m), "[]")
+	return strings.HasPrefix(g.columnType(c, m), "[]")
 }
 
 func (g *Gen) canBeNil(c *pqt.Column, m int32) bool {
@@ -897,7 +898,13 @@ func (g *Gen) canBeNil(c *pqt.Column, m int32) bool {
 			}
 		}
 	}
-	if g.isArray(c,m) {
+	if g.columnType(c, m) == "interface{}" {
+		return true
+	}
+	if strings.HasPrefix(g.columnType(c, m), "*") {
+		return true
+	}
+	if g.isArray(c, m) {
 		return true
 	}
 	if g.isType(c, m,
@@ -983,6 +990,48 @@ func (n *NullFloat64Array) Scan(value interface{}) error {
 	n.Valid = true
 	return n.Float64Array.Scan(value)
 }
+
+type NullBoolArray struct {
+	pq.BoolArray
+	Valid  bool
+}
+
+func (n *NullBoolArray) Scan(value interface{}) error {
+	if value == nil {
+		n.BoolArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.BoolArray.Scan(value)
+}
+
+type NullStringArray struct {
+	pq.StringArray
+	Valid  bool
+}
+
+func (n *NullStringArray) Scan(value interface{}) error {
+	if value == nil {
+		n.StringArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.StringArray.Scan(value)
+}
+
+type NullByteaArray struct {
+	pq.ByteaArray
+	Valid  bool
+}
+
+func (n *NullByteaArray) Scan(value interface{}) error {
+	if value == nil {
+		n.ByteaArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.ByteaArray.Scan(value)
+}
 `)
 }
 
@@ -1054,23 +1103,19 @@ func generateTypeBase(t pqt.Type, m int32) string {
 	case pqt.TypeBytea(), pqt.TypeJSON(), pqt.TypeJSONB():
 		return "[]byte"
 	case pqt.TypeUUID():
-		return "uuid.UUID"
+		return chooseType("string", "sql.NullString", "sql.NullString", m)
 	default:
 		gt := t.String()
 		switch {
-		case strings.HasPrefix(gt, "SMALLINT["):
-			return "pq.Int64Array"
-		case strings.HasPrefix(gt, "INTEGER["):
-			return "pq.Int64Array"
-		case strings.HasPrefix(gt, "BIGINT["):
-			return "pq.Int64Array"
+		case strings.HasPrefix(gt, "SMALLINT["), strings.HasPrefix(gt, "INTEGER["), strings.HasPrefix(gt, "BIGINT["):
+			return chooseType("pq.Int64Array", "NullInt64Array", "NullInt64Array", m)
 		case strings.HasPrefix(gt, "DOUBLE PRECISION["):
 			return chooseType("pq.Float64Array", "NullFloat64Array", "NullFloat64Array", m)
 		case strings.HasPrefix(gt, "TEXT["):
-			return "pq.StringArray"
+			return chooseType("pq.StringArray", "NullStringArray", "NullStringArray", m)
 		case strings.HasPrefix(gt, "DECIMAL"), strings.HasPrefix(gt, "NUMERIC"):
 			return chooseType("float64", "sql.NullFloat64", "sql.NullFloat64", m)
-		case strings.HasPrefix(gt, "VARCHAR"):
+		case strings.HasPrefix(gt, "VARCHAR"), strings.HasPrefix(gt, "CHARACTER"):
 			return chooseType("string", "sql.NullString", "sql.NullString", m)
 		default:
 			return "interface{}"

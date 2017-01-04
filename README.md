@@ -28,7 +28,7 @@ It relies to a large degree on packages:
 	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing criteria
 	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
-		- `table names`
+		- `complete names`
 		- `column names`
 		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using [ErrorConstraint](https://godoc.org/github.com/piotrkowalczuk/pqt#ErrorConstraint) helper function
 	- `repository` - data access layer that expose API to manipulate entities:

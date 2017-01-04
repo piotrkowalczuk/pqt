@@ -194,6 +194,7 @@ func TypeJSONB() BaseType {
 // It is essentially just a list of field names and their data types.
 // PostgreSQL allows composite types to be used in many of the same ways that simple types can be used.
 // For example, a column of a table can be declared to be of a composite type.
+// EXPERIMENTAL
 type CompositeType struct {
 	name       string
 	Attributes []*Attribute
@@ -218,6 +219,7 @@ func TypeComposite(name string, attributes ...*Attribute) CompositeType {
 }
 
 // EnumeratedType ...
+// EXPERIMENTAL
 type EnumeratedType struct {
 	name  string
 	Enums []string
@@ -242,6 +244,7 @@ func TypeEnumerated(name string, enums ...string) EnumeratedType {
 }
 
 // PseudoType ...
+// EXPERIMENTAL
 type PseudoType struct {
 	name string
 	//	input, output Function

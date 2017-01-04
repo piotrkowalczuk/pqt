@@ -54,6 +54,7 @@ type suite struct {
 	category *model.CategoryRepositoryBase
 	comment  *model.CommentRepositoryBase
 	pkg      *model.PackageRepositoryBase
+	complete *model.CompleteRepositoryBase
 }
 
 func setup(t testing.TB) *suite {
@@ -82,6 +83,12 @@ func setup(t testing.TB) *suite {
 		category: &model.CategoryRepositoryBase{
 			Table:   model.TableCategory,
 			Columns: model.TableCategoryColumns,
+			DB:      db,
+			Debug:   testPostgresDebug,
+		},
+		complete: &model.CompleteRepositoryBase{
+			Table:   model.TableComplete,
+			Columns: model.TableCompleteColumns,
 			DB:      db,
 			Debug:   testPostgresDebug,
 		},
@@ -131,7 +138,7 @@ var testNewsInsertData = map[string]struct {
 				Valid:        true,
 				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
 			},
-			MetaData: []byte(`{"something": 1}`),
+			MetaData:  []byte(`{"something": 1}`),
 			Score:     10.11,
 			Content:   "content - full",
 			Continue:  true,
@@ -248,7 +255,7 @@ var testNewsFindData = map[string]struct {
 				String: "lead - full",
 			},
 			MetaData: []byte(`{"something": 1}`),
-			Content: sql.NullString{String: "content - full", Valid: true},
+			Content:  sql.NullString{String: "content - full", Valid: true},
 			ViewsDistribution: model.NullFloat64Array{
 				Valid:        true,
 				Float64Array: []float64{1.1, 1.2, 1.3},
@@ -403,6 +410,10 @@ var testNewsUpdateData = map[string]struct {
 				Valid:   true,
 				Float64: 12.14,
 			},
+			ViewsDistribution: model.NullFloat64Array{
+				Valid:        true,
+				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
+			},
 			MetaData: []byte(`{"something": 1}`),
 			Content:  sql.NullString{String: "content - full", Valid: true},
 			Continue: sql.NullBool{Bool: true, Valid: true},
@@ -415,7 +426,7 @@ var testNewsUpdateData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, title=$7, updated_at=$8 WHERE id=$9 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, title=$7, updated_at=$8, views_distribution=$9 WHERE id=$10 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 

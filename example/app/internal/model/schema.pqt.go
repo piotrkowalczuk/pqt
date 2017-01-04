@@ -2603,6 +2603,1739 @@ func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (
 	return count, nil
 }
 
+const (
+	TableComplete                                 = "example.complete"
+	TableCompleteColumnColumnBool                 = "column_bool"
+	TableCompleteColumnColumnBytea                = "column_bytea"
+	TableCompleteColumnColumnCharacter0           = "column_character_0"
+	TableCompleteColumnColumnCharacter100         = "column_character_100"
+	TableCompleteColumnColumnDecimal              = "column_decimal"
+	TableCompleteColumnColumnDoubleArray0         = "column_double_array_0"
+	TableCompleteColumnColumnDoubleArray100       = "column_double_array_100"
+	TableCompleteColumnColumnInteger              = "column_integer"
+	TableCompleteColumnColumnIntegerArray0        = "column_integer_array_0"
+	TableCompleteColumnColumnIntegerArray100      = "column_integer_array_100"
+	TableCompleteColumnColumnIntegerBig           = "column_integer_big"
+	TableCompleteColumnColumnIntegerBigArray0     = "column_integer_big_array_0"
+	TableCompleteColumnColumnIntegerBigArray100   = "column_integer_big_array_100"
+	TableCompleteColumnColumnIntegerSmall         = "column_integer_small"
+	TableCompleteColumnColumnIntegerSmallArray0   = "column_integer_small_array_0"
+	TableCompleteColumnColumnIntegerSmallArray100 = "column_integer_small_array_100"
+	TableCompleteColumnColumnJson                 = "column_json"
+	TableCompleteColumnColumnJsonNn               = "column_json_nn"
+	TableCompleteColumnColumnJsonNnD              = "column_json_nn_d"
+	TableCompleteColumnColumnJsonb                = "column_jsonb"
+	TableCompleteColumnColumnJsonbNn              = "column_jsonb_nn"
+	TableCompleteColumnColumnJsonbNnD             = "column_jsonb_nn_d"
+	TableCompleteColumnColumnNumeric              = "column_numeric"
+	TableCompleteColumnColumnReal                 = "column_real"
+	TableCompleteColumnColumnSerial               = "column_serial"
+	TableCompleteColumnColumnSerialBig            = "column_serial_big"
+	TableCompleteColumnColumnSerialSmall          = "column_serial_small"
+	TableCompleteColumnColumnText                 = "column_text"
+	TableCompleteColumnColumnTextArray0           = "column_text_array_0"
+	TableCompleteColumnColumnTextArray100         = "column_text_array_100"
+	TableCompleteColumnColumnTimestamp            = "column_timestamp"
+	TableCompleteColumnColumnTimestamptz          = "column_timestamptz"
+	TableCompleteColumnColumnUUID                 = "column_uuid"
+)
+
+var (
+	TableCompleteColumns = []string{
+		TableCompleteColumnColumnBool,
+		TableCompleteColumnColumnBytea,
+		TableCompleteColumnColumnCharacter0,
+		TableCompleteColumnColumnCharacter100,
+		TableCompleteColumnColumnDecimal,
+		TableCompleteColumnColumnDoubleArray0,
+		TableCompleteColumnColumnDoubleArray100,
+		TableCompleteColumnColumnInteger,
+		TableCompleteColumnColumnIntegerArray0,
+		TableCompleteColumnColumnIntegerArray100,
+		TableCompleteColumnColumnIntegerBig,
+		TableCompleteColumnColumnIntegerBigArray0,
+		TableCompleteColumnColumnIntegerBigArray100,
+		TableCompleteColumnColumnIntegerSmall,
+		TableCompleteColumnColumnIntegerSmallArray0,
+		TableCompleteColumnColumnIntegerSmallArray100,
+		TableCompleteColumnColumnJson,
+		TableCompleteColumnColumnJsonNn,
+		TableCompleteColumnColumnJsonNnD,
+		TableCompleteColumnColumnJsonb,
+		TableCompleteColumnColumnJsonbNn,
+		TableCompleteColumnColumnJsonbNnD,
+		TableCompleteColumnColumnNumeric,
+		TableCompleteColumnColumnReal,
+		TableCompleteColumnColumnSerial,
+		TableCompleteColumnColumnSerialBig,
+		TableCompleteColumnColumnSerialSmall,
+		TableCompleteColumnColumnText,
+		TableCompleteColumnColumnTextArray0,
+		TableCompleteColumnColumnTextArray100,
+		TableCompleteColumnColumnTimestamp,
+		TableCompleteColumnColumnTimestamptz,
+		TableCompleteColumnColumnUUID,
+	}
+)
+
+// CompleteEntity ...
+type CompleteEntity struct {
+	// ColumnBool ...
+	ColumnBool sql.NullBool
+	// ColumnBytea ...
+	ColumnBytea []byte
+	// ColumnCharacter0 ...
+	ColumnCharacter0 sql.NullString
+	// ColumnCharacter100 ...
+	ColumnCharacter100 sql.NullString
+	// ColumnDecimal ...
+	ColumnDecimal sql.NullFloat64
+	// ColumnDoubleArray0 ...
+	ColumnDoubleArray0 NullFloat64Array
+	// ColumnDoubleArray100 ...
+	ColumnDoubleArray100 NullFloat64Array
+	// ColumnInteger ...
+	ColumnInteger *int32
+	// ColumnIntegerArray0 ...
+	ColumnIntegerArray0 NullInt64Array
+	// ColumnIntegerArray100 ...
+	ColumnIntegerArray100 NullInt64Array
+	// ColumnIntegerBig ...
+	ColumnIntegerBig sql.NullInt64
+	// ColumnIntegerBigArray0 ...
+	ColumnIntegerBigArray0 NullInt64Array
+	// ColumnIntegerBigArray100 ...
+	ColumnIntegerBigArray100 NullInt64Array
+	// ColumnIntegerSmall ...
+	ColumnIntegerSmall *int16
+	// ColumnIntegerSmallArray0 ...
+	ColumnIntegerSmallArray0 NullInt64Array
+	// ColumnIntegerSmallArray100 ...
+	ColumnIntegerSmallArray100 NullInt64Array
+	// ColumnJson ...
+	ColumnJson []byte
+	// ColumnJsonNn ...
+	ColumnJsonNn []byte
+	// ColumnJsonNnD ...
+	ColumnJsonNnD []byte
+	// ColumnJsonb ...
+	ColumnJsonb []byte
+	// ColumnJsonbNn ...
+	ColumnJsonbNn []byte
+	// ColumnJsonbNnD ...
+	ColumnJsonbNnD []byte
+	// ColumnNumeric ...
+	ColumnNumeric sql.NullFloat64
+	// ColumnReal ...
+	ColumnReal *float32
+	// ColumnSerial ...
+	ColumnSerial *int32
+	// ColumnSerialBig ...
+	ColumnSerialBig sql.NullInt64
+	// ColumnSerialSmall ...
+	ColumnSerialSmall *int16
+	// ColumnText ...
+	ColumnText sql.NullString
+	// ColumnTextArray0 ...
+	ColumnTextArray0 NullStringArray
+	// ColumnTextArray100 ...
+	ColumnTextArray100 NullStringArray
+	// ColumnTimestamp ...
+	ColumnTimestamp pq.NullTime
+	// ColumnTimestamptz ...
+	ColumnTimestamptz pq.NullTime
+	// ColumnUUID ...
+	ColumnUUID sql.NullString
+}
+
+// CompleteIterator is not thread safe.
+type CompleteIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *CompleteIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *CompleteIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *CompleteIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *CompleteIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around Complete method that makes iterator more generic.
+func (i *CompleteIterator) Ent() (interface{}, error) {
+	return i.Complete()
+}
+
+func (i *CompleteIterator) Complete() (*CompleteEntity, error) {
+	var ent CompleteEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type CompleteCriteria struct {
+	Offset, Limit              int64
+	Sort                       map[string]bool
+	ColumnBool                 sql.NullBool
+	ColumnBytea                []byte
+	ColumnCharacter0           sql.NullString
+	ColumnCharacter100         sql.NullString
+	ColumnDecimal              sql.NullFloat64
+	ColumnDoubleArray0         NullFloat64Array
+	ColumnDoubleArray100       NullFloat64Array
+	ColumnInteger              *int32
+	ColumnIntegerArray0        NullInt64Array
+	ColumnIntegerArray100      NullInt64Array
+	ColumnIntegerBig           sql.NullInt64
+	ColumnIntegerBigArray0     NullInt64Array
+	ColumnIntegerBigArray100   NullInt64Array
+	ColumnIntegerSmall         *int16
+	ColumnIntegerSmallArray0   NullInt64Array
+	ColumnIntegerSmallArray100 NullInt64Array
+	ColumnJson                 []byte
+	ColumnJsonNn               []byte
+	ColumnJsonNnD              []byte
+	ColumnJsonb                []byte
+	ColumnJsonbNn              []byte
+	ColumnJsonbNnD             []byte
+	ColumnNumeric              sql.NullFloat64
+	ColumnReal                 *float32
+	ColumnSerial               *int32
+	ColumnSerialBig            sql.NullInt64
+	ColumnSerialSmall          *int16
+	ColumnText                 sql.NullString
+	ColumnTextArray0           NullStringArray
+	ColumnTextArray100         NullStringArray
+	ColumnTimestamp            pq.NullTime
+	ColumnTimestamptz          pq.NullTime
+	ColumnUUID                 sql.NullString
+}
+type CompletePatch struct {
+	ColumnBool                 sql.NullBool
+	ColumnBytea                []byte
+	ColumnCharacter0           sql.NullString
+	ColumnCharacter100         sql.NullString
+	ColumnDecimal              sql.NullFloat64
+	ColumnDoubleArray0         NullFloat64Array
+	ColumnDoubleArray100       NullFloat64Array
+	ColumnInteger              *int32
+	ColumnIntegerArray0        NullInt64Array
+	ColumnIntegerArray100      NullInt64Array
+	ColumnIntegerBig           sql.NullInt64
+	ColumnIntegerBigArray0     NullInt64Array
+	ColumnIntegerBigArray100   NullInt64Array
+	ColumnIntegerSmall         *int16
+	ColumnIntegerSmallArray0   NullInt64Array
+	ColumnIntegerSmallArray100 NullInt64Array
+	ColumnJson                 []byte
+	ColumnJsonNn               []byte
+	ColumnJsonNnD              []byte
+	ColumnJsonb                []byte
+	ColumnJsonbNn              []byte
+	ColumnJsonbNnD             []byte
+	ColumnNumeric              sql.NullFloat64
+	ColumnReal                 *float32
+	ColumnSerial               *int32
+	ColumnSerialBig            sql.NullInt64
+	ColumnSerialSmall          *int16
+	ColumnText                 sql.NullString
+	ColumnTextArray0           NullStringArray
+	ColumnTextArray100         NullStringArray
+	ColumnTimestamp            pq.NullTime
+	ColumnTimestamptz          pq.NullTime
+	ColumnUUID                 sql.NullString
+}
+
+func (e *CompleteEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+	case TableCompleteColumnColumnBool:
+		return &e.ColumnBool, true
+	case TableCompleteColumnColumnBytea:
+		return &e.ColumnBytea, true
+	case TableCompleteColumnColumnCharacter0:
+		return &e.ColumnCharacter0, true
+	case TableCompleteColumnColumnCharacter100:
+		return &e.ColumnCharacter100, true
+	case TableCompleteColumnColumnDecimal:
+		return &e.ColumnDecimal, true
+	case TableCompleteColumnColumnDoubleArray0:
+		return &e.ColumnDoubleArray0, true
+	case TableCompleteColumnColumnDoubleArray100:
+		return &e.ColumnDoubleArray100, true
+	case TableCompleteColumnColumnInteger:
+		return e.ColumnInteger, true
+	case TableCompleteColumnColumnIntegerArray0:
+		return &e.ColumnIntegerArray0, true
+	case TableCompleteColumnColumnIntegerArray100:
+		return &e.ColumnIntegerArray100, true
+	case TableCompleteColumnColumnIntegerBig:
+		return &e.ColumnIntegerBig, true
+	case TableCompleteColumnColumnIntegerBigArray0:
+		return &e.ColumnIntegerBigArray0, true
+	case TableCompleteColumnColumnIntegerBigArray100:
+		return &e.ColumnIntegerBigArray100, true
+	case TableCompleteColumnColumnIntegerSmall:
+		return e.ColumnIntegerSmall, true
+	case TableCompleteColumnColumnIntegerSmallArray0:
+		return &e.ColumnIntegerSmallArray0, true
+	case TableCompleteColumnColumnIntegerSmallArray100:
+		return &e.ColumnIntegerSmallArray100, true
+	case TableCompleteColumnColumnJson:
+		return &e.ColumnJson, true
+	case TableCompleteColumnColumnJsonNn:
+		return &e.ColumnJsonNn, true
+	case TableCompleteColumnColumnJsonNnD:
+		return &e.ColumnJsonNnD, true
+	case TableCompleteColumnColumnJsonb:
+		return &e.ColumnJsonb, true
+	case TableCompleteColumnColumnJsonbNn:
+		return &e.ColumnJsonbNn, true
+	case TableCompleteColumnColumnJsonbNnD:
+		return &e.ColumnJsonbNnD, true
+	case TableCompleteColumnColumnNumeric:
+		return &e.ColumnNumeric, true
+	case TableCompleteColumnColumnReal:
+		return e.ColumnReal, true
+	case TableCompleteColumnColumnSerial:
+		return e.ColumnSerial, true
+	case TableCompleteColumnColumnSerialBig:
+		return &e.ColumnSerialBig, true
+	case TableCompleteColumnColumnSerialSmall:
+		return e.ColumnSerialSmall, true
+	case TableCompleteColumnColumnText:
+		return &e.ColumnText, true
+	case TableCompleteColumnColumnTextArray0:
+		return &e.ColumnTextArray0, true
+	case TableCompleteColumnColumnTextArray100:
+		return &e.ColumnTextArray100, true
+	case TableCompleteColumnColumnTimestamp:
+		return &e.ColumnTimestamp, true
+	case TableCompleteColumnColumnTimestamptz:
+		return &e.ColumnTimestamptz, true
+	case TableCompleteColumnColumnUUID:
+		return &e.ColumnUUID, true
+	default:
+		return nil, false
+	}
+}
+func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+func ScanCompleteRows(rows *sql.Rows) (entities []*CompleteEntity, err error) {
+	for rows.Next() {
+		var ent CompleteEntity
+		err = rows.Scan(
+			&ent.ColumnBool,
+			&ent.ColumnBytea,
+			&ent.ColumnCharacter0,
+			&ent.ColumnCharacter100,
+			&ent.ColumnDecimal,
+			&ent.ColumnDoubleArray0,
+			&ent.ColumnDoubleArray100,
+			&ent.ColumnInteger,
+			&ent.ColumnIntegerArray0,
+			&ent.ColumnIntegerArray100,
+			&ent.ColumnIntegerBig,
+			&ent.ColumnIntegerBigArray0,
+			&ent.ColumnIntegerBigArray100,
+			&ent.ColumnIntegerSmall,
+			&ent.ColumnIntegerSmallArray0,
+			&ent.ColumnIntegerSmallArray100,
+			&ent.ColumnJson,
+			&ent.ColumnJsonNn,
+			&ent.ColumnJsonNnD,
+			&ent.ColumnJsonb,
+			&ent.ColumnJsonbNn,
+			&ent.ColumnJsonbNnD,
+			&ent.ColumnNumeric,
+			&ent.ColumnReal,
+			&ent.ColumnSerial,
+			&ent.ColumnSerialBig,
+			&ent.ColumnSerialSmall,
+			&ent.ColumnText,
+			&ent.ColumnTextArray0,
+			&ent.ColumnTextArray100,
+			&ent.ColumnTimestamp,
+			&ent.ColumnTimestamptz,
+			&ent.ColumnUUID,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
+type CompleteRepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Debug   bool
+	Log     log.Logger
+}
+
+func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []interface{}, error) {
+	ins := pqtgo.NewComposer(33)
+	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
+	col := bytes.NewBuffer(nil)
+	if e.ColumnBool.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnBool)
+		ins.Dirty = true
+	}
+
+	if e.ColumnBytea != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnBytea)
+		ins.Dirty = true
+	}
+
+	if e.ColumnCharacter0.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnCharacter0)
+		ins.Dirty = true
+	}
+
+	if e.ColumnCharacter100.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnCharacter100)
+		ins.Dirty = true
+	}
+
+	if e.ColumnDecimal.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnDecimal)
+		ins.Dirty = true
+	}
+
+	if e.ColumnDoubleArray0.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnDoubleArray0)
+		ins.Dirty = true
+	}
+
+	if e.ColumnDoubleArray100.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnDoubleArray100)
+		ins.Dirty = true
+	}
+
+	if e.ColumnInteger != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnInteger)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerArray0.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerArray0)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerArray100.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerArray100)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerBig.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerBig)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray0.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerBigArray0)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray100.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerBigArray100)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerSmall != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerSmall)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray0.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerSmallArray0)
+		ins.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray100.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnIntegerSmallArray100)
+		ins.Dirty = true
+	}
+
+	if e.ColumnJson != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnJson)
+		ins.Dirty = true
+	}
+
+	if e.ColumnJsonNn != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnJsonNn)
+		ins.Dirty = true
+	}
+
+	if e.ColumnJsonNnD != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnJsonNnD)
+		ins.Dirty = true
+	}
+
+	if e.ColumnJsonb != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnJsonb)
+		ins.Dirty = true
+	}
+
+	if e.ColumnJsonbNn != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnJsonbNn)
+		ins.Dirty = true
+	}
+
+	if e.ColumnJsonbNnD != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnJsonbNnD)
+		ins.Dirty = true
+	}
+
+	if e.ColumnNumeric.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnNumeric)
+		ins.Dirty = true
+	}
+
+	if e.ColumnReal != nil {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnReal)
+		ins.Dirty = true
+	}
+
+	if e.ColumnText.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnText); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnText)
+		ins.Dirty = true
+	}
+
+	if e.ColumnTextArray0.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnTextArray0)
+		ins.Dirty = true
+	}
+
+	if e.ColumnTextArray100.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnTextArray100)
+		ins.Dirty = true
+	}
+
+	if e.ColumnTimestamp.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnTimestamp)
+		ins.Dirty = true
+	}
+
+	if e.ColumnTimestamptz.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnTimestamptz)
+		ins.Dirty = true
+	}
+
+	if e.ColumnUUID.Valid {
+		if col.Len() > 0 {
+			if _, err := col.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := col.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return "", nil, err
+		}
+		if ins.Dirty {
+			if _, err := ins.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := ins.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		ins.Add(e.ColumnUUID)
+		ins.Dirty = true
+	}
+
+	if col.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(col)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(ins)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), ins.Args(), nil
+}
+func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ColumnBool,
+		&e.ColumnBytea,
+		&e.ColumnCharacter0,
+		&e.ColumnCharacter100,
+		&e.ColumnDecimal,
+		&e.ColumnDoubleArray0,
+		&e.ColumnDoubleArray100,
+		&e.ColumnInteger,
+		&e.ColumnIntegerArray0,
+		&e.ColumnIntegerArray100,
+		&e.ColumnIntegerBig,
+		&e.ColumnIntegerBigArray0,
+		&e.ColumnIntegerBigArray100,
+		&e.ColumnIntegerSmall,
+		&e.ColumnIntegerSmallArray0,
+		&e.ColumnIntegerSmallArray100,
+		&e.ColumnJson,
+		&e.ColumnJsonNn,
+		&e.ColumnJsonNnD,
+		&e.ColumnJsonb,
+		&e.ColumnJsonbNn,
+		&e.ColumnJsonbNnD,
+		&e.ColumnNumeric,
+		&e.ColumnReal,
+		&e.ColumnSerial,
+		&e.ColumnSerialBig,
+		&e.ColumnSerialSmall,
+		&e.ColumnText,
+		&e.ColumnTextArray0,
+		&e.ColumnTextArray100,
+		&e.ColumnTimestamp,
+		&e.ColumnTimestamptz,
+		&e.ColumnUUID,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (string, []interface{}, error) {
+	where := pqtgo.NewComposer(33)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.ColumnBool.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnBool)
+		where.Dirty = true
+	}
+
+	if c.ColumnBytea != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnBytea)
+		where.Dirty = true
+	}
+
+	if c.ColumnCharacter0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnCharacter0)
+		where.Dirty = true
+	}
+
+	if c.ColumnCharacter100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnCharacter100)
+		where.Dirty = true
+	}
+
+	if c.ColumnDecimal.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnDecimal)
+		where.Dirty = true
+	}
+
+	if c.ColumnDoubleArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnDoubleArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnDoubleArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnDoubleArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnInteger != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnInteger)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerBig.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerBig)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerBigArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerBigArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerBigArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerBigArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerSmall != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerSmall)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerSmallArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerSmallArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerSmallArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerSmallArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnJson != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJson)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonNn != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonNn)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonNnD != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonNnD)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonb != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonb)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonbNn != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonbNn)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonbNnD != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonbNnD)
+		where.Dirty = true
+	}
+
+	if c.ColumnNumeric.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnNumeric)
+		where.Dirty = true
+	}
+
+	if c.ColumnReal != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnReal)
+		where.Dirty = true
+	}
+
+	if c.ColumnSerial != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnSerial); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnSerial)
+		where.Dirty = true
+	}
+
+	if c.ColumnSerialBig.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnSerialBig); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnSerialBig)
+		where.Dirty = true
+	}
+
+	if c.ColumnSerialSmall != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnSerialSmall); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnSerialSmall)
+		where.Dirty = true
+	}
+
+	if c.ColumnText.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnText); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnText)
+		where.Dirty = true
+	}
+
+	if c.ColumnTextArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTextArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnTextArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTextArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnTimestamp.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTimestamp)
+		where.Dirty = true
+	}
+
+	if c.ColumnTimestamptz.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTimestamptz)
+		where.Dirty = true
+	}
+
+	if c.ColumnUUID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnUUID)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		buf.WriteString("WHERE ")
+		buf.ReadFrom(where)
+	}
+	return buf.String(), where.Args(), nil
+}
+func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) ([]*CompleteEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return ScanCompleteRows(rows)
+}
+func (r *CompleteRepositoryBase) FindIter(ctx context.Context, c *CompleteCriteria) (*CompleteIterator, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &CompleteIterator{rows: rows}, nil
+}
+func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return count, nil
+}
+
 type NullInt64Array struct {
 	pq.Int64Array
 	Valid bool
@@ -2629,6 +4362,48 @@ func (n *NullFloat64Array) Scan(value interface{}) error {
 	}
 	n.Valid = true
 	return n.Float64Array.Scan(value)
+}
+
+type NullBoolArray struct {
+	pq.BoolArray
+	Valid bool
+}
+
+func (n *NullBoolArray) Scan(value interface{}) error {
+	if value == nil {
+		n.BoolArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.BoolArray.Scan(value)
+}
+
+type NullStringArray struct {
+	pq.StringArray
+	Valid bool
+}
+
+func (n *NullStringArray) Scan(value interface{}) error {
+	if value == nil {
+		n.StringArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.StringArray.Scan(value)
+}
+
+type NullByteaArray struct {
+	pq.ByteaArray
+	Valid bool
+}
+
+func (n *NullByteaArray) Scan(value interface{}) error {
+	if value == nil {
+		n.ByteaArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.ByteaArray.Scan(value)
 }
 
 /// SQL ...
@@ -2687,6 +4462,42 @@ CREATE TABLE IF NOT EXISTS example.comment (
 
 	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id),
 	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title)
+);
+
+CREATE TABLE IF NOT EXISTS example.complete (
+	column_bool BOOL,
+	column_bytea BYTEA,
+	column_character_0 CHARACTER[0],
+	column_character_100 CHARACTER[100],
+	column_decimal DECIMAL(20,8),
+	column_double_array_0 DOUBLE PRECISION[],
+	column_double_array_100 DOUBLE PRECISION[100],
+	column_integer INTEGER,
+	column_integer_array_0 INTEGER[],
+	column_integer_array_100 INTEGER[100],
+	column_integer_big BIGINT,
+	column_integer_big_array_0 BIGINT[],
+	column_integer_big_array_100 BIGINT[100],
+	column_integer_small SMALLINT,
+	column_integer_small_array_0 SMALLINT[],
+	column_integer_small_array_100 SMALLINT[100],
+	column_json JSON,
+	column_json_nn JSON NOT NULL,
+	column_json_nn_d JSON DEFAULT '{"field": 1}' NOT NULL,
+	column_jsonb JSONB,
+	column_jsonb_nn JSONB NOT NULL,
+	column_jsonb_nn_d JSONB DEFAULT '{"field": 1}' NOT NULL,
+	column_numeric NUMERIC(20,8),
+	column_real REAL,
+	column_serial SERIAL,
+	column_serial_big BIGSERIAL,
+	column_serial_small SMALLSERIAL,
+	column_text TEXT,
+	column_text_array_0 TEXT[],
+	column_text_array_100 TEXT[100],
+	column_timestamp TIMESTAMP,
+	column_timestamptz TIMESTAMPTZ,
+	column_uuid UUID
 );
 
 `
