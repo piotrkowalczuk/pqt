@@ -372,6 +372,24 @@ func TestNewsRepositoryBase_FindOneByID(t *testing.T) {
 	}
 }
 
+func TestNewsRepositoryBase_FindOneByTitle(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+
+	for i := 1; i <= expected; i++ {
+		got, err := s.news.FindOneByTitle(context.Background(), fmt.Sprintf("title-%d", i))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got.ID != int64(i) {
+			t.Errorf("wrong id, expected %d but got %d", i, got.ID)
+		}
+	}
+}
+
 func TestNewsRepositoryBase_FindOneByTitleAndLead(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
