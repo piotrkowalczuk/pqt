@@ -654,6 +654,23 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria)
 
 	return count, nil
 }
+func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
+	find := pqtgo.NewComposer(6)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(TableCategory)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableCategoryColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+
+	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected()
+}
 
 const (
 	TablePackage                               = "example.package"
@@ -1226,6 +1243,23 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (
 	}
 
 	return count, nil
+}
+func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
+	find := pqtgo.NewComposer(5)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(TablePackage)
+	find.WriteString(" WHERE ")
+	find.WriteString(TablePackageColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+
+	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected()
 }
 
 const (
@@ -2182,6 +2216,23 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64,
 	}
 
 	return count, nil
+}
+func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
+	find := pqtgo.NewComposer(10)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+
+	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
+	if err != nil {
+		return 0, err
+	}
+
+	return res.RowsAffected()
 }
 
 const (

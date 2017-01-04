@@ -163,6 +163,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryFindOneByUniqueConstraint(b, t)
 		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
+		g.generateRepositoryDeleteOneByPrimaryKey(b, t)
 	}
 	g.generateStatics(b)
 
@@ -912,6 +913,47 @@ func (g *Gen) generateRepositoryFindOneByUniqueConstraint(w io.Writer, table *pq
 }
 `)
 	}
+}
+
+
+func (g *Gen) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+	pk, ok := table.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (int64, error) {`,
+		entityName,
+		g.Formatter.Identifier("DeleteOneBy", pk.Name),
+		g.columnType(pk, modeMandatory),
+	)
+	fmt.Fprintf(w, `
+	find := pqtgo.NewComposer(%d)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(%s)
+	find.WriteString(" WHERE ")
+	find.WriteString(%s)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+`, len(table.Columns),
+		g.Formatter.Identifier("table", table.Name),
+		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
+	)
+
+	fmt.Fprintf(w, `
+	res, err := r.%s.ExecContext(ctx, find.String(), find.Args()...)`,
+		g.Formatter.Identifier("db"),
+	)
+	fmt.Fprint(w, `
+		if err != nil {
+				return 0, err
+			}
+
+		return res.RowsAffected()
+}
+`)
 }
 
 func (g *Gen) generateEntityProp(w io.Writer, t *pqt.Table) {
