@@ -1899,6 +1899,63 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 
 	return &ent, nil
 }
+func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
+	find := pqtgo.NewComposer(10)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnTitle)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(newsTitle)
+
+	var (
+		ent NewsEntity
+	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
+func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
+	find := pqtgo.NewComposer(10)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnTitle)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(newsTitle)
+	find.WriteString(" AND ")
+	find.WriteString(TableNewsColumnLead)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(newsLead)
+
+	var (
+		ent NewsEntity
+	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)

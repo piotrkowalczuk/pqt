@@ -38,6 +38,20 @@ func (f *Formatter) Identifier(args ...string) (r string) {
 	return r
 }
 
+func (f *Formatter) IdentifierPrivate(args ...string) (r string) {
+	switch len(args) {
+	case 0:
+	case 1:
+		r = f.identifier(args[0], Private)
+	default:
+		r = f.identifier(args[0], Private)
+		for _, s := range args[1:] {
+			r += f.identifier(s, Public)
+		}
+	}
+	return r
+}
+
 func (f *Formatter) identifier(s string, v Visibility) string {
 	r := snake(s, v == Private, f.Acronyms)
 	if a, ok := keywords[r]; ok {
@@ -146,6 +160,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryFind(b, t)
 		g.generateRepositoryFindIter(b, t)
 		g.generateRepositoryFindOneByPrimaryKey(b, t)
+		g.generateRepositoryFindOneByUniqueConstraint(b, t)
 		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
 	}
@@ -818,6 +833,85 @@ func (g *Gen) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pqt.Tabl
 		return &ent, nil
 }
 `)
+}
+
+func (g *Gen) generateRepositoryFindOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+	var unique []*pqt.Constraint
+	for _, c := range tableConstraints(table) {
+		if c.Type == pqt.ConstraintTypeUnique {
+			unique = append(unique, c)
+		}
+	}
+	if len(unique) < 1 {
+		return
+	}
+
+	for _, u := range unique {
+		method := []string{"FindOneBy"}
+		arguments := ""
+
+		for i, c := range u.Columns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, modeMandatory))
+		}
+
+		fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
+			entityName,
+			g.Formatter.Identifier(method...),
+			arguments,
+			entityName,
+		)
+		fmt.Fprintf(w, `
+	find := pqtgo.NewComposer(%d)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.%s, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(%s)
+	find.WriteString(" WHERE ")`,
+			len(table.Columns),
+			g.Formatter.Identifier("columns"),
+			g.Formatter.Identifier("table", table.Name),
+		)
+		for i, c := range u.Columns {
+			if i != 0 {
+				fmt.Fprint(w, `find.WriteString(" AND ")`)
+			}
+			fmt.Fprintf(w, `
+		find.WriteString(%s)
+		find.WriteString("=")
+		find.WritePlaceholder()
+		find.Add(%s)
+		`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.IdentifierPrivate(columnForeignName(c)))
+		}
+
+		fmt.Fprintf(w, `
+	var (
+		ent %sEntity
+	)
+	props, err := ent.%s(r.%s...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+			entityName,
+			g.Formatter.Identifier("props"),
+			g.Formatter.Identifier("columns"),
+			g.Formatter.Identifier("db"),
+		)
+		fmt.Fprint(w, `
+		if err != nil {
+			return nil, err
+		}
+
+		return &ent, nil
+}
+`)
+	}
 }
 
 func (g *Gen) generateEntityProp(w io.Writer, t *pqt.Table) {

@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"math/rand"
 	"os"
 	"strconv"
 	"strings"
@@ -102,11 +101,12 @@ func (s *suite) teardown(t testing.TB) {
 }
 
 func populateNews(t testing.TB, r *model.NewsRepositoryBase, nb int) {
-	for i := 0; i < nb; i++ {
+	for i := 1; i <= nb; i++ {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_, err := r.Insert(ctx, &model.NewsEntity{
-			Title:    fmt.Sprintf("test news %d - %d", time.Now().Unix(), rand.Int63()),
-			Content:  fmt.Sprintf("content %d - %d", time.Now().Unix(), rand.Int63()),
+			Title:    fmt.Sprintf("title-%d", i),
+			Content:  fmt.Sprintf("content-%d", i),
+			Lead:     sql.NullString{String: fmt.Sprintf("lead-%d", i), Valid: true},
 			Continue: true,
 		})
 		if err != nil {
@@ -363,6 +363,24 @@ func TestNewsRepositoryBase_FindOneByID(t *testing.T) {
 
 	for i := 1; i <= expected; i++ {
 		got, err := s.news.FindOneByID(context.Background(), int64(i))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got.ID != int64(i) {
+			t.Errorf("wrong id, expected %d but got %d", i, got.ID)
+		}
+	}
+}
+
+func TestNewsRepositoryBase_FindOneByTitleAndLead(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+
+	for i := 1; i <= expected; i++ {
+		got, err := s.news.FindOneByTitleAndLead(context.Background(), fmt.Sprintf("title-%d", i), fmt.Sprintf("lead-%d", i))
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
 		}

@@ -11,9 +11,10 @@ import (
 
 	"math"
 
+	"reflect"
+
 	"github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
-	"reflect"
 )
 
 var testCompleteInsertData = map[string]struct {

@@ -23,7 +23,7 @@ It relies to a large degree on packages:
 	- [pqt.JSONArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayString) - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
 - __sql generation__
 - __go generation__ - it includes:
-	- `criteria` - struct that reflects single row within the database
+	- `entity` - struct that reflects single row within the database
 	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
 	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing criteria
 	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
