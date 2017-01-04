@@ -161,6 +161,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryFindIter(b, t)
 		g.generateRepositoryFindOneByPrimaryKey(b, t)
 		g.generateRepositoryFindOneByUniqueConstraint(b, t)
+		g.generateRepositoryUpdateOneByPrimaryKeyQuery(b, t)
 		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
 		g.generateRepositoryCount(b, t)
 		g.generateRepositoryDeleteOneByPrimaryKey(b, t)
@@ -518,7 +519,7 @@ func (g *Gen) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 	)
 }
 
-func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
+func (g *Gen) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 	pk, ok := table.PrimaryKey()
 	if !ok {
@@ -617,6 +618,43 @@ ColumnsLoop:
 	return buf.String(), update.Args(), nil
 }
 `, g.Formatter.Identifier("table", table.Name, "column", pk.Name), g.Formatter.Identifier("columns"))
+}
+
+func (g *Gen) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+	pk, ok := table.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("updateOneBy", pk.Name), g.columnType(pk, modeMandatory), entityName, entityName)
+	fmt.Fprintf(w, `
+			query, args, err := r.%sQuery(pk, p)
+			if err != nil {
+				return nil, err
+			}
+`, g.Formatter.Identifier("updateOneBy", pk.Name))
+
+	fmt.Fprintf(w, `
+	var ent %sEntity
+	props, err := ent.%s(r.%s...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
+		entityName,
+		g.Formatter.Identifier("props"),
+		g.Formatter.Identifier("columns"),
+		g.Formatter.Identifier("db"),
+	)
+	fmt.Fprint(w, `
+		if err != nil {
+			return nil, err
+		}
+
+		return &ent, nil
+}
+`)
 }
 
 func (g *Gen) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
@@ -914,7 +952,6 @@ func (g *Gen) generateRepositoryFindOneByUniqueConstraint(w io.Writer, table *pq
 `)
 	}
 }
-
 
 func (g *Gen) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)

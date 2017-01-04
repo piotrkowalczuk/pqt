@@ -635,6 +635,24 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 
 	return buf.String(), update.Args(), nil
 }
+func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *CategoryPatch) (*CategoryEntity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return nil, err
+	}
+
+	var ent CategoryEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
 func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -1224,6 +1242,24 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 	buf.WriteString(strings.Join(r.Columns, ", "))
 
 	return buf.String(), update.Args(), nil
+}
+func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *PackagePatch) (*PackageEntity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return nil, err
+	}
+
+	var ent PackageEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
 }
 func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
@@ -2197,6 +2233,24 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 	buf.WriteString(strings.Join(r.Columns, ", "))
 
 	return buf.String(), update.Args(), nil
+}
+func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *NewsPatch) (*NewsEntity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return nil, err
+	}
+
+	var ent NewsEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
 }
 func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
