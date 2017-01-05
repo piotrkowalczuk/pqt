@@ -13,14 +13,6 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
-type Context struct {
-	Table     *pqt.Table
-	Column    *pqt.Column
-	Schema    *pqt.Schema
-	Selectors map[string]interface{}
-	Formatter *Formatter
-}
-
 type Formatter struct {
 	Visibility Visibility
 	Acronyms   map[string]string
@@ -81,10 +73,10 @@ func (f *Formatter) Type(t pqt.Type, m int32) string {
 }
 
 type Gen struct {
-	Formatter *Formatter
-	Pkg       string
-	Imports   []string
-	Plugins   []Plugin
+	Formatter             *Formatter
+	Pkg                   string
+	Imports               []string
+	Plugins               []Plugin
 }
 
 // Generate ...
@@ -169,7 +161,7 @@ func (g *Gen) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryCount(b, t)
 		g.generateRepositoryDeleteOneByPrimaryKey(b, t)
 	}
-	g.generateStatics(b)
+	g.generateStatics(b, s)
 
 	return b, nil
 }
@@ -686,6 +678,7 @@ ColumnsLoop:
 				}
 				if err = tmpl.Execute(w, map[string]interface{}{
 					"selector": fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
+					"column": g.Formatter.Identifier("table", table.Name, "column", c.Name),
 					"composer": "where",
 				}); err != nil {
 					panic(err)
@@ -1157,7 +1150,7 @@ func (g *Gen) isNullable(c *pqt.Column, m int32) bool {
 	)
 }
 
-func (g *Gen) generateStatics(w io.Writer) {
+func (g *Gen) generateStatics(w io.Writer, s *pqt.Schema) {
 	fmt.Fprint(w, `
 // ErrorConstraint returns the error constraint of err if it was produced by the pq library.
 // Otherwise, it returns empty string.
@@ -1242,6 +1235,12 @@ func (n *NullByteaArray) Scan(value interface{}) error {
 	return n.ByteaArray.Scan(value)
 }
 `)
+
+	for _, plugin := range g.Plugins {
+		if txt := plugin.Static(s); txt != "" {
+			fmt.Fprintf(w,txt)
+		}
+	}
 }
 
 func generateTypeBuiltin(t BuiltinType, m int32) (r string) {
