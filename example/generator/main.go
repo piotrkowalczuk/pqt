@@ -37,7 +37,7 @@ func main() {
         // source: cmd/appg/main.go
         // DO NOT EDIT!
     `)
-	gen := pqtgo.Gen{
+	gen := pqtgo.Generator{
 		Formatter: &pqtgo.Formatter{
 			Visibility: pqtgo.Public,
 			Acronyms:   acronyms,

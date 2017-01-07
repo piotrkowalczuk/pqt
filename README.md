@@ -14,7 +14,7 @@ It relies to a large degree on packages:
 	- [pqt.ErrorConstraint](https://godoc.org/github.com/piotrkowalczuk/pqt#ErrorConstraint) - if possible extracts constraint from [pq.Error](https://godoc.org/github.com/lib/pq#Error) so it's easy to build switch statements using generated constraints.
 - __query builder__:
 	- [pqtgo.Composer](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#Composer) - builder like object that keeps buffer and arguments but also tracks positional parameters.
-	- [pqtgo.CompositionWriter](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#CompositionWriter) - interface used by generator, allows custom structs to be used as a criteria parameter
+	- [pqtgo.CompositionWriter](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#CompositionWriter) - interface used by generator, allows custom structs to be used as a cri parameter
 	- [pqtgo.WriteCompositionQueryInt64](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryInt64) - helper function that generate SQL for [qtypes.Int64](https://godoc.org/github.com/piotrkowalczuk/qtypes#Int64) object.
 	- [pqtgo.WriteCompositionQueryString](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryString) - helper function that generate SQL for [qtypes.String](https://godoc.org/github.com/piotrkowalczuk/qtypes#String) object.
 - __array support__
@@ -24,24 +24,24 @@ It relies to a large degree on packages:
 - __sql generation__
 - __go generation__ - it includes:
 	- `entity` - struct that reflects single row within the database
-	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
-	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing criteria
+	- `cri` - object that can be passed to the `Find` method, it allows to create complex queries
+	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
 	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
 		- `complete names`
 		- `column names`
 		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using [ErrorConstraint](https://godoc.org/github.com/piotrkowalczuk/pqt#ErrorConstraint) helper function
 	- `repository` - data access layer that expose API to manipulate entities:
-		- `Count` - returns number of entities for given criteria
-		- `Find` - returns collection of entities that match given criteria
+		- `Count` - returns number of entities for given cri
+		- `Find` - returns collection of entities that match given cri
 		- `FindIter` - works like `Find` but returns `iterator`
-		- `Insert` - saves given criteria into the database
-		- `FindOneBy<primary-key>` - retrieves single criteria, search by primary key
-		- `FindOneBy<unique-key>` - retrieves single criteria, search by unique key
-		- `UpdateOneBy<primary-key>` - modifies single criteria, search by primary key
-		- `UpdateOneBy<unique-key>` - modifies single criteria, search by unique key
-		- `DeleteOneBy<primary-key>` - modifies single criteria, search by primary key
-	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<criteria>Entity, error) {` helper function
+		- `Insert` - saves given cri into the database
+		- `FindOneBy<primary-key>` - retrieves single cri, search by primary key
+		- `FindOneBy<unique-key>` - retrieves single cri, search by unique key
+		- `UpdateOneBy<primary-key>` - modifies single cri, search by primary key
+		- `UpdateOneBy<unique-key>` - modifies single cri, search by unique key
+		- `DeleteOneBy<primary-key>` - modifies single cri, search by primary key
+	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<cri>Entity, error) {` helper function
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
 	- `tables`

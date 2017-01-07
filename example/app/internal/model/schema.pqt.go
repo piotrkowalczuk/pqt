@@ -7,14 +7,15 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
 	"github.com/lib/pq"
-	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 const (
@@ -195,7 +196,7 @@ type CategoryRepositoryBase struct {
 }
 
 func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(6)
+	ins := NewComposer(6)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if col.Len() > 0 {
@@ -333,7 +334,7 @@ func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) 
 	return e, nil
 }
 func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(6)
+	where := NewComposer(6)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -374,6 +375,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 	}
 
 	// id is an empty struct, ignore
+
 	if c.Name.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -426,9 +428,65 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 	}
 
 	if where.Dirty {
-		buf.WriteString("WHERE ")
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
 		buf.ReadFrom(where)
 	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableCategoryColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
 	return buf.String(), where.Args(), nil
 }
 func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) ([]*CategoryEntity, error) {
@@ -463,7 +521,7 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriter
 	return &CategoryIterator{rows: rows}, nil
 }
 func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
-	find := pqtgo.NewComposer(6)
+	find := NewComposer(6)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -491,8 +549,7 @@ func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Ca
 func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := pqtgo.NewComposer(6)
-	update.Add(pk)
+	update := NewComposer(6)
 	if p.Content.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -658,7 +715,7 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria)
 	return count, nil
 }
 func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
-	find := pqtgo.NewComposer(6)
+	find := NewComposer(6)
 	find.WriteString("DELETE FROM ")
 	find.WriteString(TableCategory)
 	find.WriteString(" WHERE ")
@@ -840,7 +897,7 @@ type PackageRepositoryBase struct {
 }
 
 func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(5)
+	ins := NewComposer(5)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if e.Break.Valid {
@@ -962,7 +1019,7 @@ func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*
 	return e, nil
 }
 func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(5)
+	where := NewComposer(5)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -1020,6 +1077,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 	}
 
 	// id is an empty struct, ignore
+
 	if c.UpdatedAt.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1038,9 +1096,65 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 	}
 
 	if where.Dirty {
-		buf.WriteString("WHERE ")
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
 		buf.ReadFrom(where)
 	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TablePackageColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
 	return buf.String(), where.Args(), nil
 }
 func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([]*PackageEntity, error) {
@@ -1075,7 +1189,7 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria
 	return &PackageIterator{rows: rows}, nil
 }
 func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
-	find := pqtgo.NewComposer(5)
+	find := NewComposer(5)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1103,8 +1217,7 @@ func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Pac
 func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := pqtgo.NewComposer(5)
-	update.Add(pk)
+	update := NewComposer(5)
 	if p.Break.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1251,7 +1364,7 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (
 	return count, nil
 }
 func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
-	find := pqtgo.NewComposer(5)
+	find := NewComposer(5)
 	find.WriteString("DELETE FROM ")
 	find.WriteString(TablePackage)
 	find.WriteString(" WHERE ")
@@ -1481,7 +1594,7 @@ type NewsRepositoryBase struct {
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(10)
+	ins := NewComposer(10)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if col.Len() > 0 {
@@ -1701,7 +1814,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	return e, nil
 }
 func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(10)
+	where := NewComposer(10)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -1759,6 +1872,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 	}
 
 	// id is an empty struct, ignore
+
 	if c.Lead.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -1862,9 +1976,65 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 	}
 
 	if where.Dirty {
-		buf.WriteString("WHERE ")
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
 		buf.ReadFrom(where)
 	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableNewsColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
 	return buf.String(), where.Args(), nil
 }
 func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*NewsEntity, error) {
@@ -1899,7 +2069,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*Ne
 	return &NewsIterator{rows: rows}, nil
 }
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
-	find := pqtgo.NewComposer(10)
+	find := NewComposer(10)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1925,7 +2095,7 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 	return &ent, nil
 }
 func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
-	find := pqtgo.NewComposer(10)
+	find := NewComposer(10)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1951,7 +2121,7 @@ func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle strin
 	return &ent, nil
 }
 func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
-	find := pqtgo.NewComposer(10)
+	find := NewComposer(10)
 	find.WriteString("SELECT ")
 	find.WriteString(strings.Join(r.Columns, ", "))
 	find.WriteString(" FROM ")
@@ -1984,8 +2154,7 @@ func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitl
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := pqtgo.NewComposer(10)
-	update.Add(pk)
+	update := NewComposer(10)
 	if p.Content.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2227,7 +2396,7 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64,
 	return count, nil
 }
 func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
-	find := pqtgo.NewComposer(10)
+	find := NewComposer(10)
 	find.WriteString("DELETE FROM ")
 	find.WriteString(TableNews)
 	find.WriteString(" WHERE ")
@@ -2421,7 +2590,7 @@ type CommentRepositoryBase struct {
 }
 
 func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(6)
+	ins := NewComposer(6)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if col.Len() > 0 {
@@ -2556,7 +2725,7 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 	return e, nil
 }
 func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(6)
+	where := NewComposer(6)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -2597,6 +2766,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 	}
 
 	// id is an empty struct, ignore
+
 	if c.NewsID.Valid {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -2649,9 +2819,65 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 	}
 
 	if where.Dirty {
-		buf.WriteString("WHERE ")
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
 		buf.ReadFrom(where)
 	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableCommentColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
 	return buf.String(), where.Args(), nil
 }
 func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
@@ -3119,7 +3345,7 @@ type CompleteRepositoryBase struct {
 }
 
 func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []interface{}, error) {
-	ins := pqtgo.NewComposer(33)
+	ins := NewComposer(33)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
 	if e.ColumnBool.Valid {
@@ -3815,7 +4041,7 @@ func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) 
 	return e, nil
 }
 func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (string, []interface{}, error) {
-	where := pqtgo.NewComposer(33)
+	where := NewComposer(33)
 	buf := bytes.NewBufferString("SELECT ")
 	buf.WriteString(strings.Join(s, ", "))
 	buf.WriteString(" FROM ")
@@ -4247,6 +4473,7 @@ func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (str
 	}
 
 	// column_serial_big is an empty struct, ignore
+
 	if c.ColumnSerialSmall != nil {
 		if where.Dirty {
 			where.WriteString(" AND ")
@@ -4367,9 +4594,65 @@ func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (str
 	}
 
 	if where.Dirty {
-		buf.WriteString("WHERE ")
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
 		buf.ReadFrom(where)
 	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableCompleteColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
 	return buf.String(), where.Args(), nil
 }
 func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) ([]*CompleteEntity, error) {
@@ -4504,6 +4787,350 @@ func (n *NullByteaArray) Scan(value interface{}) error {
 	}
 	n.Valid = true
 	return n.ByteaArray.Scan(value)
+}
+
+const (
+	jsonArraySeparator     = ","
+	jsonArrayBeginningChar = "["
+	jsonArrayEndChar       = "]"
+)
+
+// JSONArrayInt64 is a slice of int64s that implements necessary interfaces.
+type JSONArrayInt64 []int64
+
+// Scan satisfy sql.Scanner interface.
+func (a *JSONArrayInt64) Scan(src interface{}) error {
+	if src == nil {
+		if a == nil {
+			*a = make(JSONArrayInt64, 0)
+		}
+		return nil
+	}
+
+	var tmp []string
+	var srcs string
+
+	switch t := src.(type) {
+	case []byte:
+		srcs = string(t)
+	case string:
+		srcs = t
+	default:
+		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+	}
+
+	l := len(srcs)
+
+	if l < 2 {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+	}
+
+	if l == 2 {
+		*a = make(JSONArrayInt64, 0)
+		return nil
+	}
+
+	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+	}
+
+	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
+	*a = make(JSONArrayInt64, 0, len(tmp))
+	for i, v := range tmp {
+		j, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s at index %d", v, i)
+		}
+
+		*a = append(*a, j)
+	}
+
+	return nil
+}
+
+// Value satisfy driver.Valuer interface.
+func (a JSONArrayInt64) Value() (driver.Value, error) {
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
+
+	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
+		return nil, err
+	}
+
+	for i, v := range a {
+		if i > 0 {
+			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := buffer.WriteString(strconv.FormatInt(v, 10)); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// JSONArrayString is a slice of strings that implements necessary interfaces.
+type JSONArrayString []string
+
+// Scan satisfy sql.Scanner interface.
+func (a *JSONArrayString) Scan(src interface{}) error {
+	if src == nil {
+		if a == nil {
+			*a = make(JSONArrayString, 0)
+		}
+		return nil
+	}
+
+	var srcs string
+
+	switch t := src.(type) {
+	case []byte:
+		srcs = string(t)
+	case string:
+		srcs = t
+	default:
+		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+	}
+
+	l := len(srcs)
+
+	if l < 2 {
+		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+	}
+
+	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
+		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+	}
+
+	*a = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
+
+	return nil
+}
+
+// Value satisfy driver.Valuer interface.
+func (a JSONArrayString) Value() (driver.Value, error) {
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
+
+	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
+		return nil, err
+	}
+
+	for i, v := range a {
+		if i > 0 {
+			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
+				return nil, err
+			}
+		}
+		if _, err = buffer.WriteString(v); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// JSONArrayFloat64 is a slice of int64s that implements necessary interfaces.
+type JSONArrayFloat64 []float64
+
+// Scan satisfy sql.Scanner interface.
+func (a *JSONArrayFloat64) Scan(src interface{}) error {
+	if src == nil {
+		if a == nil {
+			*a = make(JSONArrayFloat64, 0)
+		}
+		return nil
+	}
+
+	var tmp []string
+	var srcs string
+
+	switch t := src.(type) {
+	case []byte:
+		srcs = string(t)
+	case string:
+		srcs = t
+	default:
+		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+	}
+
+	l := len(srcs)
+
+	if l < 2 {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+	}
+
+	if l == 2 {
+		*a = make(JSONArrayFloat64, 0)
+		return nil
+	}
+
+	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+	}
+
+	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
+	*a = make(JSONArrayFloat64, 0, len(tmp))
+	for i, v := range tmp {
+		j, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s at index %d", v, i)
+		}
+
+		*a = append(*a, j)
+	}
+
+	return nil
+}
+
+// Value satisfy driver.Valuer interface.
+func (a JSONArrayFloat64) Value() (driver.Value, error) {
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
+
+	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
+		return nil, err
+	}
+
+	for i, v := range a {
+		if i > 0 {
+			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := buffer.WriteString(strconv.FormatFloat(v, 'f', -1, 64)); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+var (
+	// Space is a shorthand composition option that holds space.
+	Space = &CompositionOpts{
+		Joint: " ",
+	}
+	// And is a shorthand composition option that holds AND operator.
+	And = &CompositionOpts{
+		Joint: " AND ",
+	}
+	// Or is a shorthand composition option that holds OR operator.
+	Or = &CompositionOpts{
+		Joint: " OR ",
+	}
+	// Comma is a shorthand composition option that holds comma.
+	Comma = &CompositionOpts{
+		Joint: ", ",
+	}
+)
+
+// CompositionOpts is a container for modification that can be applied.
+type CompositionOpts struct {
+	Joint                         string
+	PlaceholderFunc, SelectorFunc string
+	Cast                          string
+	IsJSON                        bool
+}
+
+// CompositionWriter is a simple wrapper for WriteComposition function.
+type CompositionWriter interface {
+	// WriteComposition is a function that allow custom struct type to be used as a part of criteria.
+	// It gives possibility to write custom query based on object that implements this interface.
+	WriteComposition(string, *Composer, *CompositionOpts) error
+}
+
+// Composer holds buffer, arguments and placeholders count.
+// In combination with external buffet can be also used to also generate sub-queries.
+// To do that simply write buffer to the parent buffer, composer will hold all arguments and remember number of last placeholder.
+type Composer struct {
+	buf     bytes.Buffer
+	args    []interface{}
+	counter int
+	Dirty   bool
+}
+
+// NewComposer allocates new Composer with inner slice of arguments of given size.
+func NewComposer(size int64) *Composer {
+	return &Composer{
+		counter: 1,
+		args:    make([]interface{}, 0, size),
+	}
+}
+
+// WriteString appends the contents of s to the query buffer, growing the buffer as
+// needed. The return value n is the length of s; err is always nil. If the
+// buffer becomes too large, WriteString will panic with bytes ErrTooLarge.
+func (c *Composer) WriteString(s string) (int, error) {
+	return c.buf.WriteString(s)
+}
+
+// Write implements io Writer interface.
+func (c *Composer) Write(b []byte) (int, error) {
+	return c.buf.Write(b)
+}
+
+// Read implements io Reader interface.
+func (c *Composer) Read(b []byte) (int, error) {
+	return c.buf.Read(b)
+}
+
+// ResetBuf resets internal buffer.
+func (c *Composer) ResetBuf() {
+	c.buf.Reset()
+}
+
+// String implements fmt Stringer interface.
+func (c *Composer) String() string {
+	return c.buf.String()
+}
+
+// WritePlaceholder writes appropriate placeholder to the query buffer based on current state of the composer.
+func (c *Composer) WritePlaceholder() error {
+	if _, err := c.buf.WriteString("$"); err != nil {
+		return err
+	}
+	if _, err := c.buf.WriteString(strconv.Itoa(c.counter)); err != nil {
+		return err
+	}
+
+	c.counter++
+	return nil
+}
+
+// Len returns number of arguments.
+func (c *Composer) Len() int {
+	return c.counter
+}
+
+// Add appends list with new element.
+func (c *Composer) Add(arg interface{}) {
+	c.args = append(c.args, arg)
+}
+
+// Args returns all arguments stored as a slice.
+func (c *Composer) Args() []interface{} {
+	return c.args
 }
 
 /// SQL ...

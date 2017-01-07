@@ -1,4 +1,4 @@
-package pqtgo
+package model
 
 import (
 	"bytes"

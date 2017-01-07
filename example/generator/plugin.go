@@ -9,7 +9,7 @@ import (
 type generator struct {
 }
 
-func (g *generator) PropertyType(c *pqt.Column, m int32) (string) {
+func (g *generator) PropertyType(c *pqt.Column, m int32) string {
 	if m == 1 {
 		if c.Type == pqt.TypeSerialBig() {
 			return "int64"
@@ -18,9 +18,17 @@ func (g *generator) PropertyType(c *pqt.Column, m int32) (string) {
 	return ""
 }
 
-func (g *generator) WhereClause(c *pqt.Column) (string) {
+func (g *generator) WhereClause(c *pqt.Column) string {
 	if c.Type == pqt.TypeSerialBig() {
 		return fmt.Sprintf("// %s is an empty struct, ignore\n", c.Name)
 	}
+	return ""
+}
+
+func (g *generator) SetClause(_ *pqt.Column) string {
+	return ""
+}
+
+func (g *generator) Static(_ *pqt.Schema) string {
 	return ""
 }
