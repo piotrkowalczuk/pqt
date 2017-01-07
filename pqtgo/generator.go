@@ -1216,9 +1216,6 @@ func (g *Generator) columnType(c *pqt.Column, m int32) string {
 			return txt
 		}
 	}
-	if c.Name == "created_by" {
-		fmt.Printf("%#v\n", c)
-	}
 	return g.Formatter.Type(c.Type, m)
 }
 
