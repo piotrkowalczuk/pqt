@@ -219,9 +219,6 @@ func generateCustomType(t CustomType, m int32) string {
 		if tp == nil {
 			return "<nil>"
 		}
-		if tp.Kind() == reflect.Struct {
-			return "*" + tp.String()
-		}
 		return tp.String()
 	}
 	return chooseType(

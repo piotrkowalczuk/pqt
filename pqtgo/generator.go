@@ -138,6 +138,8 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateRepositoryFindOneByUniqueConstraint(b, t)
 		g.generateRepositoryUpdateOneByPrimaryKeyQuery(b, t)
 		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
+		g.generateRepositoryUpdateOneByUniqueConstraintQuery(b, t)
+		g.generateRepositoryUpdateOneByUniqueConstraint(b, t)
 		g.generateRepositoryCount(b, t)
 		g.generateRepositoryDeleteOneByPrimaryKey(b, t)
 	}
@@ -180,34 +182,50 @@ func (g *Generator) generateImports(w io.Writer, schema *pqt.Schema) {
 }
 
 func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "// %sEntity ...\n", g.Formatter.Identifier(t.Name))
-	fmt.Fprintf(w, "type %sEntity struct{\n", g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		// %sEntity ...`, g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		type %sEntity struct{`, g.Formatter.Identifier(t.Name))
 	for prop := range g.entityPropertiesGenerator(t) {
-		fmt.Fprintf(w, "// %s ...\n", g.Formatter.Identifier(prop.Name))
+		fmt.Fprintf(w, `
+			// %s ...`, g.Formatter.Identifier(prop.Name))
 		if prop.Tags != "" {
-			fmt.Fprintf(w, "%s %s %s\n", g.Formatter.Identifier(prop.Name), prop.Type, prop.Tags)
+			fmt.Fprintf(w,
+				`%s %s %s`,
+				g.Formatter.Identifier(prop.Name), prop.Type, prop.Tags,
+			)
 		} else {
-			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(prop.Name), prop.Type)
+			fmt.Fprintf(w, `
+				%s %s`,
+				g.Formatter.Identifier(prop.Name),
+				prop.Type,
+			)
 		}
 	}
-	fmt.Fprint(w, "}\n\n")
+	fmt.Fprint(w, `}`)
 }
 
 func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "type %sCriteria struct {\n", g.Formatter.Identifier(t.Name))
-	fmt.Fprintf(w, "%s, %s int64\n", g.Formatter.Identifier("offset"), g.Formatter.Identifier("limit"))
-	fmt.Fprintf(w, "%s map[string]bool\n", g.Formatter.Identifier("sort"))
+	fmt.Fprintf(w, `
+		type %sCriteria struct {`, g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		%s, %s int64`, g.Formatter.Identifier("offset"), g.Formatter.Identifier("limit"))
+	fmt.Fprintf(w, `
+		%s map[string]bool`, g.Formatter.Identifier("sort"))
 
 	for _, c := range t.Columns {
 		if t := g.columnType(c, modeCriteria); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(c.Name), t)
+			fmt.Fprintf(w, `
+				%s %s`, g.Formatter.Identifier(c.Name), t)
 		}
 	}
-	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, `
+		}`)
 }
 
 func (g *Generator) generatePatch(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "type %sPatch struct {\n", g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		type %sPatch struct {`, g.Formatter.Identifier(t.Name))
 
 ArgumentsLoop:
 	for _, c := range t.Columns {
@@ -216,10 +234,15 @@ ArgumentsLoop:
 		}
 
 		if t := g.columnType(c, ModeOptional); t != "<nil>" {
-			fmt.Fprintf(w, "%s %s\n", g.Formatter.Identifier(c.Name), t)
+			fmt.Fprintf(w, `
+				%s %s`,
+				g.Formatter.Identifier(c.Name),
+				t,
+			)
 		}
 	}
-	fmt.Fprintln(w, "}")
+	fmt.Fprintln(w, `
+		}`)
 }
 
 func (g *Generator) generateIterator(w io.Writer, t *pqt.Table) {
@@ -348,14 +371,14 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 }
 
 func (g *Generator) generateRepository(w io.Writer, table *pqt.Table) {
-	fmt.Fprintf(w, `type %sRepositoryBase struct {
+	fmt.Fprintf(w, `
+		type %sRepositoryBase struct {
 			%s string
 			%s []string
 			%s *sql.DB
 			%s bool
 			%s log.Logger
-		}
-`,
+		}`,
 		g.Formatter.Identifier(table.Name),
 		g.Formatter.Identifier("table"),
 		g.Formatter.Identifier("columns"),
@@ -366,59 +389,71 @@ func (g *Generator) generateRepository(w io.Writer, table *pqt.Table) {
 }
 
 func (g *Generator) generateColumns(w io.Writer, table *pqt.Table) {
-	fmt.Fprintf(w, "var (\n %s  = []string{\n", g.Formatter.Identifier("table", table.Name, "columns"))
+	fmt.Fprintf(w, `
+		var (
+			%s  = []string{`, g.Formatter.Identifier("table", table.Name, "columns"))
 
 	for _, name := range sortedColumns(table.Columns) {
-		fmt.Fprintf(w, "%s", g.Formatter.Identifier("table", table.Name, "column", name))
-		io.WriteString(w, ",")
-		io.WriteString(w, "\n")
+		fmt.Fprintf(w, `
+			%s,`, g.Formatter.Identifier("table", table.Name, "column", name))
 	}
-	io.WriteString(w, "})\n")
+	io.WriteString(w, `
+		})`)
 }
 
 func (g *Generator) generateConstants(code *bytes.Buffer, table *pqt.Table) {
-	code.WriteString("const (\n")
+	code.WriteString(`
+		const (`)
 	g.generateConstantsColumns(code, table)
 	g.generateConstantsConstraints(code, table)
-	code.WriteString(")\n")
+	code.WriteString(`
+		)`)
 }
 
 func (g *Generator) generateConstantsColumns(w io.Writer, table *pqt.Table) {
-	fmt.Fprintf(w, `%s = "%s"
-	`, g.Formatter.Identifier("table", table.Name), table.FullName())
+	fmt.Fprintf(w, `
+		%s = "%s"`, g.Formatter.Identifier("table", table.Name), table.FullName())
 
 	for _, name := range sortedColumns(table.Columns) {
-		fmt.Fprintf(w, `%s = "%s"
-		`, g.Formatter.Identifier("table", table.Name, "column", name), name)
+		fmt.Fprintf(w, `
+			%s = "%s"`, g.Formatter.Identifier("table", table.Name, "column", name), name)
 	}
 }
 
 func (g *Generator) generateConstantsConstraints(w io.Writer, table *pqt.Table) {
 	for _, c := range tableConstraints(table) {
-		name := fmt.Sprintf("%s", pqt.JoinColumns(c.Columns, "_"))
+		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
-			fmt.Fprintf(w, `%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Check"), c.String())
+			fmt.Fprintf(w, `
+				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Check"), c.String())
 		case pqt.ConstraintTypePrimaryKey:
-			fmt.Fprintf(w, `%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraintPrimaryKey"), c.String())
+			fmt.Fprintf(w, `
+				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraintPrimaryKey"), c.String())
 		case pqt.ConstraintTypeForeignKey:
-			fmt.Fprintf(w, `%s = "%s"`, g.Formatter.Identifier("table", table.Name, "Constraint", name, "ForeignKey"), c.String())
+			fmt.Fprintf(w, `
+				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "ForeignKey"), c.String())
 		case pqt.ConstraintTypeExclusion:
-			fmt.Fprintf(w, `%s = "%s"`, g.Formatter.Identifier("table", table.Name, "Constraint", name, "Exclusion"), c.String())
+			fmt.Fprintf(w, `
+				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Exclusion"), c.String())
 		case pqt.ConstraintTypeUnique:
-			fmt.Fprintf(w, `%s = "%s"`, g.Formatter.Identifier("table", table.Name, "Constraint", name, "Unique"), c.String())
+			fmt.Fprintf(w, `
+				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Unique"), c.String())
 		case pqt.ConstraintTypeIndex:
-			fmt.Fprintf(w, `%s = "%s"`, g.Formatter.Identifier("table", table.Name, "Constraint", name, "Index"), c.String())
+			fmt.Fprintf(w, `
+				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Index"), c.String())
 		}
 
-		io.WriteString(w, "\n")
+		io.WriteString(w, `
+			`)
 	}
 }
 
 func (g *Generator) generateRepositoryInsertQuery(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %sQuery(e *%sEntity) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("insert"), entityName)
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %sQuery(e *%sEntity) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("insert"), entityName)
 	fmt.Fprintf(w, `
 		ins := NewComposer(%d)
 		buf := bytes.NewBufferString("INSERT INTO " + r.%s)
@@ -434,36 +469,41 @@ ColumnsLoop:
 			continue ColumnsLoop
 		default:
 			if g.canBeNil(c, ModeDefault) {
-				fmt.Fprintf(w, "if e.%s != nil {\n", g.Formatter.Identifier(c.Name))
+				fmt.Fprintf(w, `
+					if e.%s != nil {`,
+					g.Formatter.Identifier(c.Name),
+				)
 				braces++
 			}
 			if g.isNullable(c, ModeDefault) {
-				fmt.Fprintf(w, "if e.%s.Valid {\n", g.Formatter.Identifier(c.Name))
+				fmt.Fprintf(w, `
+					if e.%s.Valid {`, g.Formatter.Identifier(c.Name))
 				braces++
 			}
 			if g.isType(c, ModeDefault, "time.Time") {
-				fmt.Fprintf(w, "if !e.%s.IsZero() {\n", g.Formatter.Identifier(c.Name))
+				fmt.Fprintf(w, `
+					if !e.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
 				braces++
 			}
-			fmt.Fprintf(w,
-				`if col.Len() > 0 {
-						if _, err := col.WriteString(", "); err != nil {
-							return "", nil, err
-						}
-					}
-					if _, err := col.WriteString(%s); err != nil {
+			fmt.Fprintf(w, `
+			if col.Len() > 0 {
+					if _, err := col.WriteString(", "); err != nil {
 						return "", nil, err
 					}
-					if ins.Dirty {
-						if _, err := ins.WriteString(", "); err != nil {
-							return "", nil, err
-						}
-					}
-					if err := ins.WritePlaceholder(); err != nil {
+				}
+				if _, err := col.WriteString(%s); err != nil {
+					return "", nil, err
+				}
+				if ins.Dirty {
+					if _, err := ins.WriteString(", "); err != nil {
 						return "", nil, err
 					}
-					ins.Add(e.%s)
-					ins.Dirty=true`,
+				}
+				if err := ins.WritePlaceholder(); err != nil {
+					return "", nil, err
+				}
+				ins.Add(e.%s)
+				ins.Dirty=true`,
 				g.Formatter.Identifier("table", table.Name, "column", c.Name),
 				g.Formatter.Identifier(c.Name),
 			)
@@ -494,7 +534,8 @@ ColumnsLoop:
 func (g *Generator) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("insert"), entityName, entityName)
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("insert"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(e)
 			if err != nil {
@@ -510,23 +551,107 @@ func (g *Generator) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 	}
 	fmt.Fprintf(w, `); err != nil {
 			if r.%s {
-				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.%s, "error", err.Error())
 			}
 			return nil, err
 		}
 		if r.%s {
-			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.%s)
 		}
 		return e, nil
 	}
 `,
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
 	)
 }
 
+func (g *Generator) generateRepositorySetClause(w io.Writer, c *pqt.Column) {
+	if c.PrimaryKey {
+		return
+	}
+	for _, plugin := range g.Plugins {
+		if txt := plugin.SetClause(c); txt != "" {
+			tmpl, err := template.New("root").Parse(txt)
+			if err != nil {
+				panic(err)
+			}
+			if err = tmpl.Execute(w, map[string]interface{}{
+				"selector": fmt.Sprintf("p.%s", g.Formatter.Identifier(c.Name)),
+				"column":   g.Formatter.Identifier("table", c.Table.Name, "column", c.Name),
+				"composer": "update",
+			}); err != nil {
+				panic(err)
+			}
+			fmt.Fprintln(w, "")
+			return
+		}
+	}
+	if g.canBeNil(c, ModeOptional) {
+		fmt.Fprintf(w, `
+			if p.%s != nil {`, g.Formatter.Identifier(c.Name))
+	}
+	if g.isNullable(c, ModeOptional) {
+		fmt.Fprintf(w, `
+			if p.%s.Valid {`, g.Formatter.Identifier(c.Name))
+	}
+	if g.isType(c, ModeOptional, "time.Time") {
+		fmt.Fprintf(w, `
+			if !p.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
+	}
+
+	fmt.Fprintf(w, `
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(%s); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.%s)
+		update.Dirty=true
+		`, g.Formatter.Identifier("table", c.Table.Name, "column", c.Name), g.Formatter.Identifier(c.Name))
+
+	if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
+		switch c.Type {
+		case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+			fmt.Fprintf(w, `
+				} else {
+					if update.Dirty {
+						if _, err := update.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := update.WriteString(%s); err != nil {
+						return "", nil, err
+					}
+					if _, err := update.WriteString("=%s"); err != nil {
+						return "", nil, err
+				}`, g.Formatter.Identifier("table", c.Table.Name, "column", c.Name), d)
+		}
+	}
+
+	if g.isType(c, ModeOptional, "time.Time") {
+		fmt.Fprint(w, "\n}\n")
+	}
+	if g.canBeNil(c, ModeOptional) {
+		fmt.Fprint(w, "\n}\n")
+	}
+	if g.isNullable(c, ModeOptional) {
+		fmt.Fprint(w, "\n}\n")
+	}
+}
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 	pk, ok := table.PrimaryKey()
@@ -534,91 +659,23 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, ta
 		return
 	}
 
-	fmt.Fprintf(w, "func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {\n", entityName, g.Formatter.Identifier("UpdateOneBy", pk.Name), g.columnType(pk, ModeMandatory), entityName)
-	fmt.Fprintf(w, `buf := bytes.NewBufferString("UPDATE ")
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {`,
+		entityName,
+		g.Formatter.Identifier("UpdateOneBy", pk.Name),
+		g.columnType(pk, ModeMandatory),
+		entityName,
+	)
+	fmt.Fprintf(w, `
+		buf := bytes.NewBufferString("UPDATE ")
 		buf.WriteString(r.%s)
-		update := NewComposer(%d)
-	`, g.Formatter.Identifier("table"), len(table.Columns))
+		update := NewComposer(%d)`,
+		g.Formatter.Identifier("table"),
+		len(table.Columns),
+	)
 
-ColumnsLoop:
 	for _, c := range table.Columns {
-		if c == pk {
-			continue ColumnsLoop
-		}
-		for _, plugin := range g.Plugins {
-			if txt := plugin.SetClause(c); txt != "" {
-				tmpl, err := template.New("root").Parse(txt)
-				if err != nil {
-					panic(err)
-				}
-				if err = tmpl.Execute(w, map[string]interface{}{
-					"selector": fmt.Sprintf("p.%s", g.Formatter.Identifier(c.Name)),
-					"column":   g.Formatter.Identifier("table", table.Name, "column", c.Name),
-					"composer": "update",
-				}); err != nil {
-					panic(err)
-				}
-				fmt.Fprintln(w, "")
-				continue ColumnsLoop
-			}
-		}
-		if g.canBeNil(c, ModeOptional) {
-			fmt.Fprintf(w, "if p.%s != nil {\n", g.Formatter.Identifier(c.Name))
-		}
-		if g.isNullable(c, ModeOptional) {
-			fmt.Fprintf(w, "if p.%s.Valid {\n", g.Formatter.Identifier(c.Name))
-		}
-		if g.isType(c, ModeOptional, "time.Time") {
-			fmt.Fprintf(w, "if !p.%s.IsZero() {", g.Formatter.Identifier(c.Name))
-		}
-
-		fmt.Fprintf(w, `if update.Dirty {
-				if _, err := update.WriteString(", "); err != nil {
-					return "", nil, err
-				}
-			}
-			if _, err := update.WriteString(%s); err != nil {
-				return "", nil, err
-			}
-			if _, err := update.WriteString("="); err != nil {
-				return "", nil, err
-			}
-			if err := update.WritePlaceholder(); err != nil {
-				return "", nil, err
-			}
-			update.Add(p.%s)
-			update.Dirty=true
-		`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.Identifier(c.Name))
-
-		if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
-			switch c.Type {
-			case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
-				fmt.Fprintf(w, `
-					} else {
-						if update.Dirty {
-							if _, err := update.WriteString(", "); err != nil {
-								return "", nil, err
-							}
-						}
-						if _, err := update.WriteString(%s); err != nil {
-							return "", nil, err
-						}
-						if _, err := update.WriteString("=%s"); err != nil {
-							return "", nil, err
-						}
-				`, g.Formatter.Identifier("table", table.Name, "column", c.Name), d)
-			}
-		}
-
-		if g.isType(c, ModeOptional, "time.Time") {
-			fmt.Fprint(w, "\n}\n")
-		}
-		if g.canBeNil(c, ModeOptional) {
-			fmt.Fprint(w, "\n}\n")
-		}
-		if g.isNullable(c, ModeOptional) {
-			fmt.Fprint(w, "\n}\n")
-		}
+		g.generateRepositorySetClause(w, c)
 	}
 	fmt.Fprintf(w, `
 	if !update.Dirty {
@@ -626,22 +683,24 @@ ColumnsLoop:
 	}`, entityName)
 
 	fmt.Fprintf(w, `
-	buf.WriteString(" SET ")
-	buf.ReadFrom(update)
-	buf.WriteString(" WHERE ")
+		buf.WriteString(" SET ")
+		buf.ReadFrom(update)
+		buf.WriteString(" WHERE ")
 
-	update.WriteString(%s)
-	update.WriteString("=")
-	update.WritePlaceholder()
-	update.Add(pk)
+		update.WriteString(%s)
+		update.WriteString("=")
+		update.WritePlaceholder()
+		update.Add(pk)
 
-	buf.ReadFrom(update)
-	buf.WriteString(" RETURNING ")
-	buf.WriteString(strings.Join(r.%s, ", "))
+		buf.ReadFrom(update)
+		buf.WriteString(" RETURNING ")
+		buf.WriteString(strings.Join(r.%s, ", "))
 
-	return buf.String(), update.Args(), nil
-}
-`, g.Formatter.Identifier("table", table.Name, "column", pk.Name), g.Formatter.Identifier("columns"))
+		return buf.String(), update.Args(), nil
+	}`,
+		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
+		g.Formatter.Identifier("columns"),
+	)
 }
 
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
@@ -651,21 +710,21 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *
 		return
 	}
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("updateOneBy", pk.Name), g.columnType(pk, ModeMandatory), entityName, entityName)
 	fmt.Fprintf(w, `
-			query, args, err := r.%sQuery(pk, p)
-			if err != nil {
-				return nil, err
-			}
-`, g.Formatter.Identifier("updateOneBy", pk.Name))
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("updateOneBy", pk.Name), g.columnType(pk, ModeMandatory), entityName, entityName)
+	fmt.Fprintf(w, `
+		query, args, err := r.%sQuery(pk, p)
+		if err != nil {
+			return nil, err
+		}`, g.Formatter.Identifier("updateOneBy", pk.Name))
 
 	fmt.Fprintf(w, `
-	var ent %sEntity
-	props, err := ent.%s(r.%s...)
-	if err != nil {
-		return nil, err
-	}
-	err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
+		var ent %sEntity
+		props, err := ent.%s(r.%s...)
+		if err != nil {
+			return nil, err
+		}
+		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
 		entityName,
 		g.Formatter.Identifier("props"),
 		g.Formatter.Identifier("columns"),
@@ -677,14 +736,152 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *
 		}
 
 		return &ent, nil
+	}`)
 }
-`)
+
+func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+
+	for _, u := range g.uniqueConstraints(table) {
+		method := []string{"updateOneBy"}
+		arguments := ""
+
+		for i, c := range u.Columns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, ModeMandatory))
+		}
+		method = append(method, "query")
+
+		fmt.Fprintf(w, `
+			func (r *%sRepositoryBase) %s(%s, p *%sPatch) (string, []interface{}, error) {`,
+			entityName,
+			g.Formatter.Identifier(method...),
+			arguments,
+			entityName,
+		)
+
+		fmt.Fprintf(w, `
+			buf := bytes.NewBufferString("UPDATE ")
+			buf.WriteString(r.%s)
+			update := NewComposer(%d)`, g.Formatter.Identifier("table"), len(u.Columns))
+
+		for _, c := range table.Columns {
+			g.generateRepositorySetClause(w, c)
+		}
+		fmt.Fprintf(w, `
+			if !update.Dirty {
+				return "", nil, errors.New("%s update failure, nothing to update")
+			}`, entityName,
+		)
+		fmt.Fprint(w, `
+			buf.WriteString(" SET ")
+			buf.ReadFrom(update)
+			buf.WriteString(" WHERE ")`)
+		for i, c := range u.Columns {
+			if i != 0 {
+				fmt.Fprint(w, `
+					update.WriteString(" AND ")`)
+			}
+			fmt.Fprintf(w, `
+				update.WriteString(%s)
+				update.WriteString("=")
+				update.WritePlaceholder()
+				update.Add(%s)`,
+				g.Formatter.Identifier("table", table.Name, "column", c.Name),
+				g.Formatter.IdentifierPrivate(columnForeignName(c)),
+			)
+		}
+		fmt.Fprintf(w, `
+			buf.ReadFrom(update)
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.%s, ", "))`, g.Formatter.Identifier("columns"))
+		fmt.Fprint(w, `
+			return buf.String(), update.Args(), nil
+			}`)
+	}
+}
+
+func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
+	entityName := g.Formatter.Identifier(table.Name)
+	for _, u := range g.uniqueConstraints(table) {
+		method := []string{"updateOneBy"}
+		arguments := ""
+		arguments2 := ""
+
+		for i, c := range u.Columns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+				arguments2 += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, ModeMandatory))
+			arguments2 += g.Formatter.IdentifierPrivate(columnForeignName(c))
+		}
+
+		fmt.Fprintf(w, `
+			func (r *%sRepositoryBase) %s(ctx context.Context, %s, p *%sPatch) (*%sEntity, error) {`,
+			entityName,
+			g.Formatter.Identifier(method...),
+			arguments,
+			entityName,
+			entityName,
+		)
+
+		fmt.Fprintf(w, `
+			query, args, err := r.%s(%s, p)
+			if err != nil {
+				return nil, err
+			}`,
+			g.Formatter.Identifier(append(method, "query")...),
+			arguments2,
+		)
+		fmt.Fprintf(w, `
+		var ent %sEntity
+		props, err := ent.%s(r.%s...)
+		if err != nil {
+			return nil, err
+		}
+		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
+			entityName,
+			g.Formatter.Identifier("props"),
+			g.Formatter.Identifier("columns"),
+			g.Formatter.Identifier("db"),
+		)
+
+		fmt.Fprintf(w, `
+			if err != nil {
+				if r.%s {
+					r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.%s, "error", err.Error())
+				}
+				return nil, err
+			}
+
+			if r.%s {
+				r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.%s)
+			}
+
+			return &ent, nil
+		}`,
+			g.Formatter.Identifier("debug"),
+			g.Formatter.Identifier("log"),
+			g.Formatter.Identifier("table"),
+			g.Formatter.Identifier("debug"),
+			g.Formatter.Identifier("log"),
+			g.Formatter.Identifier("table"),
+		)
+	}
 }
 
 func (g *Generator) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %sQuery(s []string, c *%sCriteria) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("find"), entityName)
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %sQuery(s []string, c *%sCriteria) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("find"), entityName)
 	fmt.Fprintf(w, `
 	where := NewComposer(%d)
 	buf := bytes.NewBufferString("SELECT ")
@@ -834,7 +1031,8 @@ ColumnsLoop:
 func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) ([]*%sEntity, error) {`, entityName, g.Formatter.Identifier("find"), entityName, entityName)
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) ([]*%sEntity, error) {`, entityName, g.Formatter.Identifier("find"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(r.%s, c)
 			if err != nil {
@@ -849,14 +1047,14 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 	fmt.Fprintf(w, `
 		if err != nil {
 			if r.%s {
-				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.%s, "error", err.Error())
 			}
 			return nil, err
 		}
 			defer rows.Close()
 
 		if r.%s {
-			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.%s)
 		}
 
 		return %s(rows)
@@ -864,8 +1062,10 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 `,
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
 		g.Formatter.Identifier("Scan", table.Name, "rows"),
 	)
 }
@@ -873,7 +1073,8 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(r.%s, c)
 			if err != nil {
@@ -884,8 +1085,7 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 				return nil, err
 			}
 			return &%sIterator{rows: rows}, nil
-}
-`,
+		}`,
 		g.Formatter.Identifier("find"),
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
@@ -896,36 +1096,38 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 func (g *Generator) generateRepositoryCount(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (int64, error) {`, entityName, g.Formatter.Identifier("count"), entityName)
 	fmt.Fprintf(w, `
-			query, args, err := r.%sQuery([]string{"COUNT(*)"}, c)
-			if err != nil {
-				return 0, err
-			}
-			var count int64
-			if err := r.%s.QueryRowContext(ctx, query, args...).Scan(&count)`,
+		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (int64, error) {`, entityName, g.Formatter.Identifier("count"), entityName)
+	fmt.Fprintf(w, `
+		query, args, err := r.%sQuery([]string{"COUNT(*)"}, c)
+		if err != nil {
+			return 0, err
+		}
+		var count int64
+		if err := r.%s.QueryRowContext(ctx, query, args...).Scan(&count)`,
 		g.Formatter.Identifier("find"),
 		g.Formatter.Identifier("db"),
 	)
 
 	fmt.Fprintf(w, `; err != nil {
 			if r.%s {
-				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.%s, "error", err.Error())
 			}
 			return 0, err
 		}
 
 		if r.%s {
-			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.%s)
 		}
 
 		return count, nil
-	}
-`,
+	}`,
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
 	)
 }
 
@@ -936,27 +1138,28 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 		return
 	}
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
 		entityName,
 		g.Formatter.Identifier("FindOneBy", pk.Name),
 		g.columnType(pk, ModeMandatory),
 		entityName,
 	)
 	fmt.Fprintf(w, `
-	find := NewComposer(%d)
-	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.%s, ", "))
-	find.WriteString(" FROM ")
-	find.WriteString(%s)
-	find.WriteString(" WHERE ")
-	find.WriteString(%s)
-	find.WriteString("=")
-	find.WritePlaceholder()
-	find.Add(pk)
-	var (
-		ent %sEntity
-	)
-`, len(table.Columns),
+		find := NewComposer(%d)
+		find.WriteString("SELECT ")
+		find.WriteString(strings.Join(r.%s, ", "))
+		find.WriteString(" FROM ")
+		find.WriteString(%s)
+		find.WriteString(" WHERE ")
+		find.WriteString(%s)
+		find.WriteString("=")
+		find.WritePlaceholder()
+		find.Add(pk)
+		var (
+			ent %sEntity
+		)`,
+		len(table.Columns),
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("table", table.Name),
 		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
@@ -964,11 +1167,11 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 	)
 
 	fmt.Fprintf(w, `
-	props, err := ent.%s(r.%s...)
-	if err != nil {
-		return nil, err
-	}
-	err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+		props, err := ent.%s(r.%s...)
+		if err != nil {
+			return nil, err
+		}
+		err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
 		g.Formatter.Identifier("props"),
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
@@ -979,23 +1182,13 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 		}
 
 		return &ent, nil
-}
-`)
+	}`)
 }
 
 func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
-	var unique []*pqt.Constraint
-	for _, c := range tableConstraints(table) {
-		if c.Type == pqt.ConstraintTypeUnique {
-			unique = append(unique, c)
-		}
-	}
-	if len(unique) < 1 {
-		return
-	}
 
-	for _, u := range unique {
+	for _, u := range g.uniqueConstraints(table) {
 		method := []string{"FindOneBy"}
 		arguments := ""
 
@@ -1008,19 +1201,20 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, ModeMandatory))
 		}
 
-		fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
+		fmt.Fprintf(w, `
+			func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
 			entityName,
 			g.Formatter.Identifier(method...),
 			arguments,
 			entityName,
 		)
 		fmt.Fprintf(w, `
-	find := NewComposer(%d)
-	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.%s, ", "))
-	find.WriteString(" FROM ")
-	find.WriteString(%s)
-	find.WriteString(" WHERE ")`,
+			find := NewComposer(%d)
+			find.WriteString("SELECT ")
+			find.WriteString(strings.Join(r.%s, ", "))
+			find.WriteString(" FROM ")
+			find.WriteString(%s)
+			find.WriteString(" WHERE ")`,
 			len(table.Columns),
 			g.Formatter.Identifier("columns"),
 			g.Formatter.Identifier("table", table.Name),
@@ -1038,27 +1232,26 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 		}
 
 		fmt.Fprintf(w, `
-	var (
-		ent %sEntity
-	)
-	props, err := ent.%s(r.%s...)
-	if err != nil {
-		return nil, err
-	}
-	err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+			var (
+				ent %sEntity
+			)
+			props, err := ent.%s(r.%s...)
+			if err != nil {
+				return nil, err
+			}
+			err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
 			entityName,
 			g.Formatter.Identifier("props"),
 			g.Formatter.Identifier("columns"),
 			g.Formatter.Identifier("db"),
 		)
 		fmt.Fprint(w, `
-		if err != nil {
-			return nil, err
-		}
+			if err != nil {
+				return nil, err
+			}
 
-		return &ent, nil
-}
-`)
+			return &ent, nil
+		}`)
 	}
 }
 
@@ -1069,27 +1262,27 @@ func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, table *
 		return
 	}
 
-	fmt.Fprintf(w, `func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (int64, error) {`,
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (int64, error) {`,
 		entityName,
 		g.Formatter.Identifier("DeleteOneBy", pk.Name),
 		g.columnType(pk, ModeMandatory),
 	)
 	fmt.Fprintf(w, `
-	find := NewComposer(%d)
-	find.WriteString("DELETE FROM ")
-	find.WriteString(%s)
-	find.WriteString(" WHERE ")
-	find.WriteString(%s)
-	find.WriteString("=")
-	find.WritePlaceholder()
-	find.Add(pk)
-`, len(table.Columns),
+		find := NewComposer(%d)
+		find.WriteString("DELETE FROM ")
+		find.WriteString(%s)
+		find.WriteString(" WHERE ")
+		find.WriteString(%s)
+		find.WriteString("=")
+		find.WritePlaceholder()
+		find.Add(pk)`, len(table.Columns),
 		g.Formatter.Identifier("table", table.Name),
 		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
 	)
 
 	fmt.Fprintf(w, `
-	res, err := r.%s.ExecContext(ctx, find.String(), find.Args()...)`,
+		res, err := r.%s.ExecContext(ctx, find.String(), find.Args()...)`,
 		g.Formatter.Identifier("db"),
 	)
 	fmt.Fprint(w, `
@@ -1098,13 +1291,14 @@ func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, table *
 			}
 
 		return res.RowsAffected()
-}
-`)
+	}`)
 }
 
 func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "func (e *%sEntity) %s(cn string) (interface{}, bool) {\n", g.Formatter.Identifier(t.Name), g.Formatter.Identifier("prop"))
-	fmt.Fprintln(w, "switch cn {")
+	fmt.Fprintf(w, `
+		func (e *%sEntity) %s(cn string) (interface{}, bool) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier("prop"))
+	fmt.Fprintln(w, `
+		switch cn {`)
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
 		if g.canBeNil(c, ModeDefault) && !g.isArray(c, ModeDefault) {
@@ -1119,8 +1313,10 @@ func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
-	fmt.Fprintf(w, "func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {\n", g.Formatter.Identifier(t.Name), g.Formatter.Identifier("props"))
-	fmt.Fprintf(w, `res := make([]interface{}, 0, len(cns))
+	fmt.Fprintf(w, `
+		func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier("props"))
+	fmt.Fprintf(w, `
+		res := make([]interface{}, 0, len(cns))
 		for _, cn := range cns {
 			if prop, ok := e.%s(cn); ok {
 				res = append(res, prop)
@@ -1129,17 +1325,20 @@ func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
 			}
 		}
 		return res, nil`, g.Formatter.Identifier("prop"))
-	fmt.Fprint(w, "\n}\n")
+	fmt.Fprint(w, `
+		}`)
 }
 
 func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
-	fmt.Fprintf(w, `func %s(rows *sql.Rows) (entities []*%sEntity, err error) {
-	`, g.Formatter.Identifier("scan", t.Name, "rows"), entityName)
-	fmt.Fprintf(w, `for rows.Next() {
-		var ent %sEntity
-		err = rows.Scan(
-	`, entityName)
+	fmt.Fprintf(w, `
+		func %s(rows *sql.Rows) (entities []*%sEntity, err error) {`, g.Formatter.Identifier("scan", t.Name, "rows"), entityName)
+	fmt.Fprintf(w, `
+		for rows.Next() {
+			var ent %sEntity
+			err = rows.Scan(`,
+		entityName,
+	)
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "&ent.%s,\n", g.Formatter.Identifier(c.Name))
 	}
@@ -1155,8 +1354,7 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 		}
 
 		return
-}
-`)
+	}`)
 }
 
 func (g *Generator) isArray(c *pqt.Column, m int32) bool {
@@ -1686,4 +1884,17 @@ func (c *Composer) Args() []interface{} {
 			fmt.Fprint(w, "\n\n")
 		}
 	}
+}
+
+func (g *Generator) uniqueConstraints(t *pqt.Table) []*pqt.Constraint {
+	var unique []*pqt.Constraint
+	for _, c := range tableConstraints(t) {
+		if c.Type == pqt.ConstraintTypeUnique {
+			unique = append(unique, c)
+		}
+	}
+	if len(unique) < 1 {
+		return nil
+	}
+	return unique
 }

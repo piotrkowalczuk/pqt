@@ -501,3 +501,112 @@ func TestNewsRepositoryBase_UpdateOneByIDQuery(t *testing.T) {
 		})
 	}
 }
+
+var testNewsUpdateOneByTitleData = map[string]struct {
+	patch model.NewsPatch
+	query string
+}{
+	"minimum": {
+		patch: model.NewsPatch{
+			Content: sql.NullString{String: "content - minimum", Valid: true},
+		},
+		query: "UPDATE example.news SET content=$1, updated_at=NOW() WHERE title=$2 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+	},
+	"full": {
+		patch: model.NewsPatch{
+			Lead: sql.NullString{
+				Valid:  true,
+				String: "lead - full",
+			},
+			Score: sql.NullFloat64{
+				Valid:   true,
+				Float64: 12.14,
+			},
+			ViewsDistribution: model.NullFloat64Array{
+				Valid:        true,
+				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
+			},
+			MetaData: []byte(`{"something": 1}`),
+			Content:  sql.NullString{String: "content - full", Valid: true},
+			Continue: sql.NullBool{Bool: true, Valid: true},
+			CreatedAt: pq.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			UpdatedAt: pq.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+		},
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, updated_at=$7, views_distribution=$8 WHERE title=$9 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+	},
+}
+
+func TestNewsRepositoryBase_UpdateOneByTitleQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsUpdateOneByTitleData {
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.news.UpdateOneByTitleQuery("title", &given.patch)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
+func TestNewsRepositoryBase_UpdateOneByTitle(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+
+	for i := 1; i <= expected; i++ {
+		got, err := s.news.UpdateOneByTitle(context.Background(), fmt.Sprintf("title-%d", i), &model.NewsPatch{
+			Content: sql.NullString{
+				Valid:  true,
+				String: fmt.Sprintf("content-updated-by-title-%d", i),
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got.ID != int64(i) {
+			t.Errorf("wrong id, expected %d but got %d", i, got.ID)
+		}
+		if !strings.HasPrefix(got.Content, "content-updated-by-title") {
+			t.Error("content was not updated properly")
+		}
+	}
+}
+
+func TestNewsRepositoryBase_UpdateOneByTitleAndLead(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+
+	for i := 1; i <= expected; i++ {
+		got, err := s.news.UpdateOneByTitleAndLead(context.Background(), fmt.Sprintf("title-%d", i), fmt.Sprintf("lead-%d", i), &model.NewsPatch{
+			Content: sql.NullString{
+				Valid:  true,
+				String: fmt.Sprintf("content-updated-by-title-and-lead-%d", i),
+			},
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got.ID != int64(i) {
+			t.Errorf("wrong id, expected %d but got %d", i, got.ID)
+		}
+		if !strings.HasPrefix(got.Content, "content-updated-by-title-and-lead") {
+			t.Error("content was not updated properly")
+		}
+	}
+}

@@ -19,14 +19,15 @@ import (
 )
 
 const (
-	TableCategory                             = "example.category"
-	TableCategoryColumnContent                = "content"
-	TableCategoryColumnCreatedAt              = "created_at"
-	TableCategoryColumnID                     = "id"
-	TableCategoryColumnName                   = "name"
-	TableCategoryColumnParentID               = "parent_id"
-	TableCategoryColumnUpdatedAt              = "updated_at"
-	TableCategoryConstraintPrimaryKey         = "example.category_id_pkey"
+	TableCategory                     = "example.category"
+	TableCategoryColumnContent        = "content"
+	TableCategoryColumnCreatedAt      = "created_at"
+	TableCategoryColumnID             = "id"
+	TableCategoryColumnName           = "name"
+	TableCategoryColumnParentID       = "parent_id"
+	TableCategoryColumnUpdatedAt      = "updated_at"
+	TableCategoryConstraintPrimaryKey = "example.category_id_pkey"
+
 	TableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
 )
 
@@ -81,6 +82,7 @@ func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
+
 func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
@@ -155,6 +157,7 @@ type CategoryCriteria struct {
 	ParentID      sql.NullInt64
 	UpdatedAt     pq.NullTime
 }
+
 type CategoryPatch struct {
 	Content   sql.NullString
 	CreatedAt pq.NullTime
@@ -166,8 +169,7 @@ type CategoryPatch struct {
 func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
 	for rows.Next() {
 		var ent CategoryEntity
-		err = rows.Scan(
-			&ent.Content,
+		err = rows.Scan(&ent.Content,
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.Name,
@@ -199,6 +201,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 	ins := NewComposer(6)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -217,6 +220,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 	}
 	ins.Add(e.Content)
 	ins.Dirty = true
+
 	if !e.CreatedAt.IsZero() {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -256,6 +260,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 	}
 	ins.Add(e.Name)
 	ins.Dirty = true
+
 	if e.ParentID.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -311,6 +316,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 	}
 	return buf.String(), ins.Args(), nil
 }
+
 func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -333,6 +339,7 @@ func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) 
 	}
 	return e, nil
 }
+
 func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (string, []interface{}, error) {
 	where := NewComposer(6)
 	buf := bytes.NewBufferString("SELECT ")
@@ -489,6 +496,7 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 
 	return buf.String(), where.Args(), nil
 }
+
 func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) ([]*CategoryEntity, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -509,6 +517,7 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) 
 
 	return ScanCategoryRows(rows)
 }
+
 func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriteria) (*CategoryIterator, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -534,7 +543,6 @@ func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Ca
 	var (
 		ent CategoryEntity
 	)
-
 	props, err := ent.Props(r.Columns...)
 	if err != nil {
 		return nil, err
@@ -569,6 +577,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
+
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -588,6 +597,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
+
 	if p.Name.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -607,6 +617,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
+
 	if p.ParentID.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -626,6 +637,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
+
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -656,7 +668,6 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
-
 	}
 
 	if !update.Dirty {
@@ -682,7 +693,6 @@ func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p 
 	if err != nil {
 		return nil, err
 	}
-
 	var ent CategoryEntity
 	props, err := ent.Props(r.Columns...)
 	if err != nil {
@@ -723,7 +733,6 @@ func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (i
 	find.WriteString("=")
 	find.WritePlaceholder()
 	find.Add(pk)
-
 	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
 	if err != nil {
 		return 0, err
@@ -740,7 +749,8 @@ const (
 	TablePackageColumnID                       = "id"
 	TablePackageColumnUpdatedAt                = "updated_at"
 	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
-	TablePackageConstraintPrimaryKey           = "example.package_id_pkey"
+
+	TablePackageConstraintPrimaryKey = "example.package_id_pkey"
 )
 
 var (
@@ -785,6 +795,7 @@ func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
+
 func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
@@ -858,6 +869,7 @@ type PackageCriteria struct {
 	ID            sql.NullInt64
 	UpdatedAt     pq.NullTime
 }
+
 type PackagePatch struct {
 	Break      sql.NullString
 	CategoryID sql.NullInt64
@@ -868,8 +880,7 @@ type PackagePatch struct {
 func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
 	for rows.Next() {
 		var ent PackageEntity
-		err = rows.Scan(
-			&ent.Break,
+		err = rows.Scan(&ent.Break,
 			&ent.CategoryID,
 			&ent.CreatedAt,
 			&ent.ID,
@@ -900,6 +911,7 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 	ins := NewComposer(5)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
+
 	if e.Break.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -997,6 +1009,7 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 	}
 	return buf.String(), ins.Args(), nil
 }
+
 func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -1018,6 +1031,7 @@ func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*
 	}
 	return e, nil
 }
+
 func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (string, []interface{}, error) {
 	where := NewComposer(5)
 	buf := bytes.NewBufferString("SELECT ")
@@ -1157,6 +1171,7 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 
 	return buf.String(), where.Args(), nil
 }
+
 func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([]*PackageEntity, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -1177,6 +1192,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([
 
 	return ScanPackageRows(rows)
 }
+
 func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria) (*PackageIterator, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -1202,7 +1218,6 @@ func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Pac
 	var (
 		ent PackageEntity
 	)
-
 	props, err := ent.Props(r.Columns...)
 	if err != nil {
 		return nil, err
@@ -1237,6 +1252,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		update.Dirty = true
 
 	}
+
 	if p.CategoryID.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1256,6 +1272,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		update.Dirty = true
 
 	}
+
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1275,6 +1292,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		update.Dirty = true
 
 	}
+
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1305,7 +1323,6 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
-
 	}
 
 	if !update.Dirty {
@@ -1331,7 +1348,6 @@ func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *
 	if err != nil {
 		return nil, err
 	}
-
 	var ent PackageEntity
 	props, err := ent.Props(r.Columns...)
 	if err != nil {
@@ -1372,7 +1388,6 @@ func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (in
 	find.WriteString("=")
 	find.WritePlaceholder()
 	find.Add(pk)
-
 	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
 	if err != nil {
 		return 0, err
@@ -1382,19 +1397,21 @@ func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (in
 }
 
 const (
-	TableNews                          = "example.news"
-	TableNewsColumnContent             = "content"
-	TableNewsColumnContinue            = "continue"
-	TableNewsColumnCreatedAt           = "created_at"
-	TableNewsColumnID                  = "id"
-	TableNewsColumnLead                = "lead"
-	TableNewsColumnMetaData            = "meta_data"
-	TableNewsColumnScore               = "score"
-	TableNewsColumnTitle               = "title"
-	TableNewsColumnUpdatedAt           = "updated_at"
-	TableNewsColumnViewsDistribution   = "views_distribution"
-	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
-	TableNewsConstraintTitleUnique     = "example.news_title_key"
+	TableNews                        = "example.news"
+	TableNewsColumnContent           = "content"
+	TableNewsColumnContinue          = "continue"
+	TableNewsColumnCreatedAt         = "created_at"
+	TableNewsColumnID                = "id"
+	TableNewsColumnLead              = "lead"
+	TableNewsColumnMetaData          = "meta_data"
+	TableNewsColumnScore             = "score"
+	TableNewsColumnTitle             = "title"
+	TableNewsColumnUpdatedAt         = "updated_at"
+	TableNewsColumnViewsDistribution = "views_distribution"
+	TableNewsConstraintPrimaryKey    = "example.news_id_pkey"
+
+	TableNewsConstraintTitleUnique = "example.news_title_key"
+
 	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
 )
 
@@ -1467,6 +1484,7 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
+
 func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
@@ -1545,6 +1563,7 @@ type NewsCriteria struct {
 	UpdatedAt         pq.NullTime
 	ViewsDistribution NullFloat64Array
 }
+
 type NewsPatch struct {
 	Content           sql.NullString
 	Continue          sql.NullBool
@@ -1560,8 +1579,7 @@ type NewsPatch struct {
 func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 	for rows.Next() {
 		var ent NewsEntity
-		err = rows.Scan(
-			&ent.Content,
+		err = rows.Scan(&ent.Content,
 			&ent.Continue,
 			&ent.CreatedAt,
 			&ent.ID,
@@ -1597,6 +1615,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	ins := NewComposer(10)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -1615,6 +1634,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	}
 	ins.Add(e.Content)
 	ins.Dirty = true
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -1633,6 +1653,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	}
 	ins.Add(e.Continue)
 	ins.Dirty = true
+
 	if !e.CreatedAt.IsZero() {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -1714,6 +1735,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	}
 	ins.Add(e.Score)
 	ins.Dirty = true
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -1732,6 +1754,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	}
 	ins.Add(e.Title)
 	ins.Dirty = true
+
 	if e.UpdatedAt.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -1787,6 +1810,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 	}
 	return buf.String(), ins.Args(), nil
 }
+
 func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -1813,6 +1837,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	}
 	return e, nil
 }
+
 func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
 	where := NewComposer(10)
 	buf := bytes.NewBufferString("SELECT ")
@@ -2037,6 +2062,7 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 
 	return buf.String(), where.Args(), nil
 }
+
 func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*NewsEntity, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -2057,6 +2083,7 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*News
 
 	return ScanNewsRows(rows)
 }
+
 func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*NewsIterator, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -2082,7 +2109,6 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 	var (
 		ent NewsEntity
 	)
-
 	props, err := ent.Props(r.Columns...)
 	if err != nil {
 		return nil, err
@@ -2174,6 +2200,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.Continue.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2193,6 +2220,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2212,6 +2240,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.Lead.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2231,6 +2260,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.MetaData != nil {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2250,6 +2280,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.Score.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2269,6 +2300,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.Title.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2288,6 +2320,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
+
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2318,8 +2351,8 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
-
 	}
+
 	if p.ViewsDistribution.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2363,7 +2396,6 @@ func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *New
 	if err != nil {
 		return nil, err
 	}
-
 	var ent NewsEntity
 	props, err := ent.Props(r.Columns...)
 	if err != nil {
@@ -2372,6 +2404,481 @@ func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *New
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
 	if err != nil {
 		return nil, err
+	}
+
+	return &ent, nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(1)
+	if p.Content.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Content)
+		update.Dirty = true
+
+	}
+
+	if p.Continue.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Continue)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.Lead.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Lead)
+		update.Dirty = true
+
+	}
+
+	if p.MetaData != nil {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.MetaData)
+		update.Dirty = true
+
+	}
+
+	if p.Score.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Score)
+		update.Dirty = true
+
+	}
+
+	if p.Title.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Title)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if p.ViewsDistribution.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ViewsDistribution)
+		update.Dirty = true
+
+	}
+
+	if !update.Dirty {
+		return "", nil, errors.New("News update failure, nothing to update")
+	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
+	update.WriteString(TableNewsColumnTitle)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(newsTitle)
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+	return buf.String(), update.Args(), nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, newsLead string, p *NewsPatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(2)
+	if p.Content.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Content)
+		update.Dirty = true
+
+	}
+
+	if p.Continue.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Continue)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.Lead.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Lead)
+		update.Dirty = true
+
+	}
+
+	if p.MetaData != nil {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.MetaData)
+		update.Dirty = true
+
+	}
+
+	if p.Score.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Score)
+		update.Dirty = true
+
+	}
+
+	if p.Title.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Title)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if p.ViewsDistribution.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ViewsDistribution)
+		update.Dirty = true
+
+	}
+
+	if !update.Dirty {
+		return "", nil, errors.New("News update failure, nothing to update")
+	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
+	update.WriteString(TableNewsColumnTitle)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(newsTitle)
+	update.WriteString(" AND ")
+	update.WriteString(TableNewsColumnLead)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(newsLead)
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+	return buf.String(), update.Args(), nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle string, p *NewsPatch) (*NewsEntity, error) {
+	query, args, err := r.UpdateOneByTitleQuery(newsTitle, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent NewsEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return &ent, nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string, p *NewsPatch) (*NewsEntity, error) {
+	query, args, err := r.UpdateOneByTitleAndLeadQuery(newsTitle, newsLead, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent NewsEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
 	}
 
 	return &ent, nil
@@ -2404,7 +2911,6 @@ func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64
 	find.WriteString("=")
 	find.WritePlaceholder()
 	find.Add(pk)
-
 	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
 	if err != nil {
 		return 0, err
@@ -2414,14 +2920,15 @@ func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64
 }
 
 const (
-	TableComment                              = "example.comment"
-	TableCommentColumnContent                 = "content"
-	TableCommentColumnCreatedAt               = "created_at"
-	TableCommentColumnID                      = "id"
-	TableCommentColumnNewsID                  = "news_id"
-	TableCommentColumnNewsTitle               = "news_title"
-	TableCommentColumnUpdatedAt               = "updated_at"
-	TableCommentConstraintNewsIDForeignKey    = "example.comment_news_id_fkey"
+	TableComment                           = "example.comment"
+	TableCommentColumnContent              = "content"
+	TableCommentColumnCreatedAt            = "created_at"
+	TableCommentColumnID                   = "id"
+	TableCommentColumnNewsID               = "news_id"
+	TableCommentColumnNewsTitle            = "news_title"
+	TableCommentColumnUpdatedAt            = "updated_at"
+	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
+
 	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
 )
 
@@ -2474,6 +2981,7 @@ func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
+
 func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
@@ -2548,6 +3056,7 @@ type CommentCriteria struct {
 	NewsTitle     sql.NullString
 	UpdatedAt     pq.NullTime
 }
+
 type CommentPatch struct {
 	Content   sql.NullString
 	CreatedAt pq.NullTime
@@ -2560,8 +3069,7 @@ type CommentPatch struct {
 func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
 	for rows.Next() {
 		var ent CommentEntity
-		err = rows.Scan(
-			&ent.Content,
+		err = rows.Scan(&ent.Content,
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.NewsID,
@@ -2593,6 +3101,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 	ins := NewComposer(6)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -2611,6 +3120,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 	}
 	ins.Add(e.Content)
 	ins.Dirty = true
+
 	if !e.CreatedAt.IsZero() {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -2650,6 +3160,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 	}
 	ins.Add(e.NewsID)
 	ins.Dirty = true
+
 	if col.Len() > 0 {
 		if _, err := col.WriteString(", "); err != nil {
 			return "", nil, err
@@ -2668,6 +3179,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 	}
 	ins.Add(e.NewsTitle)
 	ins.Dirty = true
+
 	if e.UpdatedAt.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -2702,6 +3214,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 	}
 	return buf.String(), ins.Args(), nil
 }
+
 func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -2724,6 +3237,7 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 	}
 	return e, nil
 }
+
 func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (string, []interface{}, error) {
 	where := NewComposer(6)
 	buf := bytes.NewBufferString("SELECT ")
@@ -2880,6 +3394,7 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 
 	return buf.String(), where.Args(), nil
 }
+
 func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -2900,6 +3415,7 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([
 
 	return ScanCommentRows(rows)
 }
+
 func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -3148,6 +3664,7 @@ func (e *CompleteEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
+
 func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
@@ -3249,6 +3766,7 @@ type CompleteCriteria struct {
 	ColumnTimestamptz          pq.NullTime
 	ColumnUUID                 sql.NullString
 }
+
 type CompletePatch struct {
 	ColumnBool                 sql.NullBool
 	ColumnBytea                []byte
@@ -3288,8 +3806,7 @@ type CompletePatch struct {
 func ScanCompleteRows(rows *sql.Rows) (entities []*CompleteEntity, err error) {
 	for rows.Next() {
 		var ent CompleteEntity
-		err = rows.Scan(
-			&ent.ColumnBool,
+		err = rows.Scan(&ent.ColumnBool,
 			&ent.ColumnBytea,
 			&ent.ColumnCharacter0,
 			&ent.ColumnCharacter100,
@@ -3348,6 +3865,7 @@ func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []inter
 	ins := NewComposer(33)
 	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
 	col := bytes.NewBuffer(nil)
+
 	if e.ColumnBool.Valid {
 		if col.Len() > 0 {
 			if _, err := col.WriteString(", "); err != nil {
@@ -3991,6 +4509,7 @@ func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []inter
 	}
 	return buf.String(), ins.Args(), nil
 }
+
 func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -4040,6 +4559,7 @@ func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) 
 	}
 	return e, nil
 }
+
 func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (string, []interface{}, error) {
 	where := NewComposer(33)
 	buf := bytes.NewBufferString("SELECT ")
@@ -4655,6 +5175,7 @@ func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (str
 
 	return buf.String(), where.Args(), nil
 }
+
 func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) ([]*CompleteEntity, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
@@ -4675,6 +5196,7 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) 
 
 	return ScanCompleteRows(rows)
 }
+
 func (r *CompleteRepositoryBase) FindIter(ctx context.Context, c *CompleteCriteria) (*CompleteIterator, error) {
 	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
