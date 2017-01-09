@@ -43,6 +43,7 @@ func main() {
 			Acronyms:   acronyms,
 		},
 		Pkg: "model",
+		Version: 9.5,
 		Plugins: []pqtgo.Plugin{
 			&generator{},
 		},

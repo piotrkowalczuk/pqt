@@ -102,7 +102,8 @@ func generateTypeBase(t pqt.Type, m int32) string {
 
 func closeBrace(w io.Writer, n int) {
 	for i := 0; i < n; i++ {
-		fmt.Fprintln(w, "}")
+		fmt.Fprintln(w, `
+		}`)
 	}
 }
 

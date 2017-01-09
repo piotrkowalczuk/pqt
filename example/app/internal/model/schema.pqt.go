@@ -198,123 +198,124 @@ type CategoryRepositoryBase struct {
 }
 
 func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []interface{}, error) {
-	ins := NewComposer(6)
-	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
-	col := bytes.NewBuffer(nil)
+	insert := NewComposer(6)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableCategoryColumnContent); err != nil {
+	if _, err := columns.WriteString(TableCategoryColumnContent); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Content)
-	ins.Dirty = true
+	insert.Add(e.Content)
+	insert.Dirty = true
 
 	if !e.CreatedAt.IsZero() {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCategoryColumnCreatedAt); err != nil {
+		if _, err := columns.WriteString(TableCategoryColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.CreatedAt)
-		ins.Dirty = true
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableCategoryColumnName); err != nil {
+	if _, err := columns.WriteString(TableCategoryColumnName); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Name)
-	ins.Dirty = true
+	insert.Add(e.Name)
+	insert.Dirty = true
 
 	if e.ParentID.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCategoryColumnParentID); err != nil {
+		if _, err := columns.WriteString(TableCategoryColumnParentID); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ParentID)
-		ins.Dirty = true
+		insert.Add(e.ParentID)
+		insert.Dirty = true
 	}
 
 	if e.UpdatedAt.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+		if _, err := columns.WriteString(TableCategoryColumnUpdatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.UpdatedAt)
-		ins.Dirty = true
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
+	if columns.Len() > 0 {
 		buf.WriteString(" (")
-		buf.ReadFrom(col)
+		buf.ReadFrom(columns)
 		buf.WriteString(") VALUES (")
-		buf.ReadFrom(ins)
+		buf.ReadFrom(insert)
 		buf.WriteString(") ")
 		if len(r.Columns) > 0 {
 			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
-	return buf.String(), ins.Args(), nil
+	return buf.String(), insert.Args(), nil
 }
 
 func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
@@ -505,14 +506,14 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
 	return ScanCategoryRows(rows)
@@ -705,6 +706,282 @@ func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p 
 
 	return &ent, nil
 }
+func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(12)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCategoryColumnContent); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Content)
+	upsert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCategoryColumnName); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Name)
+	upsert.Dirty = true
+
+	if e.ParentID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ParentID)
+		upsert.Dirty = true
+	}
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.Content.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnContent); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Content)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.Name.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnName); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Name)
+			upsert.Dirty = true
+
+		}
+
+		if p.ParentID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnParentID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ParentID)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, p *CategoryPatch, inf ...string) (*CategoryEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Name,
+		&e.ParentID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
 func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -713,13 +990,13 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria)
 	var count int64
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return 0, err
 	}
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
 	return count, nil
@@ -908,106 +1185,107 @@ type PackageRepositoryBase struct {
 }
 
 func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interface{}, error) {
-	ins := NewComposer(5)
-	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
-	col := bytes.NewBuffer(nil)
+	insert := NewComposer(5)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
 
 	if e.Break.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TablePackageColumnBreak); err != nil {
+		if _, err := columns.WriteString(TablePackageColumnBreak); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.Break)
-		ins.Dirty = true
+		insert.Add(e.Break)
+		insert.Dirty = true
 	}
 
 	if e.CategoryID.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TablePackageColumnCategoryID); err != nil {
+		if _, err := columns.WriteString(TablePackageColumnCategoryID); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.CategoryID)
-		ins.Dirty = true
+		insert.Add(e.CategoryID)
+		insert.Dirty = true
 	}
 
 	if !e.CreatedAt.IsZero() {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TablePackageColumnCreatedAt); err != nil {
+		if _, err := columns.WriteString(TablePackageColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.CreatedAt)
-		ins.Dirty = true
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
 	}
 
 	if e.UpdatedAt.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TablePackageColumnUpdatedAt); err != nil {
+		if _, err := columns.WriteString(TablePackageColumnUpdatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.UpdatedAt)
-		ins.Dirty = true
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
+	if columns.Len() > 0 {
 		buf.WriteString(" (")
-		buf.ReadFrom(col)
+		buf.ReadFrom(columns)
 		buf.WriteString(") VALUES (")
-		buf.ReadFrom(ins)
+		buf.ReadFrom(insert)
 		buf.WriteString(") ")
 		if len(r.Columns) > 0 {
 			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
-	return buf.String(), ins.Args(), nil
+	return buf.String(), insert.Args(), nil
 }
 
 func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
@@ -1180,14 +1458,14 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
 	return ScanPackageRows(rows)
@@ -1360,6 +1638,244 @@ func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *
 
 	return &ent, nil
 }
+func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(10)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if e.Break.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.Break)
+		upsert.Dirty = true
+	}
+
+	if e.CategoryID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CategoryID)
+		upsert.Dirty = true
+	}
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.Break.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnBreak); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Break)
+			upsert.Dirty = true
+
+		}
+
+		if p.CategoryID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnCategoryID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CategoryID)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p *PackagePatch, inf ...string) (*PackageEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Break,
+		&e.CategoryID,
+		&e.CreatedAt,
+		&e.ID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
 func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -1368,13 +1884,13 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (
 	var count int64
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return 0, err
 	}
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
 	return count, nil
@@ -1612,203 +2128,204 @@ type NewsRepositoryBase struct {
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
-	ins := NewComposer(10)
-	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
-	col := bytes.NewBuffer(nil)
+	insert := NewComposer(10)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableNewsColumnContent); err != nil {
+	if _, err := columns.WriteString(TableNewsColumnContent); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Content)
-	ins.Dirty = true
+	insert.Add(e.Content)
+	insert.Dirty = true
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableNewsColumnContinue); err != nil {
+	if _, err := columns.WriteString(TableNewsColumnContinue); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Continue)
-	ins.Dirty = true
+	insert.Add(e.Continue)
+	insert.Dirty = true
 
 	if !e.CreatedAt.IsZero() {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableNewsColumnCreatedAt); err != nil {
+		if _, err := columns.WriteString(TableNewsColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.CreatedAt)
-		ins.Dirty = true
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
 	}
 
 	if e.Lead.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableNewsColumnLead); err != nil {
+		if _, err := columns.WriteString(TableNewsColumnLead); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.Lead)
-		ins.Dirty = true
+		insert.Add(e.Lead)
+		insert.Dirty = true
 	}
 
 	if e.MetaData != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableNewsColumnMetaData); err != nil {
+		if _, err := columns.WriteString(TableNewsColumnMetaData); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.MetaData)
-		ins.Dirty = true
+		insert.Add(e.MetaData)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableNewsColumnScore); err != nil {
+	if _, err := columns.WriteString(TableNewsColumnScore); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Score)
-	ins.Dirty = true
+	insert.Add(e.Score)
+	insert.Dirty = true
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableNewsColumnTitle); err != nil {
+	if _, err := columns.WriteString(TableNewsColumnTitle); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Title)
-	ins.Dirty = true
+	insert.Add(e.Title)
+	insert.Dirty = true
 
 	if e.UpdatedAt.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableNewsColumnUpdatedAt); err != nil {
+		if _, err := columns.WriteString(TableNewsColumnUpdatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.UpdatedAt)
-		ins.Dirty = true
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
 	}
 
 	if e.ViewsDistribution.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableNewsColumnViewsDistribution); err != nil {
+		if _, err := columns.WriteString(TableNewsColumnViewsDistribution); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ViewsDistribution)
-		ins.Dirty = true
+		insert.Add(e.ViewsDistribution)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
+	if columns.Len() > 0 {
 		buf.WriteString(" (")
-		buf.ReadFrom(col)
+		buf.ReadFrom(columns)
 		buf.WriteString(") VALUES (")
-		buf.ReadFrom(ins)
+		buf.ReadFrom(insert)
 		buf.WriteString(") ")
 		if len(r.Columns) > 0 {
 			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
-	return buf.String(), ins.Args(), nil
+	return buf.String(), insert.Args(), nil
 }
 
 func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
@@ -2071,14 +2588,14 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*News
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
 	return ScanNewsRows(rows)
@@ -2883,6 +3400,446 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTi
 
 	return &ent, nil
 }
+func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(20)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnContent); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Content)
+	upsert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnContinue); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Continue)
+	upsert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.Lead.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.Lead)
+		upsert.Dirty = true
+	}
+
+	if e.MetaData != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.MetaData)
+		upsert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnScore); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Score)
+	upsert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnTitle); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Title)
+	upsert.Dirty = true
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.ViewsDistribution.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ViewsDistribution)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.Content.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnContent); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Content)
+			upsert.Dirty = true
+
+		}
+
+		if p.Continue.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnContinue); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Continue)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.Lead.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnLead); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Lead)
+			upsert.Dirty = true
+
+		}
+
+		if p.MetaData != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnMetaData); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.MetaData)
+			upsert.Dirty = true
+
+		}
+
+		if p.Score.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnScore); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Score)
+			upsert.Dirty = true
+
+		}
+
+		if p.Title.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnTitle); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Title)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
+		if p.ViewsDistribution.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnViewsDistribution); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ViewsDistribution)
+			upsert.Dirty = true
+
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsPatch, inf ...string) (*NewsEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.Continue,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Lead,
+		&e.MetaData,
+		&e.Score,
+		&e.Title,
+		&e.UpdatedAt,
+		&e.ViewsDistribution,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
 func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -2891,13 +3848,13 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64,
 	var count int64
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return 0, err
 	}
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
 	return count, nil
@@ -3098,121 +4055,122 @@ type CommentRepositoryBase struct {
 }
 
 func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interface{}, error) {
-	ins := NewComposer(6)
-	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
-	col := bytes.NewBuffer(nil)
+	insert := NewComposer(6)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableCommentColumnContent); err != nil {
+	if _, err := columns.WriteString(TableCommentColumnContent); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.Content)
-	ins.Dirty = true
+	insert.Add(e.Content)
+	insert.Dirty = true
 
 	if !e.CreatedAt.IsZero() {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCommentColumnCreatedAt); err != nil {
+		if _, err := columns.WriteString(TableCommentColumnCreatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.CreatedAt)
-		ins.Dirty = true
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableCommentColumnNewsID); err != nil {
+	if _, err := columns.WriteString(TableCommentColumnNewsID); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.NewsID)
-	ins.Dirty = true
+	insert.Add(e.NewsID)
+	insert.Dirty = true
 
-	if col.Len() > 0 {
-		if _, err := col.WriteString(", "); err != nil {
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if _, err := col.WriteString(TableCommentColumnNewsTitle); err != nil {
+	if _, err := columns.WriteString(TableCommentColumnNewsTitle); err != nil {
 		return "", nil, err
 	}
-	if ins.Dirty {
-		if _, err := ins.WriteString(", "); err != nil {
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
 			return "", nil, err
 		}
 	}
-	if err := ins.WritePlaceholder(); err != nil {
+	if err := insert.WritePlaceholder(); err != nil {
 		return "", nil, err
 	}
-	ins.Add(e.NewsTitle)
-	ins.Dirty = true
+	insert.Add(e.NewsTitle)
+	insert.Dirty = true
 
 	if e.UpdatedAt.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCommentColumnUpdatedAt); err != nil {
+		if _, err := columns.WriteString(TableCommentColumnUpdatedAt); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.UpdatedAt)
-		ins.Dirty = true
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
+	if columns.Len() > 0 {
 		buf.WriteString(" (")
-		buf.ReadFrom(col)
+		buf.ReadFrom(columns)
 		buf.WriteString(") VALUES (")
-		buf.ReadFrom(ins)
+		buf.ReadFrom(insert)
 		buf.WriteString(") ")
 		if len(r.Columns) > 0 {
 			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
-	return buf.String(), ins.Args(), nil
+	return buf.String(), insert.Args(), nil
 }
 
 func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
@@ -3403,14 +4361,14 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
 	return ScanCommentRows(rows)
@@ -3427,6 +4385,300 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria
 	}
 	return &CommentIterator{rows: rows}, nil
 }
+func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(12)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnContent); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Content)
+	upsert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCommentColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnNewsID); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.NewsID)
+	upsert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnNewsTitle); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.NewsTitle)
+	upsert.Dirty = true
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.Content.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnContent); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Content)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.ID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ID)
+			upsert.Dirty = true
+
+		}
+
+		if p.NewsID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnNewsID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.NewsID)
+			upsert.Dirty = true
+
+		}
+
+		if p.NewsTitle.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnNewsTitle); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.NewsTitle)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p *CommentPatch, inf ...string) (*CommentEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.NewsID,
+		&e.NewsTitle,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
 func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -3435,13 +4687,13 @@ func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (
 	var count int64
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return 0, err
 	}
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
 	return count, nil
@@ -3862,652 +5114,653 @@ type CompleteRepositoryBase struct {
 }
 
 func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []interface{}, error) {
-	ins := NewComposer(33)
-	buf := bytes.NewBufferString("INSERT INTO " + r.Table)
-	col := bytes.NewBuffer(nil)
+	insert := NewComposer(33)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
 
 	if e.ColumnBool.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnBool); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnBool); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnBool)
-		ins.Dirty = true
+		insert.Add(e.ColumnBool)
+		insert.Dirty = true
 	}
 
 	if e.ColumnBytea != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnBytea); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnBytea); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnBytea)
-		ins.Dirty = true
+		insert.Add(e.ColumnBytea)
+		insert.Dirty = true
 	}
 
 	if e.ColumnCharacter0.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnCharacter0)
-		ins.Dirty = true
+		insert.Add(e.ColumnCharacter0)
+		insert.Dirty = true
 	}
 
 	if e.ColumnCharacter100.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnCharacter100)
-		ins.Dirty = true
+		insert.Add(e.ColumnCharacter100)
+		insert.Dirty = true
 	}
 
 	if e.ColumnDecimal.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnDecimal); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnDecimal)
-		ins.Dirty = true
+		insert.Add(e.ColumnDecimal)
+		insert.Dirty = true
 	}
 
 	if e.ColumnDoubleArray0.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnDoubleArray0)
-		ins.Dirty = true
+		insert.Add(e.ColumnDoubleArray0)
+		insert.Dirty = true
 	}
 
 	if e.ColumnDoubleArray100.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnDoubleArray100)
-		ins.Dirty = true
+		insert.Add(e.ColumnDoubleArray100)
+		insert.Dirty = true
 	}
 
 	if e.ColumnInteger != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnInteger); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnInteger); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnInteger)
-		ins.Dirty = true
+		insert.Add(e.ColumnInteger)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerArray0.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerArray0)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerArray0)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerArray100.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerArray100)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerArray100)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerBig.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerBig)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerBig)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerBigArray0.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerBigArray0)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerBigArray0)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerBigArray100.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerBigArray100)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerBigArray100)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerSmall != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerSmall)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerSmall)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerSmallArray0.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerSmallArray0)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerSmallArray0)
+		insert.Dirty = true
 	}
 
 	if e.ColumnIntegerSmallArray100.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnIntegerSmallArray100)
-		ins.Dirty = true
+		insert.Add(e.ColumnIntegerSmallArray100)
+		insert.Dirty = true
 	}
 
 	if e.ColumnJson != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnJson); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnJson); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnJson)
-		ins.Dirty = true
+		insert.Add(e.ColumnJson)
+		insert.Dirty = true
 	}
 
 	if e.ColumnJsonNn != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnJsonNn)
-		ins.Dirty = true
+		insert.Add(e.ColumnJsonNn)
+		insert.Dirty = true
 	}
 
 	if e.ColumnJsonNnD != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnJsonNnD)
-		ins.Dirty = true
+		insert.Add(e.ColumnJsonNnD)
+		insert.Dirty = true
 	}
 
 	if e.ColumnJsonb != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonb); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnJsonb)
-		ins.Dirty = true
+		insert.Add(e.ColumnJsonb)
+		insert.Dirty = true
 	}
 
 	if e.ColumnJsonbNn != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnJsonbNn)
-		ins.Dirty = true
+		insert.Add(e.ColumnJsonbNn)
+		insert.Dirty = true
 	}
 
 	if e.ColumnJsonbNnD != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnJsonbNnD)
-		ins.Dirty = true
+		insert.Add(e.ColumnJsonbNnD)
+		insert.Dirty = true
 	}
 
 	if e.ColumnNumeric.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnNumeric); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnNumeric)
-		ins.Dirty = true
+		insert.Add(e.ColumnNumeric)
+		insert.Dirty = true
 	}
 
 	if e.ColumnReal != nil {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnReal); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnReal); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnReal)
-		ins.Dirty = true
+		insert.Add(e.ColumnReal)
+		insert.Dirty = true
 	}
 
 	if e.ColumnText.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnText); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnText); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnText)
-		ins.Dirty = true
+		insert.Add(e.ColumnText)
+		insert.Dirty = true
 	}
 
 	if e.ColumnTextArray0.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnTextArray0)
-		ins.Dirty = true
+		insert.Add(e.ColumnTextArray0)
+		insert.Dirty = true
 	}
 
 	if e.ColumnTextArray100.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnTextArray100)
-		ins.Dirty = true
+		insert.Add(e.ColumnTextArray100)
+		insert.Dirty = true
 	}
 
 	if e.ColumnTimestamp.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnTimestamp)
-		ins.Dirty = true
+		insert.Add(e.ColumnTimestamp)
+		insert.Dirty = true
 	}
 
 	if e.ColumnTimestamptz.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnTimestamptz)
-		ins.Dirty = true
+		insert.Add(e.ColumnTimestamptz)
+		insert.Dirty = true
 	}
 
 	if e.ColumnUUID.Valid {
-		if col.Len() > 0 {
-			if _, err := col.WriteString(", "); err != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if _, err := col.WriteString(TableCompleteColumnColumnUUID); err != nil {
+		if _, err := columns.WriteString(TableCompleteColumnColumnUUID); err != nil {
 			return "", nil, err
 		}
-		if ins.Dirty {
-			if _, err := ins.WriteString(", "); err != nil {
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
 				return "", nil, err
 			}
 		}
-		if err := ins.WritePlaceholder(); err != nil {
+		if err := insert.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		ins.Add(e.ColumnUUID)
-		ins.Dirty = true
+		insert.Add(e.ColumnUUID)
+		insert.Dirty = true
 	}
 
-	if col.Len() > 0 {
+	if columns.Len() > 0 {
 		buf.WriteString(" (")
-		buf.ReadFrom(col)
+		buf.ReadFrom(columns)
 		buf.WriteString(") VALUES (")
-		buf.ReadFrom(ins)
+		buf.ReadFrom(insert)
 		buf.WriteString(") ")
 		if len(r.Columns) > 0 {
 			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
-	return buf.String(), ins.Args(), nil
+	return buf.String(), insert.Args(), nil
 }
 
 func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
@@ -5184,14 +6437,14 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) 
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return nil, err
 	}
 	defer rows.Close()
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
 	return ScanCompleteRows(rows)
@@ -5208,6 +6461,1386 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, c *CompleteCriter
 	}
 	return &CompleteIterator{rows: rows}, nil
 }
+func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(66)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if e.ColumnBool.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnBool)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnBytea != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnBytea)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnCharacter0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnCharacter0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnCharacter100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnCharacter100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnDecimal.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnDecimal)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnDoubleArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnDoubleArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnDoubleArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnDoubleArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnInteger != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnInteger)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerBig.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerBig)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerBigArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerBigArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmall != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerSmall)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerSmallArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerSmallArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJson != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJson)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonNn != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonNn)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonNnD != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonNnD)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonb != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonb)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonbNn != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonbNn)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonbNnD != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonbNnD)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnNumeric.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnNumeric)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnReal != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnReal)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnText.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnText); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnText)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTextArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTextArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTextArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTextArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTimestamp.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTimestamp)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTimestamptz.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTimestamptz)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnUUID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnUUID)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.ColumnBool.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnBool); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnBool)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnBytea != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnBytea); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnBytea)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnCharacter0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnCharacter0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnCharacter100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnCharacter100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnDecimal.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnDecimal)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnDoubleArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnDoubleArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnDoubleArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnDoubleArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnInteger != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnInteger); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnInteger)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerBig.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerBig)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerBigArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerBigArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerBigArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerBigArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerSmall != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerSmall)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerSmallArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerSmallArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerSmallArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerSmallArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJson != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJson); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJson)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonNn != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonNn)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonNnD != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonNnD)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonb != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonb)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonbNn != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonbNn)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonbNnD != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonbNnD)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnNumeric.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnNumeric)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnReal != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnReal); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnReal)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnSerial != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnSerial); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnSerial)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnSerialBig.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnSerialBig); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnSerialBig)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnSerialSmall != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnSerialSmall); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnSerialSmall)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnText.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnText); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnText)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTextArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTextArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTextArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTextArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTimestamp.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTimestamp)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTimestamptz.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTimestamptz)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnUUID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnUUID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnUUID)
+			upsert.Dirty = true
+
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, p *CompletePatch, inf ...string) (*CompleteEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ColumnBool,
+		&e.ColumnBytea,
+		&e.ColumnCharacter0,
+		&e.ColumnCharacter100,
+		&e.ColumnDecimal,
+		&e.ColumnDoubleArray0,
+		&e.ColumnDoubleArray100,
+		&e.ColumnInteger,
+		&e.ColumnIntegerArray0,
+		&e.ColumnIntegerArray100,
+		&e.ColumnIntegerBig,
+		&e.ColumnIntegerBigArray0,
+		&e.ColumnIntegerBigArray100,
+		&e.ColumnIntegerSmall,
+		&e.ColumnIntegerSmallArray0,
+		&e.ColumnIntegerSmallArray100,
+		&e.ColumnJson,
+		&e.ColumnJsonNn,
+		&e.ColumnJsonNnD,
+		&e.ColumnJsonb,
+		&e.ColumnJsonbNn,
+		&e.ColumnJsonbNnD,
+		&e.ColumnNumeric,
+		&e.ColumnReal,
+		&e.ColumnSerial,
+		&e.ColumnSerialBig,
+		&e.ColumnSerialSmall,
+		&e.ColumnText,
+		&e.ColumnTextArray0,
+		&e.ColumnTextArray100,
+		&e.ColumnTimestamp,
+		&e.ColumnTimestamptz,
+		&e.ColumnUUID,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
 func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria) (int64, error) {
 	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
@@ -5216,13 +7849,13 @@ func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria)
 	var count int64
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
 		if r.Debug {
-			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
 		return 0, err
 	}
 
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
 	return count, nil

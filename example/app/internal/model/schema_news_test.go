@@ -610,3 +610,78 @@ func TestNewsRepositoryBase_UpdateOneByTitleAndLead(t *testing.T) {
 		}
 	}
 }
+
+
+var testNewsUpsertData = map[string]struct {
+	entity model.NewsEntity
+	patch model.NewsPatch
+	query string
+}{
+	"full": {
+		patch: model.NewsPatch{
+			Lead: sql.NullString{
+				Valid:  true,
+				String: "lead - full",
+			},
+			Score: sql.NullFloat64{
+				Valid:   true,
+				Float64: 12.14,
+			},
+			ViewsDistribution: model.NullFloat64Array{
+				Valid:        true,
+				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
+			},
+			MetaData: []byte(`{"something": 1}`),
+			Content:  sql.NullString{String: "content - full", Valid: true},
+			Continue: sql.NullBool{Bool: true, Valid: true},
+			CreatedAt: pq.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+			UpdatedAt: pq.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+		},
+		entity: model.NewsEntity{
+			Title: "title - full",
+			Lead: sql.NullString{
+				Valid:  true,
+				String: "lead - full",
+			},
+			ViewsDistribution: model.NullFloat64Array{
+				Valid:        true,
+				Float64Array: []float64{1.2, 2.3, 3.4, 4.5},
+			},
+			MetaData:  []byte(`{"something": 1}`),
+			Score:     10.11,
+			Content:   "content - full",
+			Continue:  true,
+			CreatedAt: time.Now(),
+			UpdatedAt: pq.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+		},
+		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (example.news_title_key) DO UPDATE SET content=$10, continue=$11, created_at=$12, lead=$13, meta_data=$14, score=$15, updated_at=$16, views_distribution=$17 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+	},
+}
+
+
+func TestNewsRepositoryBase_UpsertQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsUpsertData{
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.news.UpsertQuery(&given.entity, &given.patch, model.TableNewsConstraintTitleUnique)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
