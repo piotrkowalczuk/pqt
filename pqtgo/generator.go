@@ -538,7 +538,7 @@ func (g *Generator) generateRepositorySetClause(w io.Writer, c *pqt.Column, sel 
 			if err = tmpl.Execute(w, map[string]interface{}{
 				"selector": fmt.Sprintf("p.%s", g.Formatter.Identifier(c.Name)),
 				"column":   g.Formatter.Identifier("table", c.Table.Name, "column", c.Name),
-				"composer": "update",
+				"composer": sel,
 			}); err != nil {
 				panic(err)
 			}
@@ -961,8 +961,11 @@ func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, table *pqt.Table)
 	}`)
 }
 
-
 func (g *Generator) generateRepositoryUpsert(w io.Writer, table *pqt.Table) {
+	if g.Version < 9.5 {
+		return
+	}
+
 	entityName := g.Formatter.Identifier(table.Name)
 
 	fmt.Fprintf(w, `
