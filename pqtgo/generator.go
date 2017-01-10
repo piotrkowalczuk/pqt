@@ -905,12 +905,11 @@ func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, table *pqt.Table)
 		columns := bytes.NewBuffer(nil)
 		buf := bytes.NewBufferString("INSERT INTO ")
 		buf.WriteString(r.%s)
-	`, len(table.Columns) *2, g.Formatter.Identifier("table"))
+	`, len(table.Columns)*2, g.Formatter.Identifier("table"))
 
 	for _, c := range table.Columns {
 		g.generateRepositoryInsertClause(w, c, "upsert")
 	}
-
 
 	fmt.Fprint(w, `
 		if upsert.Dirty {
@@ -1435,15 +1434,35 @@ func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
 		switch cn {`)
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
-		if g.canBeNil(c, ModeDefault) && !g.isArray(c, ModeDefault) {
+		switch {
+		case g.isArray(c, ModeDefault):
+			pn := g.Formatter.Identifier(c.Name)
+			switch g.columnType(c, ModeDefault) {
+			case "pq.Int64Array":
+				fmt.Fprintf(w, `if e.%s == nil { e.%s = []int64{} }`, pn, pn)
+			case "pq.StringArray":
+				fmt.Fprintf(w, `if e.%s == nil { e.%s = []string{} }`, pn, pn)
+			case "pq.Float64Array":
+				fmt.Fprintf(w, `if e.%s == nil { e.%s = []float64{} }`, pn, pn)
+			case "pq.BoolArray":
+				fmt.Fprintf(w, `if e.%s == nil { e.%s = []bool{} }`, pn, pn)
+			case "pq.ByteaArray":
+				fmt.Fprintf(w, `if e.%s == nil { e.%s = [][]byte{} }`, pn, pn)
+			}
+
+			fmt.Fprintf(w, `
+				return &e.%s, true
+				`, g.Formatter.Identifier(c.Name))
+		case g.canBeNil(c, ModeDefault):
 			fmt.Fprintf(w, "return e.%s, true\n", g.Formatter.Identifier(c.Name))
-		} else {
+		default:
 			fmt.Fprintf(w, "return &e.%s, true\n", g.Formatter.Identifier(c.Name))
 		}
 	}
 	fmt.Fprint(w, "default:\n")
 	fmt.Fprint(w, "return nil, false\n")
 	fmt.Fprint(w, "}\n}\n")
+
 }
 
 func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
@@ -1492,7 +1511,11 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) isArray(c *pqt.Column, m int32) bool {
-	return strings.HasPrefix(g.columnType(c, m), "[]")
+	if strings.HasPrefix(g.columnType(c, m), "[]") {
+		return true
+	}
+
+	return g.isType(c, m, "pq.StringArray", "pq.Int64Array", "pq.BoolArray", "pq.Float64Array", "pq.ByteaArray", "pq.GenericArray")
 }
 
 func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {

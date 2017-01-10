@@ -42,7 +42,7 @@ func main() {
 			Visibility: pqtgo.Public,
 			Acronyms:   acronyms,
 		},
-		Pkg: "model",
+		Pkg:     "model",
 		Version: 9.5,
 		Plugins: []pqtgo.Plugin{
 			&generator{},

@@ -611,11 +611,10 @@ func TestNewsRepositoryBase_UpdateOneByTitleAndLead(t *testing.T) {
 	}
 }
 
-
 var testNewsUpsertData = map[string]struct {
 	entity model.NewsEntity
-	patch model.NewsPatch
-	query string
+	patch  model.NewsPatch
+	query  string
 }{
 	"full": {
 		patch: model.NewsPatch{
@@ -667,12 +666,11 @@ var testNewsUpsertData = map[string]struct {
 	},
 }
 
-
 func TestNewsRepositoryBase_UpsertQuery(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
 
-	for hint, given := range testNewsUpsertData{
+	for hint, given := range testNewsUpsertData {
 		t.Run(hint, func(t *testing.T) {
 			query, _, err := s.news.UpsertQuery(&given.entity, &given.patch, model.TableNewsConstraintTitleUnique)
 			if err != nil {
@@ -684,4 +682,3 @@ func TestNewsRepositoryBase_UpsertQuery(t *testing.T) {
 		})
 	}
 }
-
