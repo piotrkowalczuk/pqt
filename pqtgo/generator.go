@@ -15,7 +15,7 @@ const (
 	ModeDefault = iota
 	ModeMandatory
 	ModeOptional
-	modeCriteria
+	ModeCriteria
 
 	// Public ...
 	Public Visibility = "public"
@@ -217,7 +217,7 @@ func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
 		%s map[string]bool`, g.Formatter.Identifier("sort"))
 
 	for _, c := range t.Columns {
-		if t := g.columnType(c, modeCriteria); t != "<nil>" {
+		if t := g.columnType(c, ModeCriteria); t != "<nil>" {
 			fmt.Fprintf(w, `
 				%s %s`, g.Formatter.Identifier(c.Name), t)
 		}
@@ -734,19 +734,31 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *
 		if err != nil {
 			return nil, err
 		}
-		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
+		if err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
 		entityName,
 		g.Formatter.Identifier("props"),
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
 	)
-	fmt.Fprint(w, `
-		if err != nil {
+	fmt.Fprintf(w, `; err != nil {
+			if r.%s {
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query failure", "query", query, "table", r.%s, "error", err.Error())
+			}
 			return nil, err
 		}
-
+		if r.%s {
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query success", "query", query, "table", r.%s)
+		}
 		return &ent, nil
-	}`)
+	}
+`,
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+	)
 }
 
 func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writer, table *pqt.Table) {
@@ -1055,6 +1067,7 @@ ColumnsLoop:
 		if g.isType(c, ModeOptional, "time.Time") {
 			fmt.Fprintf(w, "if !c.%s.IsZero() {", g.Formatter.Identifier(c.Name))
 		}
+
 		fmt.Fprintf(w,
 			`if where.Dirty {
 				where.WriteString(" AND ")
@@ -1432,8 +1445,16 @@ func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
 		func (e *%sEntity) %s(cn string) (interface{}, bool) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier("prop"))
 	fmt.Fprintln(w, `
 		switch cn {`)
+
+ColumnsLoop:
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
+		for _, plugin := range g.Plugins {
+			if txt := plugin.ScanClause(c); txt != "" {
+				fmt.Fprint(w, txt)
+				continue ColumnsLoop
+			}
+		}
 		switch {
 		case g.isArray(c, ModeDefault):
 			pn := g.Formatter.Identifier(c.Name)
@@ -1527,7 +1548,7 @@ func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {
 					return ct.mandatoryTypeOf.Kind() == reflect.Ptr || ct.mandatoryTypeOf.Kind() == reflect.Map
 				case ModeOptional:
 					return ct.optionalTypeOf.Kind() == reflect.Ptr || ct.optionalTypeOf.Kind() == reflect.Map
-				case modeCriteria:
+				case ModeCriteria:
 					return ct.criteriaTypeOf.Kind() == reflect.Ptr || ct.criteriaTypeOf.Kind() == reflect.Map
 				default:
 					return false
@@ -1557,15 +1578,7 @@ func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {
 }
 
 func (g *Generator) columnType(c *pqt.Column, m int32) string {
-	switch m {
-	case modeCriteria:
-	case ModeMandatory:
-	case ModeOptional:
-	default:
-		if c.NotNull || c.PrimaryKey {
-			m = ModeMandatory
-		}
-	}
+	m = columnMode(c,m)
 	for _, plugin := range g.Plugins {
 		if txt := plugin.PropertyType(c, m); txt != "" {
 			return txt
@@ -1584,6 +1597,26 @@ func (g *Generator) isType(c *pqt.Column, m int32, types ...string) bool {
 }
 
 func (g *Generator) isNullable(c *pqt.Column, m int32) bool {
+	if mt, ok := c.Type.(pqt.MappableType); ok {
+		for _, mapto := range mt.Mapping {
+			if ct, ok := mapto.(CustomType); ok {
+				tof := ct.TypeOf(columnMode(c,m))
+				fmt.Println(columnMode(c,m), tof)
+				if tof == nil {
+					continue
+				}
+				if tof.Kind() != reflect.Struct {
+					continue
+				}
+
+				if field, ok := tof.FieldByName("Valid"); ok {
+					if field.Type.Kind() == reflect.Bool {
+						return true
+					}
+				}
+			}
+		}
+	}
 	return g.isType(c, m,
 		// sql
 		"sql.NullString",
@@ -2037,7 +2070,7 @@ func (c *Composer) Args() []interface{} {
 
 	for _, plugin := range g.Plugins {
 		if txt := plugin.Static(s); txt != "" {
-			fmt.Fprintf(w, txt)
+			fmt.Fprint(w, txt)
 			fmt.Fprint(w, "\n\n")
 		}
 	}

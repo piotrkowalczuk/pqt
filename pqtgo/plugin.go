@@ -13,5 +13,6 @@ type Plugin interface {
 	// 	{{ .column }} - const that represents given column
 	// 	{{ .composer }} - Composer instance
 	SetClause(*pqt.Column) string
+	ScanClause(*pqt.Column) string
 	Static(*pqt.Schema) string
 }

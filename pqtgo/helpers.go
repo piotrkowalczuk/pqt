@@ -193,7 +193,7 @@ func snake(s string, private bool, acronyms map[string]string) string {
 
 func chooseType(tm, to, tc string, mode int32) string {
 	switch mode {
-	case modeCriteria:
+	case ModeCriteria:
 		return tc
 	case ModeMandatory:
 		return tm
@@ -228,4 +228,17 @@ func generateCustomType(t CustomType, m int32) string {
 		goType(t.criteriaTypeOf),
 		m,
 	)
+}
+
+func columnMode(c *pqt.Column, m int32) int32 {
+	switch m {
+	case ModeCriteria:
+	case ModeMandatory:
+	case ModeOptional:
+	default:
+		if c.NotNull || c.PrimaryKey {
+			m = ModeMandatory
+		}
+	}
+	return m
 }

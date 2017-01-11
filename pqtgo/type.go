@@ -93,6 +93,34 @@ func TypeCustom(m, o, c interface{}) CustomType {
 	}
 }
 
+// ValueOf ...
+func (ct CustomType) ValueOf(m int32) interface{} {
+	switch m {
+	case ModeMandatory:
+		return ct.mandatory
+	case ModeOptional:
+		return ct.optional
+	case ModeCriteria:
+		return ct.criteria
+	default:
+		return nil
+	}
+}
+
+// TypeOf ...
+func (ct CustomType) TypeOf(m int32) reflect.Type {
+	switch m {
+	case ModeMandatory:
+		return ct.mandatoryTypeOf
+	case ModeOptional:
+		return ct.optionalTypeOf
+	case ModeCriteria:
+		return ct.criteriaTypeOf
+	default:
+		return nil
+	}
+}
+
 // TypeMapOfStrings ....
 func TypeMapOfStrings() CustomType {
 	return TypeCustom(
