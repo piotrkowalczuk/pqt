@@ -1,17 +1,11 @@
 # pqt [![GoDoc](https://godoc.org/github.com/piotrkowalczuk/pqt?status.svg)](http://godoc.org/github.com/piotrkowalczuk/pqt)&nbsp;[![Build Status](https://travis-ci.org/piotrkowalczuk/pqt.svg)](https://travis-ci.org/piotrkowalczuk/pqt)&nbsp;[![codecov.io](https://codecov.io/github/piotrkowalczuk/pqt/coverage.svg?branch=master)](https://codecov.io/github/piotrkowalczuk/pqt?branch=master)
+
 This package is a toolbox for postgres driven applications.
 It provides multiple tools to help to work with postgres efficiently.
 In comparison to other currently available libraries instead of pushing struct tags into anti pattern or parsing SQL, it allows to define schema programmatically.
 
-It relies to a large degree on packages:
-
-* [ntypes](http://github.com/piotrkowalczuk/ntypes)
-* [qtypes](http://github.com/piotrkowalczuk/qtypes)
-
 ## Features:
 
-- __helpers__:
-	- [pqt.ErrorConstraint](https://godoc.org/github.com/piotrkowalczuk/pqt#ErrorConstraint) - if possible extracts constraint from [pq.Error](https://godoc.org/github.com/lib/pq#Error) so it's easy to build switch statements using generated constraints.
 - __query builder__:
 	- [pqtgo.Composer](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#Composer) - builder like object that keeps buffer and arguments but also tracks positional parameters.
 	- [pqtgo.CompositionWriter](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#CompositionWriter) - interface used by generator, allows custom structs to be used as a cri parameter
@@ -24,7 +18,7 @@ It relies to a large degree on packages:
 - __sql generation__
 - __go generation__ - it includes:
 	- `entity` - struct that reflects single row within the database
-	- `cri` - object that can be passed to the `Find` method, it allows to create complex queries
+	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
 	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
 	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
@@ -48,6 +42,8 @@ It relies to a large degree on packages:
 	- `columns`
 	- `constraints`
 	- `relationships`
+- __helper functions__
+    - `ErrorConstraint` - if possible extracts constraint from [pq.Error](https://godoc.org/github.com/lib/pq#Error) so it's easy to build switch statements using generated constraints.
 
 ## Documentation
 
@@ -55,6 +51,13 @@ It relies to a large degree on packages:
 * godoc [pqt](http://godoc.org/github.com/piotrkowalczuk/pqt)
 * godoc [pqtgo](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo)
 * godoc [pqtsql](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtsql)
+
+## Plugins 
+
+[pqtgo](github.com/piotrkowalczuk/pqt/pqtgo) supports plugins over the [interface](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#Plugin).
+
+* [ntypespqt](github.com/piotrkowalczuk/ntypes)
+* [qtypespqt](github.com/piotrkowalczuk/qtypes)
 
 ## Example
 
@@ -76,5 +79,4 @@ Very welcome in general. Especially in fields like:
 
 * postgres types better support
 * support for functions
-* better control over if generated w is private or public
 
