@@ -1451,7 +1451,17 @@ ColumnsLoop:
 			case %s:`, g.Formatter.Identifier("table", t.Name, "column", c.Name))
 		for _, plugin := range g.Plugins {
 			if txt := plugin.ScanClause(c); txt != "" {
-				fmt.Fprint(w, txt)
+				tmpl, err := template.New("root").Parse(fmt.Sprintf(`
+					return %s, true`, txt))
+				if err != nil {
+					panic(err)
+				}
+				if err = tmpl.Execute(w, map[string]interface{}{
+					"selector": fmt.Sprintf("e.%s", g.Formatter.Identifier(c.Name)),
+				}); err != nil {
+					panic(err)
+				}
+				fmt.Fprintln(w, "")
 				continue ColumnsLoop
 			}
 		}
@@ -1608,7 +1618,6 @@ func (g *Generator) isNullable(c *pqt.Column, m int32) bool {
 		for _, mapto := range mt.Mapping {
 			if ct, ok := mapto.(CustomType); ok {
 				tof := ct.TypeOf(columnMode(c, m))
-				fmt.Println(columnMode(c, m), tof)
 				if tof == nil {
 					continue
 				}

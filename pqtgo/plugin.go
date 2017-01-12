@@ -6,7 +6,6 @@ type Plugin interface {
 	PropertyType(*pqt.Column, int32) string
 	WhereClause(*pqt.Column) string
 	// SetClause allow to generate alternative code for column for update queries.
-
 	// Available placeholders:
 	//
 	// 	{{ .selector }} - property of patch object
