@@ -7,25 +7,22 @@ In comparison to other currently available libraries instead of pushing struct t
 ## Features:
 
 - __query builder__:
-	- [pqtgo.Composer](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#Composer) - builder like object that keeps buffer and arguments but also tracks positional parameters.
-	- [pqtgo.CompositionWriter](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#CompositionWriter) - interface used by generator, allows custom structs to be used as a cri parameter
-	- [pqtgo.WriteCompositionQueryInt64](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryInt64) - helper function that generate SQL for [qtypes.Int64](https://godoc.org/github.com/piotrkowalczuk/qtypes#Int64) object.
-	- [pqtgo.WriteCompositionQueryString](https://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo#WriteCompositionQueryString) - helper function that generate SQL for [qtypes.String](https://godoc.org/github.com/piotrkowalczuk/qtypes#String) object.
+	- `Composer` - builder like object that keeps buffer and arguments but also tracks positional parameters.
 - __array support__
-	- [pqt.JSONArrayInt64](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayInt64) - wrapper for []int64, it generates JSONB compatible array `[]` instead of `{}`
-	- [pqt.JSONArrayFloat64](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayFloat64) - wrapper for []float64, it generates JSONB compatible array `[]` instead of `{}`
-	- [pqt.JSONArrayString](https://godoc.org/github.com/piotrkowalczuk/pqt#JSONArrayString) - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
+	- `JSONArrayInt64` - wrapper for []int64, it generates JSONB compatible array `[]` instead of `{}`
+	- `JSONArrayFloat64` - wrapper for []float64, it generates JSONB compatible array `[]` instead of `{}`
+	- `JSONArrayString` - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
 - __sql generation__
 - __go generation__ - it includes:
-	- `entity` - struct that reflects single row within the database
-	- `criteria` - object that can be passed to the `Find` method, it allows to create complex queries
-	- `patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
-	- `iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
+	- `<table-name>Entity` - struct that reflects single row within the database
+	- `<table-name>Criteria` - object that can be passed to the `Find` method, it allows to create complex queries
+	- `<table-name>Patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
+	- `<table-name>Iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
 	- `constants`:
 		- `complete names`
 		- `column names`
-		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using [ErrorConstraint](https://godoc.org/github.com/piotrkowalczuk/pqt#ErrorConstraint) helper function
-	- `repository` - data access layer that expose API to manipulate entities:
+		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `ErrorConstraint` helper function
+	- `<table-name>Repository` - data access layer that expose API to manipulate entities:
 		- `Count` - returns number of entities for given cri
 		- `Find` - returns collection of entities that match given cri
 		- `FindIter` - works like `Find` but returns `iterator`
