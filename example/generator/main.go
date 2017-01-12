@@ -37,12 +37,18 @@ func main() {
         // source: cmd/appg/main.go
         // DO NOT EDIT!
     `)
-	err = pqtgo.NewGenerator().
-		SetPostgresVersion(9.5).
-		SetPackage("model").
-		SetAcronyms(acronyms).
-		SetVisibility(pqtgo.Public).
-		GenerateTo(sch, file)
+	gen := pqtgo.Generator{
+		Formatter: &pqtgo.Formatter{
+			Visibility: pqtgo.Public,
+			Acronyms:   acronyms,
+		},
+		Pkg:     "model",
+		Version: 9.5,
+		Plugins: []pqtgo.Plugin{
+			&generator{},
+		},
+	}
+	err = gen.GenerateTo(file, sch)
 	if err != nil {
 		log.Fatal(err)
 	}

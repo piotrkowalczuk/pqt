@@ -140,6 +140,7 @@ func JoinColumns(columns Columns, sep string) string {
 type Attribute struct {
 	Name, Collate, Default, Check string
 	NotNull, Unique, PrimaryKey   bool
+	Schema                        *Schema
 	Type                          Type
 }
 

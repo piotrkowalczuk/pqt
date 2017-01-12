@@ -12,6 +12,9 @@ func schema(sn string) *pqt.Schema {
 		AddColumn(lead).
 		AddColumn(pqt.NewColumn("continue", pqt.TypeBool(), pqt.WithNotNull(), pqt.WithDefault("false"))).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
+		AddColumn(pqt.NewColumn("score", pqt.TypeNumeric(20, 8), pqt.WithNotNull(), pqt.WithDefault("0"))).
+		AddColumn(pqt.NewColumn("views_distribution", pqt.TypeDoubleArray(168))).
+		AddColumn(pqt.NewColumn("meta_data", pqt.TypeJSONB())).
 		AddUnique(title, lead)
 
 	comment := pqt.NewTable("comment", pqt.WithTableIfNotExists()).
@@ -50,15 +53,52 @@ func schema(sn string) *pqt.Schema {
 	timestampable(comment)
 	timestampable(category)
 	timestampable(pkg)
+
 	comment.AddRelationship(pqt.ManyToOne(news, pqt.WithBidirectional(), pqt.WithInversedName("news_by_id")), pqt.WithNotNull())
 
 	pqt.ManyToMany(category, news, pqt.WithBidirectional())
+
+	complete := pqt.NewTable("complete", pqt.WithTableIfNotExists()).
+		AddColumn(pqt.NewColumn("column_jsonb", pqt.TypeJSONB())).
+		AddColumn(pqt.NewColumn("column_jsonb_nn", pqt.TypeJSONB(), pqt.WithNotNull())).
+		AddColumn(pqt.NewColumn("column_jsonb_nn_d", pqt.TypeJSONB(), pqt.WithNotNull(), pqt.WithDefault(`'{"field": 1}'`))).
+		AddColumn(pqt.NewColumn("column_json", pqt.TypeJSON())).
+		AddColumn(pqt.NewColumn("column_json_nn", pqt.TypeJSON(), pqt.WithNotNull())).
+		AddColumn(pqt.NewColumn("column_json_nn_d", pqt.TypeJSON(), pqt.WithNotNull(), pqt.WithDefault(`'{"field": 1}'`))).
+		AddColumn(pqt.NewColumn("column_bool", pqt.TypeBool())).
+		AddColumn(pqt.NewColumn("column_bytea", pqt.TypeBytea())).
+		AddColumn(pqt.NewColumn("column_character_0", pqt.TypeCharacter(0))).
+		AddColumn(pqt.NewColumn("column_character_100", pqt.TypeCharacter(100))).
+		AddColumn(pqt.NewColumn("column_decimal", pqt.TypeDecimal(20, 8))).
+		AddColumn(pqt.NewColumn("column_double_array_0", pqt.TypeDoubleArray(0))).
+		AddColumn(pqt.NewColumn("column_double_array_100", pqt.TypeDoubleArray(100))).
+		AddColumn(pqt.NewColumn("column_integer", pqt.TypeInteger())).
+		AddColumn(pqt.NewColumn("column_integer_array_0", pqt.TypeIntegerArray(0))).
+		AddColumn(pqt.NewColumn("column_integer_array_100", pqt.TypeIntegerArray(100))).
+		AddColumn(pqt.NewColumn("column_integer_big", pqt.TypeIntegerBig())).
+		AddColumn(pqt.NewColumn("column_integer_big_array_0", pqt.TypeIntegerBigArray(0))).
+		AddColumn(pqt.NewColumn("column_integer_big_array_100", pqt.TypeIntegerBigArray(100))).
+		AddColumn(pqt.NewColumn("column_integer_small", pqt.TypeIntegerSmall())).
+		AddColumn(pqt.NewColumn("column_integer_small_array_0", pqt.TypeIntegerSmallArray(0))).
+		AddColumn(pqt.NewColumn("column_integer_small_array_100", pqt.TypeIntegerSmallArray(100))).
+		AddColumn(pqt.NewColumn("column_numeric", pqt.TypeNumeric(20, 8))).
+		AddColumn(pqt.NewColumn("column_real", pqt.TypeReal())).
+		AddColumn(pqt.NewColumn("column_serial", pqt.TypeSerial())).
+		AddColumn(pqt.NewColumn("column_serial_big", pqt.TypeSerialBig())).
+		AddColumn(pqt.NewColumn("column_serial_small", pqt.TypeSerialSmall())).
+		AddColumn(pqt.NewColumn("column_text", pqt.TypeText())).
+		AddColumn(pqt.NewColumn("column_text_array_0", pqt.TypeTextArray(0))).
+		AddColumn(pqt.NewColumn("column_text_array_100", pqt.TypeTextArray(100))).
+		AddColumn(pqt.NewColumn("column_timestamp", pqt.TypeTimestamp())).
+		AddColumn(pqt.NewColumn("column_timestamptz", pqt.TypeTimestampTZ())).
+		AddColumn(pqt.NewColumn("column_uuid", pqt.TypeUUID()))
 
 	return pqt.NewSchema(sn, pqt.WithSchemaIfNotExists()).
 		AddTable(category).
 		AddTable(pkg).
 		AddTable(news).
-		AddTable(comment)
+		AddTable(comment).
+		AddTable(complete)
 }
 
 func timestampable(t *pqt.Table) {

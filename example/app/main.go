@@ -12,10 +12,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/piotrkowalczuk/ntypes"
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
-	"github.com/piotrkowalczuk/qtypes"
 	"github.com/piotrkowalczuk/sklog"
 )
 
@@ -81,7 +79,7 @@ func main() {
 	news, err := repo.news.Insert(ctx, &model.NewsEntity{
 		Title:   fmt.Sprintf("Lorem Ipsum - %d - %d", time.Now().Unix(), rand.Int63()),
 		Content: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam a felis vel erat gravida luctus at id nisi. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Vivamus a nibh massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Fusce viverra quam id dolor facilisis ultrices. Donec blandit, justo sit amet consequat gravida, nisi velit efficitur neque, ac ullamcorper leo dui vitae lorem. Pellentesque vitae ligula id massa fringilla facilisis eu sit amet neque. Ut ac fringilla mi. Maecenas id fermentum massa. Duis at tristique felis, nec aliquet nisi. Suspendisse potenti. In sed dolor maximus, dapibus arcu vitae, vehicula ligula. Nunc imperdiet eu ipsum sed pretium. Nullam iaculis nunc id dictum auctor.",
-		Lead:    &ntypes.String{String: "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit...", Valid: true},
+		Lead:    sql.NullString{String: "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit...", Valid: true},
 	})
 	if err != nil {
 		switch pqt.ErrorConstraint(err) {
@@ -105,7 +103,7 @@ func main() {
 	}
 
 	iter, err := repo.comment.FindIter(ctx, &model.CommentCriteria{
-		NewsID: qtypes.EqualInt64(news.ID),
+		NewsID: sql.NullInt64{Int64: news.ID, Valid: true},
 		Sort: map[string]bool{
 			"id": false,
 			"non_existing_column": true,
@@ -141,7 +139,7 @@ func main() {
 
 	for i := 0; i < nb; i++ {
 		_, err := repo.category.Insert(ctx, &model.CategoryEntity{
-			ParentID: &ntypes.Int64{Int64: category.ID, Valid: true},
+			ParentID: sql.NullInt64{Int64: category.ID, Valid: true},
 			Name:     "child_category" + strconv.Itoa(i),
 		})
 		if err != nil {
@@ -150,7 +148,7 @@ func main() {
 	}
 
 	count, err = repo.category.Count(ctx, &model.CategoryCriteria{
-		ParentID: qtypes.EqualInt64(category.ID),
+		ParentID: sql.NullInt64{Int64: category.ID, Valid: true},
 	})
 	if err != nil {
 		sklog.Fatal(log, err)
@@ -162,7 +160,7 @@ func main() {
 	}
 
 	_, err = repo.category.Insert(ctx, &model.CategoryEntity{
-		ParentID: &ntypes.Int64{Int64: int64(math.MaxInt64 - 1), Valid: true},
+		ParentID: sql.NullInt64{Int64: int64(math.MaxInt64 - 1), Valid: true},
 		Name:     "does not work",
 	})
 	if err != nil {

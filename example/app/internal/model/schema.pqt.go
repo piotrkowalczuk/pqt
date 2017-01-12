@@ -7,28 +7,27 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-kit/kit/log"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/piotrkowalczuk/ntypes"
-	"github.com/piotrkowalczuk/pqcomp"
-	"github.com/piotrkowalczuk/pqt/pqtgo"
-	"github.com/piotrkowalczuk/qtypes"
+	"github.com/lib/pq"
 )
 
 const (
-	TableCategory                             = "example.category"
-	TableCategoryColumnContent                = "content"
-	TableCategoryColumnCreatedAt              = "created_at"
-	TableCategoryColumnID                     = "id"
-	TableCategoryColumnName                   = "name"
-	TableCategoryColumnParentID               = "parent_id"
-	TableCategoryColumnUpdatedAt              = "updated_at"
-	TableCategoryConstraintPrimaryKey         = "example.category_id_pkey"
+	TableCategory                     = "example.category"
+	TableCategoryColumnContent        = "content"
+	TableCategoryColumnCreatedAt      = "created_at"
+	TableCategoryColumnID             = "id"
+	TableCategoryColumnName           = "name"
+	TableCategoryColumnParentID       = "parent_id"
+	TableCategoryColumnUpdatedAt      = "updated_at"
+	TableCategoryConstraintPrimaryKey = "example.category_id_pkey"
+
 	TableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
 )
 
@@ -43,6 +42,7 @@ var (
 	}
 )
 
+// CategoryEntity ...
 type CategoryEntity struct {
 	// Content ...
 	Content string
@@ -53,9 +53,9 @@ type CategoryEntity struct {
 	// Name ...
 	Name string
 	// ParentID ...
-	ParentID *ntypes.Int64
+	ParentID sql.NullInt64
 	// UpdatedAt ...
-	UpdatedAt *time.Time
+	UpdatedAt pq.NullTime
 	// ChildCategory ...
 	ChildCategory []*CategoryEntity
 	// ParentCategory ...
@@ -66,6 +66,7 @@ type CategoryEntity struct {
 
 func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
+
 	case TableCategoryColumnContent:
 		return &e.Content, true
 	case TableCategoryColumnCreatedAt:
@@ -82,8 +83,8 @@ func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
-func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 
+func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -150,328 +151,43 @@ func (i *CategoryIterator) Category() (*CategoryEntity, error) {
 type CategoryCriteria struct {
 	Offset, Limit int64
 	Sort          map[string]bool
-	Content       *qtypes.String
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	Name          *qtypes.String
-	ParentID      *qtypes.Int64
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *CategoryCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Content, TableCategoryColumnContent, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCategoryColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCategoryColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCategoryColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TableCategoryColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.Name, TableCategoryColumnName, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ParentID, TableCategoryColumnParentID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCategoryColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCategoryColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCategoryColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCategoryColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TableCategoryColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
+	Content       sql.NullString
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	Name          sql.NullString
+	ParentID      sql.NullInt64
+	UpdatedAt     pq.NullTime
 }
 
 type CategoryPatch struct {
-	Content   *ntypes.String
-	CreatedAt *time.Time
-	Name      *ntypes.String
-	ParentID  *ntypes.Int64
-	UpdatedAt *time.Time
+	Content   sql.NullString
+	CreatedAt pq.NullTime
+	Name      sql.NullString
+	ParentID  sql.NullInt64
+	UpdatedAt pq.NullTime
+}
+
+func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
+	for rows.Next() {
+		var ent CategoryEntity
+		err = rows.Scan(&ent.Content,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.Name,
+			&ent.ParentID,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
 }
 
 type CategoryRepositoryBase struct {
@@ -482,348 +198,824 @@ type CategoryRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanCategoryRows(rows *sql.Rows) ([]*CategoryEntity, error) {
-	var (
-		entities []*CategoryEntity
-		err      error
-	)
-	for rows.Next() {
-		var ent CategoryEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.Name,
-			&ent.ParentID,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		entities = append(entities, &ent)
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-
-	return entities, nil
-}
-
-func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(6)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []interface{}, error) {
+	insert := NewComposer(6)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
 
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
 		}
 	}
-
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
+	if _, err := columns.WriteString(TableCategoryColumnContent); err != nil {
+		return "", nil, err
 	}
-	return count, nil
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Content)
+	insert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCategoryColumnName); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Name)
+	insert.Dirty = true
+
+	if e.ParentID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ParentID)
+		insert.Dirty = true
+	}
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), insert.Args(), nil
+}
+
+func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Name,
+		&e.ParentID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (string, []interface{}, error) {
+	where := NewComposer(6)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Content.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Content)
+		where.Dirty = true
+	}
+
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+
+	// id is an empty struct, ignore
+
+	if c.Name.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnName); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Name)
+		where.Dirty = true
+	}
+
+	if c.ParentID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ParentID)
+		where.Dirty = true
+	}
+
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(where)
+	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableCategoryColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
+	return buf.String(), where.Args(), nil
 }
 
 func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) ([]*CategoryEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
 	}
-
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
 	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+	}
 
 	return ScanCategoryRows(rows)
 }
+
 func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriteria) (*CategoryIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
 	}
-
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
 	return &CategoryIterator{rows: rows}, nil
 }
-func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, id int64) (*CategoryEntity, error) {
+func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
+	find := NewComposer(6)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableCategory)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableCategoryColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
 	var (
 		ent CategoryEntity
 	)
-	query := `SELECT content,
-created_at,
-id,
-name,
-parent_id,
-updated_at
- FROM example.category WHERE id = $1`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&ent.Content,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Name,
-		&ent.ParentID,
-		&ent.UpdatedAt,
-	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ent, nil
 }
-func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
-	insert := pqcomp.New(0, 6)
-	insert.AddExpr(TableCategoryColumnContent, "", e.Content)
-	insert.AddExpr(TableCategoryColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCategoryColumnName, "", e.Name)
-	insert.AddExpr(TableCategoryColumnParentID, "", e.ParentID)
-	insert.AddExpr(TableCategoryColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(6)
+	if p.Content.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
 		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+		if _, err := update.WriteString(TableCategoryColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Content)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
 		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
+		if _, err := update.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.Name.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableCategoryColumnName); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Name)
+		update.Dirty = true
+
+	}
+
+	if p.ParentID.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ParentID)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
 		}
 	}
 
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
+	if !update.Dirty {
+		return "", nil, errors.New("Category update failure, nothing to update")
 	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
-	)
+	update.WriteString(TableCategoryColumnID)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(pk)
+
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+
+	return buf.String(), update.Args(), nil
+}
+func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *CategoryPatch) (*CategoryEntity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
 		return nil, err
 	}
-
-	return e, nil
+	var ent CategoryEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	if err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query success", "query", query, "table", r.Table)
+	}
+	return &ent, nil
 }
-func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, p *CategoryPatch, inf ...string) (*CategoryEntity, error) {
-	insert := pqcomp.New(0, 6)
-	update := insert.Compose(6)
-	insert.AddExpr(TableCategoryColumnContent, "", e.Content)
-	insert.AddExpr(TableCategoryColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCategoryColumnName, "", e.Name)
-	insert.AddExpr(TableCategoryColumnParentID, "", e.ParentID)
-	insert.AddExpr(TableCategoryColumnUpdatedAt, "", e.UpdatedAt)
+func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(12)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCategoryColumnContent); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Content)
+	upsert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCategoryColumnName); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Name)
+	upsert.Dirty = true
+
+	if e.ParentID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnParentID); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ParentID)
+		upsert.Dirty = true
+	}
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
 	if len(inf) > 0 {
-		update.AddExpr(TableCategoryColumnContent, "=", p.Content)
-		update.AddExpr(TableCategoryColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TableCategoryColumnName, "=", p.Name)
-		update.AddExpr(TableCategoryColumnParentID, "=", p.ParentID)
-		update.AddExpr(TableCategoryColumnUpdatedAt, "=", p.UpdatedAt)
+		upsert.Dirty = false
+		if p.Content.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnContent); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Content)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.Name.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnName); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Name)
+			upsert.Dirty = true
+
+		}
+
+		if p.ParentID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnParentID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ParentID)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
 	}
 
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
 		for j, i := range inf {
 			if j != 0 {
-				b.WriteString(", ")
+				buf.WriteString(", ")
 			}
-			b.WriteString(i)
+			buf.WriteString(i)
 		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
 	} else {
-		b.WriteString(" DO NOTHING ")
+		buf.WriteString(" DO NOTHING ")
 	}
-	if insert.Len() > 0 {
+	if upsert.Dirty {
 		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, p *CategoryPatch, inf ...string) (*CategoryEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Name,
+		&e.ParentID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
 	}
 
 	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
+	return count, nil
 }
-func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, id int64, patch *CategoryPatch) (*CategoryEntity, error) {
-	update := pqcomp.New(1, 6)
-	update.AddArg(id)
-
-	update.AddExpr(TableCategoryColumnContent, pqcomp.Equal, patch.Content)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableCategoryColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableCategoryColumnName, pqcomp.Equal, patch.Name)
-	update.AddExpr(TableCategoryColumnParentID, pqcomp.Equal, patch.ParentID)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableCategoryColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableCategoryColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("Category update failure, nothing to update")
-	}
-	query := "UPDATE " + r.Table + " SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE id = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	var e CategoryEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Name,
-		&e.ParentID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-
-func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64, error) {
-	query := "DELETE FROM example.category WHERE id = $1"
-
-	res, err := r.DB.ExecContext(ctx, query, id)
+func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
+	find := NewComposer(6)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(TableCategory)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableCategoryColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
 	if err != nil {
 		return 0, err
 	}
@@ -839,7 +1031,8 @@ const (
 	TablePackageColumnID                       = "id"
 	TablePackageColumnUpdatedAt                = "updated_at"
 	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
-	TablePackageConstraintPrimaryKey           = "example.package_id_pkey"
+
+	TablePackageConstraintPrimaryKey = "example.package_id_pkey"
 )
 
 var (
@@ -852,23 +1045,25 @@ var (
 	}
 )
 
+// PackageEntity ...
 type PackageEntity struct {
 	// Break ...
-	Break *ntypes.String
+	Break sql.NullString
 	// CategoryID ...
-	CategoryID *ntypes.Int64
+	CategoryID sql.NullInt64
 	// CreatedAt ...
 	CreatedAt time.Time
 	// ID ...
 	ID int64
 	// UpdatedAt ...
-	UpdatedAt *time.Time
+	UpdatedAt pq.NullTime
 	// Category ...
 	Category *CategoryEntity
 }
 
 func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
+
 	case TablePackageColumnBreak:
 		return &e.Break, true
 	case TablePackageColumnCategoryID:
@@ -883,8 +1078,8 @@ func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
-func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 
+func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -951,322 +1146,40 @@ func (i *PackageIterator) Package() (*PackageEntity, error) {
 type PackageCriteria struct {
 	Offset, Limit int64
 	Sort          map[string]bool
-	Break         *qtypes.String
-	CategoryID    *qtypes.Int64
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *PackageCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Break, TablePackageColumnBreak, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.CategoryID, TablePackageColumnCategoryID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TablePackageColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TablePackageColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TablePackageColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TablePackageColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TablePackageColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TablePackageColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TablePackageColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TablePackageColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TablePackageColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
+	Break         sql.NullString
+	CategoryID    sql.NullInt64
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	UpdatedAt     pq.NullTime
 }
 
 type PackagePatch struct {
-	Break      *ntypes.String
-	CategoryID *ntypes.Int64
-	CreatedAt  *time.Time
-	UpdatedAt  *time.Time
+	Break      sql.NullString
+	CategoryID sql.NullInt64
+	CreatedAt  pq.NullTime
+	UpdatedAt  pq.NullTime
+}
+
+func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
+	for rows.Next() {
+		var ent PackageEntity
+		err = rows.Scan(&ent.Break,
+			&ent.CategoryID,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
 }
 
 type PackageRepositoryBase struct {
@@ -1277,338 +1190,731 @@ type PackageRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanPackageRows(rows *sql.Rows) ([]*PackageEntity, error) {
-	var (
-		entities []*PackageEntity
-		err      error
-	)
-	for rows.Next() {
-		var ent PackageEntity
-		err = rows.Scan(
-			&ent.Break,
-			&ent.CategoryID,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		entities = append(entities, &ent)
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-
-	return entities, nil
-}
-
-func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(5)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interface{}, error) {
+	insert := NewComposer(5)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
 
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
+	if e.Break.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.Break)
+		insert.Dirty = true
 	}
 
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
+	if e.CategoryID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.CategoryID)
+		insert.Dirty = true
+	}
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
+	}
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
+	return buf.String(), insert.Args(), nil
+}
 
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
+func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
 	}
-	return count, nil
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Break,
+		&e.CategoryID,
+		&e.CreatedAt,
+		&e.ID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (string, []interface{}, error) {
+	where := NewComposer(5)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Break.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Break)
+		where.Dirty = true
+	}
+
+	if c.CategoryID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CategoryID)
+		where.Dirty = true
+	}
+
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+
+	// id is an empty struct, ignore
+
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(where)
+	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TablePackageColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
+	return buf.String(), where.Args(), nil
 }
 
 func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([]*PackageEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
 	}
-
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
 	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+	}
 
 	return ScanPackageRows(rows)
 }
+
 func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria) (*PackageIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
 	}
-
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
 	return &PackageIterator{rows: rows}, nil
 }
-func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, id int64) (*PackageEntity, error) {
+func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
+	find := NewComposer(5)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TablePackage)
+	find.WriteString(" WHERE ")
+	find.WriteString(TablePackageColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
 	var (
 		ent PackageEntity
 	)
-	query := `SELECT break,
-category_id,
-created_at,
-id,
-updated_at
- FROM example.package WHERE id = $1`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&ent.Break,
-		&ent.CategoryID,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.UpdatedAt,
-	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ent, nil
 }
-func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
-	insert := pqcomp.New(0, 5)
-	insert.AddExpr(TablePackageColumnBreak, "", e.Break)
-	insert.AddExpr(TablePackageColumnCategoryID, "", e.CategoryID)
-	insert.AddExpr(TablePackageColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TablePackageColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(5)
+	if p.Break.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
 		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+		if _, err := update.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Break)
+		update.Dirty = true
+
+	}
+
+	if p.CategoryID.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
 		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
+		if _, err := update.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CategoryID)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
 		}
 	}
 
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
+	if !update.Dirty {
+		return "", nil, errors.New("Package update failure, nothing to update")
 	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Break,
-		&e.CategoryID,
-		&e.CreatedAt,
-		&e.ID,
-		&e.UpdatedAt,
-	)
+	update.WriteString(TablePackageColumnID)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(pk)
+
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+
+	return buf.String(), update.Args(), nil
+}
+func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *PackagePatch) (*PackageEntity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
 		return nil, err
 	}
-
-	return e, nil
+	var ent PackageEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	if err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query success", "query", query, "table", r.Table)
+	}
+	return &ent, nil
 }
-func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p *PackagePatch, inf ...string) (*PackageEntity, error) {
-	insert := pqcomp.New(0, 5)
-	update := insert.Compose(5)
-	insert.AddExpr(TablePackageColumnBreak, "", e.Break)
-	insert.AddExpr(TablePackageColumnCategoryID, "", e.CategoryID)
-	insert.AddExpr(TablePackageColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TablePackageColumnUpdatedAt, "", e.UpdatedAt)
+func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(10)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if e.Break.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnBreak); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.Break)
+		upsert.Dirty = true
+	}
+
+	if e.CategoryID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnCategoryID); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CategoryID)
+		upsert.Dirty = true
+	}
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
 	if len(inf) > 0 {
-		update.AddExpr(TablePackageColumnBreak, "=", p.Break)
-		update.AddExpr(TablePackageColumnCategoryID, "=", p.CategoryID)
-		update.AddExpr(TablePackageColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TablePackageColumnUpdatedAt, "=", p.UpdatedAt)
+		upsert.Dirty = false
+		if p.Break.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnBreak); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Break)
+			upsert.Dirty = true
+
+		}
+
+		if p.CategoryID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnCategoryID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CategoryID)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TablePackageColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
 	}
 
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
 		for j, i := range inf {
 			if j != 0 {
-				b.WriteString(", ")
+				buf.WriteString(", ")
 			}
-			b.WriteString(i)
+			buf.WriteString(i)
 		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
 	} else {
-		b.WriteString(" DO NOTHING ")
+		buf.WriteString(" DO NOTHING ")
 	}
-	if insert.Len() > 0 {
+	if upsert.Dirty {
 		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p *PackagePatch, inf ...string) (*PackageEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Break,
+		&e.CategoryID,
+		&e.CreatedAt,
+		&e.ID,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
 	}
 
 	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Break,
-		&e.CategoryID,
-		&e.CreatedAt,
-		&e.ID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return e, nil
+	return count, nil
 }
-func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, id int64, patch *PackagePatch) (*PackageEntity, error) {
-	update := pqcomp.New(1, 5)
-	update.AddArg(id)
-
-	update.AddExpr(TablePackageColumnBreak, pqcomp.Equal, patch.Break)
-	update.AddExpr(TablePackageColumnCategoryID, pqcomp.Equal, patch.CategoryID)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TablePackageColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TablePackageColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TablePackageColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("Package update failure, nothing to update")
-	}
-	query := "UPDATE " + r.Table + " SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE id = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	var e PackageEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Break,
-		&e.CategoryID,
-		&e.CreatedAt,
-		&e.ID,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-
-func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64, error) {
-	query := "DELETE FROM example.package WHERE id = $1"
-
-	res, err := r.DB.ExecContext(ctx, query, id)
+func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
+	find := NewComposer(5)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(TablePackage)
+	find.WriteString(" WHERE ")
+	find.WriteString(TablePackageColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
 	if err != nil {
 		return 0, err
 	}
@@ -1617,16 +1923,21 @@ func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (in
 }
 
 const (
-	TableNews                          = "example.news"
-	TableNewsColumnContent             = "content"
-	TableNewsColumnContinue            = "continue"
-	TableNewsColumnCreatedAt           = "created_at"
-	TableNewsColumnID                  = "id"
-	TableNewsColumnLead                = "lead"
-	TableNewsColumnTitle               = "title"
-	TableNewsColumnUpdatedAt           = "updated_at"
-	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
-	TableNewsConstraintTitleUnique     = "example.news_title_key"
+	TableNews                        = "example.news"
+	TableNewsColumnContent           = "content"
+	TableNewsColumnContinue          = "continue"
+	TableNewsColumnCreatedAt         = "created_at"
+	TableNewsColumnID                = "id"
+	TableNewsColumnLead              = "lead"
+	TableNewsColumnMetaData          = "meta_data"
+	TableNewsColumnScore             = "score"
+	TableNewsColumnTitle             = "title"
+	TableNewsColumnUpdatedAt         = "updated_at"
+	TableNewsColumnViewsDistribution = "views_distribution"
+	TableNewsConstraintPrimaryKey    = "example.news_id_pkey"
+
+	TableNewsConstraintTitleUnique = "example.news_title_key"
+
 	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
 )
 
@@ -1637,11 +1948,15 @@ var (
 		TableNewsColumnCreatedAt,
 		TableNewsColumnID,
 		TableNewsColumnLead,
+		TableNewsColumnMetaData,
+		TableNewsColumnScore,
 		TableNewsColumnTitle,
 		TableNewsColumnUpdatedAt,
+		TableNewsColumnViewsDistribution,
 	}
 )
 
+// NewsEntity ...
 type NewsEntity struct {
 	// Content ...
 	Content string
@@ -1652,11 +1967,17 @@ type NewsEntity struct {
 	// ID ...
 	ID int64
 	// Lead ...
-	Lead *ntypes.String
+	Lead sql.NullString
+	// MetaData ...
+	MetaData []byte
+	// Score ...
+	Score float64
 	// Title ...
 	Title string
 	// UpdatedAt ...
-	UpdatedAt *time.Time
+	UpdatedAt pq.NullTime
+	// ViewsDistribution ...
+	ViewsDistribution NullFloat64Array
 	// CommentsByNewsTitle ...
 	CommentsByNewsTitle []*CommentEntity
 	// Comments ...
@@ -1665,6 +1986,7 @@ type NewsEntity struct {
 
 func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
+
 	case TableNewsColumnContent:
 		return &e.Content, true
 	case TableNewsColumnContinue:
@@ -1675,16 +1997,22 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 		return &e.ID, true
 	case TableNewsColumnLead:
 		return &e.Lead, true
+	case TableNewsColumnMetaData:
+		return &e.MetaData, true
+	case TableNewsColumnScore:
+		return &e.Score, true
 	case TableNewsColumnTitle:
 		return &e.Title, true
 	case TableNewsColumnUpdatedAt:
 		return &e.UpdatedAt, true
+	case TableNewsColumnViewsDistribution:
+		return &e.ViewsDistribution, true
 	default:
 		return nil, false
 	}
 }
-func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 
+func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -1749,339 +2077,57 @@ func (i *NewsIterator) News() (*NewsEntity, error) {
 }
 
 type NewsCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       *qtypes.String
-	Continue      *ntypes.Bool
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	Lead          *qtypes.String
-	Title         *qtypes.String
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *NewsCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Content, TableNewsColumnContent, com, pqtgo.And); err != nil {
-		return
-	}
-	if c.Continue != nil && c.Continue.Valid {
-		if com.Dirty {
-			com.WriteString(" AND ")
-		}
-		com.Dirty = true
-		com.WriteString(TableNewsColumnContinue)
-		com.WriteString(" = ")
-		com.WritePlaceholder()
-		com.Add(c.Continue)
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableNewsColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableNewsColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableNewsColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TableNewsColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.Lead, TableNewsColumnLead, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.Title, TableNewsColumnTitle, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableNewsColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableNewsColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableNewsColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableNewsColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TableNewsColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
+	Offset, Limit     int64
+	Sort              map[string]bool
+	Content           sql.NullString
+	Continue          sql.NullBool
+	CreatedAt         pq.NullTime
+	ID                sql.NullInt64
+	Lead              sql.NullString
+	MetaData          []byte
+	Score             sql.NullFloat64
+	Title             sql.NullString
+	UpdatedAt         pq.NullTime
+	ViewsDistribution NullFloat64Array
 }
 
 type NewsPatch struct {
-	Content   *ntypes.String
-	Continue  *ntypes.Bool
-	CreatedAt *time.Time
-	Lead      *ntypes.String
-	Title     *ntypes.String
-	UpdatedAt *time.Time
+	Content           sql.NullString
+	Continue          sql.NullBool
+	CreatedAt         pq.NullTime
+	Lead              sql.NullString
+	MetaData          []byte
+	Score             sql.NullFloat64
+	Title             sql.NullString
+	UpdatedAt         pq.NullTime
+	ViewsDistribution NullFloat64Array
+}
+
+func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
+	for rows.Next() {
+		var ent NewsEntity
+		err = rows.Scan(&ent.Content,
+			&ent.Continue,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.Lead,
+			&ent.MetaData,
+			&ent.Score,
+			&ent.Title,
+			&ent.UpdatedAt,
+			&ent.ViewsDistribution,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
 }
 
 type NewsRepositoryBase struct {
@@ -2092,151 +2138,510 @@ type NewsRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanNewsRows(rows *sql.Rows) ([]*NewsEntity, error) {
-	var (
-		entities []*NewsEntity
-		err      error
-	)
-	for rows.Next() {
-		var ent NewsEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.Continue,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.Lead,
-			&ent.Title,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		entities = append(entities, &ent)
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-
-	return entities, nil
-}
-
-func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
-
-	com := pqtgo.NewComposer(7)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
+	insert := NewComposer(10)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
 
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return 0, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
 		}
 	}
-
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
+	if _, err := columns.WriteString(TableNewsColumnContent); err != nil {
+		return "", nil, err
 	}
-	return count, nil
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Content)
+	insert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnContinue); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Continue)
+	insert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
+	}
+
+	if e.Lead.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.Lead)
+		insert.Dirty = true
+	}
+
+	if e.MetaData != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.MetaData)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnScore); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Score)
+	insert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnTitle); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Title)
+	insert.Dirty = true
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
+	}
+
+	if e.ViewsDistribution.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ViewsDistribution)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), insert.Args(), nil
+}
+
+func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.Continue,
+		&e.CreatedAt,
+		&e.ID,
+		&e.Lead,
+		&e.MetaData,
+		&e.Score,
+		&e.Title,
+		&e.UpdatedAt,
+		&e.ViewsDistribution,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
+	where := NewComposer(10)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Content.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Content)
+		where.Dirty = true
+	}
+
+	if c.Continue.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Continue)
+		where.Dirty = true
+	}
+
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+
+	// id is an empty struct, ignore
+
+	if c.Lead.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Lead)
+		where.Dirty = true
+	}
+
+	if c.MetaData != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.MetaData)
+		where.Dirty = true
+	}
+
+	if c.Score.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Score)
+		where.Dirty = true
+	}
+
+	if c.Title.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Title)
+		where.Dirty = true
+	}
+
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if c.ViewsDistribution.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ViewsDistribution)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(where)
+	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableNewsColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
+	return buf.String(), where.Args(), nil
 }
 
 func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*NewsEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
 	}
-
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
 	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+	}
 
 	return ScanNewsRows(rows)
 }
+
 func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*NewsIterator, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
+	query, args, err := r.FindQuery(r.Columns, c)
 	if err != nil {
 		return nil, err
 	}
-
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
 	return &NewsIterator{rows: rows}, nil
 }
-func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, id int64) (*NewsEntity, error) {
+func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
+	find := NewComposer(10)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
 	var (
 		ent NewsEntity
 	)
-	query := `SELECT content,
-continue,
-created_at,
-id,
-lead,
-title,
-updated_at
- FROM example.news WHERE id = $1`
-	err := r.DB.QueryRowContext(ctx, query, id).Scan(
-		&ent.Content,
-		&ent.Continue,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Lead,
-		&ent.Title,
-		&ent.UpdatedAt,
-	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
 		return nil, err
 	}
@@ -2244,19 +2649,25 @@ updated_at
 	return &ent, nil
 }
 func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
+	find := NewComposer(10)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnTitle)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(newsTitle)
+
 	var (
 		ent NewsEntity
 	)
-	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1`
-	err := r.DB.QueryRowContext(ctx, query, newsTitle).Scan(
-		&ent.Content,
-		&ent.Continue,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Lead,
-		&ent.Title,
-		&ent.UpdatedAt,
-	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
 		return nil, err
 	}
@@ -2264,327 +2675,1215 @@ func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle strin
 	return &ent, nil
 }
 func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
+	find := NewComposer(10)
+	find.WriteString("SELECT ")
+	find.WriteString(strings.Join(r.Columns, ", "))
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnTitle)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(newsTitle)
+	find.WriteString(" AND ")
+	find.WriteString(TableNewsColumnLead)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(newsLead)
+
 	var (
 		ent NewsEntity
 	)
-	query := `SELECT content, continue, created_at, id, lead, title, updated_at FROM example.news WHERE title = $1 AND lead = $2`
-	err := r.DB.QueryRowContext(ctx, query, newsTitle, newsLead).Scan(
-		&ent.Content,
-		&ent.Continue,
-		&ent.CreatedAt,
-		&ent.ID,
-		&ent.Lead,
-		&ent.Title,
-		&ent.UpdatedAt,
-	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &ent, nil
 }
-func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
-	insert := pqcomp.New(0, 7)
-	insert.AddExpr(TableNewsColumnContent, "", e.Content)
-	insert.AddExpr(TableNewsColumnContinue, "", e.Continue)
-	insert.AddExpr(TableNewsColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableNewsColumnLead, "", e.Lead)
-	insert.AddExpr(TableNewsColumnTitle, "", e.Title)
-	insert.AddExpr(TableNewsColumnUpdatedAt, "", e.UpdatedAt)
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(10)
+	if p.Content.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
 		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+		if _, err := update.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Content)
+		update.Dirty = true
+
+	}
+
+	if p.Continue.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
 		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
+		if _, err := update.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Continue)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.Lead.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Lead)
+		update.Dirty = true
+
+	}
+
+	if p.MetaData != nil {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.MetaData)
+		update.Dirty = true
+
+	}
+
+	if p.Score.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Score)
+		update.Dirty = true
+
+	}
+
+	if p.Title.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Title)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
 		}
 	}
 
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
+	if p.ViewsDistribution.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
 		}
+		if _, err := update.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ViewsDistribution)
+		update.Dirty = true
+
 	}
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
+	if !update.Dirty {
+		return "", nil, errors.New("News update failure, nothing to update")
+	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
+
+	update.WriteString(TableNewsColumnID)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(pk)
+
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+
+	return buf.String(), update.Args(), nil
+}
+func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *NewsPatch) (*NewsEntity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
 		return nil, err
 	}
-
-	return e, nil
+	var ent NewsEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	if err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query success", "query", query, "table", r.Table)
+	}
+	return &ent, nil
 }
-func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsPatch, inf ...string) (*NewsEntity, error) {
-	insert := pqcomp.New(0, 7)
-	update := insert.Compose(7)
-	insert.AddExpr(TableNewsColumnContent, "", e.Content)
-	insert.AddExpr(TableNewsColumnContinue, "", e.Continue)
-	insert.AddExpr(TableNewsColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableNewsColumnLead, "", e.Lead)
-	insert.AddExpr(TableNewsColumnTitle, "", e.Title)
-	insert.AddExpr(TableNewsColumnUpdatedAt, "", e.UpdatedAt)
+func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(1)
+	if p.Content.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Content)
+		update.Dirty = true
+
+	}
+
+	if p.Continue.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Continue)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.Lead.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Lead)
+		update.Dirty = true
+
+	}
+
+	if p.MetaData != nil {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.MetaData)
+		update.Dirty = true
+
+	}
+
+	if p.Score.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Score)
+		update.Dirty = true
+
+	}
+
+	if p.Title.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Title)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if p.ViewsDistribution.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ViewsDistribution)
+		update.Dirty = true
+
+	}
+
+	if !update.Dirty {
+		return "", nil, errors.New("News update failure, nothing to update")
+	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
+	update.WriteString(TableNewsColumnTitle)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(newsTitle)
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+	return buf.String(), update.Args(), nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, newsLead string, p *NewsPatch) (string, []interface{}, error) {
+	buf := bytes.NewBufferString("UPDATE ")
+	buf.WriteString(r.Table)
+	update := NewComposer(2)
+	if p.Content.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Content)
+		update.Dirty = true
+
+	}
+
+	if p.Continue.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnContinue); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Continue)
+		update.Dirty = true
+
+	}
+
+	if p.CreatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+
+	if p.Lead.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Lead)
+		update.Dirty = true
+
+	}
+
+	if p.MetaData != nil {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.MetaData)
+		update.Dirty = true
+
+	}
+
+	if p.Score.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnScore); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Score)
+		update.Dirty = true
+
+	}
+
+	if p.Title.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Title)
+		update.Dirty = true
+
+	}
+
+	if p.UpdatedAt.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.UpdatedAt)
+		update.Dirty = true
+
+	} else {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("=NOW()"); err != nil {
+			return "", nil, err
+		}
+	}
+
+	if p.ViewsDistribution.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.ViewsDistribution)
+		update.Dirty = true
+
+	}
+
+	if !update.Dirty {
+		return "", nil, errors.New("News update failure, nothing to update")
+	}
+	buf.WriteString(" SET ")
+	buf.ReadFrom(update)
+	buf.WriteString(" WHERE ")
+	update.WriteString(TableNewsColumnTitle)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(newsTitle)
+	update.WriteString(" AND ")
+	update.WriteString(TableNewsColumnLead)
+	update.WriteString("=")
+	update.WritePlaceholder()
+	update.Add(newsLead)
+	buf.ReadFrom(update)
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(r.Columns, ", "))
+	return buf.String(), update.Args(), nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle string, p *NewsPatch) (*NewsEntity, error) {
+	query, args, err := r.UpdateOneByTitleQuery(newsTitle, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent NewsEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return &ent, nil
+}
+func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string, p *NewsPatch) (*NewsEntity, error) {
+	query, args, err := r.UpdateOneByTitleAndLeadQuery(newsTitle, newsLead, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent NewsEntity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+
+	return &ent, nil
+}
+func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(20)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnContent); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Content)
+	upsert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnContinue); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Continue)
+	upsert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.Lead.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnLead); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.Lead)
+		upsert.Dirty = true
+	}
+
+	if e.MetaData != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnMetaData); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.MetaData)
+		upsert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnScore); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Score)
+	upsert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableNewsColumnTitle); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Title)
+	upsert.Dirty = true
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.ViewsDistribution.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ViewsDistribution)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
 	if len(inf) > 0 {
-		update.AddExpr(TableNewsColumnContent, "=", p.Content)
-		update.AddExpr(TableNewsColumnContinue, "=", p.Continue)
-		update.AddExpr(TableNewsColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TableNewsColumnLead, "=", p.Lead)
-		update.AddExpr(TableNewsColumnTitle, "=", p.Title)
-		update.AddExpr(TableNewsColumnUpdatedAt, "=", p.UpdatedAt)
+		upsert.Dirty = false
+		if p.Content.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnContent); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Content)
+			upsert.Dirty = true
+
+		}
+
+		if p.Continue.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnContinue); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Continue)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.Lead.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnLead); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Lead)
+			upsert.Dirty = true
+
+		}
+
+		if p.MetaData != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnMetaData); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.MetaData)
+			upsert.Dirty = true
+
+		}
+
+		if p.Score.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnScore); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Score)
+			upsert.Dirty = true
+
+		}
+
+		if p.Title.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnTitle); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Title)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
+		if p.ViewsDistribution.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnViewsDistribution); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ViewsDistribution)
+			upsert.Dirty = true
+
+		}
+
 	}
 
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
-		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
 		for j, i := range inf {
 			if j != 0 {
-				b.WriteString(", ")
+				buf.WriteString(", ")
 			}
-			b.WriteString(i)
+			buf.WriteString(i)
 		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
 	} else {
-		b.WriteString(" DO NOTHING ")
+		buf.WriteString(" DO NOTHING ")
 	}
-	if insert.Len() > 0 {
+	if upsert.Dirty {
 		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
 		}
 	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
-			return nil, err
-		}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsPatch, inf ...string) (*NewsEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
 	}
-
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
 		&e.Continue,
 		&e.CreatedAt,
 		&e.ID,
 		&e.Lead,
+		&e.MetaData,
+		&e.Score,
 		&e.Title,
 		&e.UpdatedAt,
-	)
-	if err != nil {
+		&e.ViewsDistribution,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
 	}
-
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
 	return e, nil
 }
-func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, id int64, patch *NewsPatch) (*NewsEntity, error) {
-	update := pqcomp.New(1, 7)
-	update.AddArg(id)
 
-	update.AddExpr(TableNewsColumnContent, pqcomp.Equal, patch.Content)
-	update.AddExpr(TableNewsColumnContinue, pqcomp.Equal, patch.Continue)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableNewsColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableNewsColumnLead, pqcomp.Equal, patch.Lead)
-	update.AddExpr(TableNewsColumnTitle, pqcomp.Equal, patch.Title)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("News update failure, nothing to update")
-	}
-	query := "UPDATE " + r.Table + " SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE id = $1 RETURNING " + strings.Join(r.Columns, ", ")
-	var e NewsEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
+func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-
-	return &e, nil
-}
-func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle string, patch *NewsPatch) (*NewsEntity, error) {
-	update := pqcomp.New(1, 7)
-	update.AddArg(newsTitle)
-	update.AddExpr(TableNewsColumnContent, pqcomp.Equal, patch.Content)
-	update.AddExpr(TableNewsColumnContinue, pqcomp.Equal, patch.Continue)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableNewsColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableNewsColumnLead, pqcomp.Equal, patch.Lead)
-	update.AddExpr(TableNewsColumnTitle, pqcomp.Equal, patch.Title)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("News update failure, nothing to update")
-	}
-	query := "UPDATE example.news SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
 		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
+		return 0, err
 	}
-	query += " WHERE title = $1 RETURNING " + strings.Join(r.Columns, ", ")
+
 	if r.Debug {
-		if err := r.Log.Log("msg", query, "function", "UpdateOneByTitle"); err != nil {
-			return nil, err
-		}
-	}
-	var e NewsEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
-	return &e, nil
+	return count, nil
 }
-func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string, patch *NewsPatch) (*NewsEntity, error) {
-	update := pqcomp.New(2, 7)
-	update.AddArg(newsTitle)
-	update.AddArg(newsLead)
-	update.AddExpr(TableNewsColumnContent, pqcomp.Equal, patch.Content)
-	update.AddExpr(TableNewsColumnContinue, pqcomp.Equal, patch.Continue)
-	if patch.CreatedAt != nil {
-		update.AddExpr(TableNewsColumnCreatedAt, pqcomp.Equal, patch.CreatedAt)
-
-	}
-	update.AddExpr(TableNewsColumnLead, pqcomp.Equal, patch.Lead)
-	update.AddExpr(TableNewsColumnTitle, pqcomp.Equal, patch.Title)
-	if patch.UpdatedAt != nil {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, patch.UpdatedAt)
-	} else {
-		update.AddExpr(TableNewsColumnUpdatedAt, pqcomp.Equal, "NOW()")
-	}
-
-	if update.Len() == 0 {
-		return nil, errors.New("News update failure, nothing to update")
-	}
-	query := "UPDATE example.news SET "
-	for update.Next() {
-		if !update.First() {
-			query += ", "
-		}
-
-		query += update.Key() + " " + update.Oper() + " " + update.PlaceHolder()
-	}
-	query += " WHERE title = $1 AND lead = $2 RETURNING " + strings.Join(r.Columns, ", ")
-	if r.Debug {
-		if err := r.Log.Log("msg", query, "function", "UpdateOneByTitleAndLead"); err != nil {
-			return nil, err
-		}
-	}
-	var e NewsEntity
-	err := r.DB.QueryRowContext(ctx, query, update.Args()...).Scan(
-		&e.Content,
-		&e.Continue,
-		&e.CreatedAt,
-		&e.ID,
-		&e.Lead,
-		&e.Title,
-		&e.UpdatedAt,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	return &e, nil
-}
-
-func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64, error) {
-	query := "DELETE FROM example.news WHERE id = $1"
-
-	res, err := r.DB.ExecContext(ctx, query, id)
+func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
+	find := NewComposer(10)
+	find.WriteString("DELETE FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
 	if err != nil {
 		return 0, err
 	}
@@ -2593,14 +3892,15 @@ func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, id int64) (int64
 }
 
 const (
-	TableComment                              = "example.comment"
-	TableCommentColumnContent                 = "content"
-	TableCommentColumnCreatedAt               = "created_at"
-	TableCommentColumnID                      = "id"
-	TableCommentColumnNewsID                  = "news_id"
-	TableCommentColumnNewsTitle               = "news_title"
-	TableCommentColumnUpdatedAt               = "updated_at"
-	TableCommentConstraintNewsIDForeignKey    = "example.comment_news_id_fkey"
+	TableComment                           = "example.comment"
+	TableCommentColumnContent              = "content"
+	TableCommentColumnCreatedAt            = "created_at"
+	TableCommentColumnID                   = "id"
+	TableCommentColumnNewsID               = "news_id"
+	TableCommentColumnNewsTitle            = "news_title"
+	TableCommentColumnUpdatedAt            = "updated_at"
+	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
+
 	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
 )
 
@@ -2615,19 +3915,20 @@ var (
 	}
 )
 
+// CommentEntity ...
 type CommentEntity struct {
 	// Content ...
 	Content string
 	// CreatedAt ...
 	CreatedAt time.Time
 	// ID ...
-	ID *ntypes.Int64
+	ID sql.NullInt64
 	// NewsID ...
 	NewsID int64
 	// NewsTitle ...
 	NewsTitle string
 	// UpdatedAt ...
-	UpdatedAt *time.Time
+	UpdatedAt pq.NullTime
 	// NewsByTitle ...
 	NewsByTitle *NewsEntity
 	// NewsByID ...
@@ -2636,6 +3937,7 @@ type CommentEntity struct {
 
 func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
 	switch cn {
+
 	case TableCommentColumnContent:
 		return &e.Content, true
 	case TableCommentColumnCreatedAt:
@@ -2652,8 +3954,8 @@ func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
 		return nil, false
 	}
 }
-func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 
+func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -2720,329 +4022,44 @@ func (i *CommentIterator) Comment() (*CommentEntity, error) {
 type CommentCriteria struct {
 	Offset, Limit int64
 	Sort          map[string]bool
-	Content       *qtypes.String
-	CreatedAt     *qtypes.Timestamp
-	ID            *qtypes.Int64
-	NewsID        *qtypes.Int64
-	NewsTitle     *qtypes.String
-	UpdatedAt     *qtypes.Timestamp
-}
-
-func (c *CommentCriteria) WriteComposition(sel string, com *pqtgo.Composer, opt *pqtgo.CompositionOpts) (err error) {
-
-	if err = pqtgo.WriteCompositionQueryString(c.Content, TableCommentColumnContent, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.CreatedAt != nil && c.CreatedAt.Valid {
-		CreatedAtt1 := c.CreatedAt.Value()
-		if CreatedAtt1 != nil {
-			CreatedAt1, err := ptypes.Timestamp(CreatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.CreatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				if c.CreatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnCreatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.CreatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.CreatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCommentColumnCreatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.CreatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				CreatedAtt2 := c.CreatedAt.Values[1]
-				if CreatedAtt2 != nil {
-					CreatedAt2, err := ptypes.Timestamp(CreatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCommentColumnCreatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCommentColumnCreatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(CreatedAt2)
-				}
-			}
-		}
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.ID, TableCommentColumnID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryInt64(c.NewsID, TableCommentColumnNewsID, com, &pqtgo.CompositionOpts{
-		Joint:  " AND ",
-		IsJSON: false,
-	}); err != nil {
-		return
-	}
-
-	if err = pqtgo.WriteCompositionQueryString(c.NewsTitle, TableCommentColumnNewsTitle, com, pqtgo.And); err != nil {
-		return
-	}
-
-	if c.UpdatedAt != nil && c.UpdatedAt.Valid {
-		UpdatedAtt1 := c.UpdatedAt.Value()
-		if UpdatedAtt1 != nil {
-			UpdatedAt1, err := ptypes.Timestamp(UpdatedAtt1)
-			if err != nil {
-				return err
-			}
-			switch c.UpdatedAt.Type {
-			case qtypes.QueryType_NULL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" IS NOT NULL ")
-				} else {
-					com.WriteString(" IS NULL ")
-				}
-			case qtypes.QueryType_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				if c.UpdatedAt.Negation {
-					com.WriteString(" <> ")
-				} else {
-					com.WriteString(" = ")
-				}
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(">")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_GREATER_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(">=")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(" < ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_LESS_EQUAL:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				com.WriteString(TableCommentColumnUpdatedAt)
-				com.WriteString(" <= ")
-				com.WritePlaceholder()
-				com.Add(c.UpdatedAt.Value())
-			case qtypes.QueryType_IN:
-				if len(c.UpdatedAt.Values) > 0 {
-					if com.Dirty {
-						com.WriteString(" AND ")
-					}
-					com.Dirty = true
-
-					com.WriteString(TableCommentColumnUpdatedAt)
-					com.WriteString(" IN (")
-					for i, v := range c.UpdatedAt.Values {
-						if i != 0 {
-							com.WriteString(", ")
-						}
-						com.WritePlaceholder()
-						com.Add(v)
-					}
-					com.WriteString(") ")
-				}
-			case qtypes.QueryType_BETWEEN:
-				if com.Dirty {
-					com.WriteString(" AND ")
-				}
-				com.Dirty = true
-
-				UpdatedAtt2 := c.UpdatedAt.Values[1]
-				if UpdatedAtt2 != nil {
-					UpdatedAt2, err := ptypes.Timestamp(UpdatedAtt2)
-					if err != nil {
-						return err
-					}
-					com.WriteString(TableCommentColumnUpdatedAt)
-					com.WriteString(" > ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt1)
-					com.WriteString(" AND ")
-					com.WriteString(TableCommentColumnUpdatedAt)
-					com.WriteString(" < ")
-					com.WritePlaceholder()
-					com.Add(UpdatedAt2)
-				}
-			}
-		}
-	}
-
-	if len(c.Sort) > 0 {
-		i := 0
-		com.WriteString(" ORDER BY ")
-
-		for cn, asc := range c.Sort {
-			for _, tcn := range TableCommentColumns {
-				if cn == tcn {
-					if i > 0 {
-						com.WriteString(", ")
-					}
-					com.WriteString(cn)
-					if !asc {
-						com.WriteString(" DESC ")
-					}
-					i++
-					break
-				}
-			}
-		}
-	}
-	if c.Offset > 0 {
-		if _, err = com.WriteString(" OFFSET "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Offset)
-	}
-	if c.Limit > 0 {
-		if _, err = com.WriteString(" LIMIT "); err != nil {
-			return
-		}
-		if err = com.WritePlaceholder(); err != nil {
-			return
-		}
-		if _, err = com.WriteString(" "); err != nil {
-			return
-		}
-		com.Add(c.Limit)
-	}
-
-	return
+	Content       sql.NullString
+	CreatedAt     pq.NullTime
+	ID            sql.NullInt64
+	NewsID        sql.NullInt64
+	NewsTitle     sql.NullString
+	UpdatedAt     pq.NullTime
 }
 
 type CommentPatch struct {
-	Content   *ntypes.String
-	CreatedAt *time.Time
-	ID        *ntypes.Int64
-	NewsID    *ntypes.Int64
-	NewsTitle *ntypes.String
-	UpdatedAt *time.Time
+	Content   sql.NullString
+	CreatedAt pq.NullTime
+	ID        sql.NullInt64
+	NewsID    sql.NullInt64
+	NewsTitle sql.NullString
+	UpdatedAt pq.NullTime
+}
+
+func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
+	for rows.Next() {
+		var ent CommentEntity
+		err = rows.Scan(&ent.Content,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.NewsID,
+			&ent.NewsTitle,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
 }
 
 type CommentRepositoryBase struct {
@@ -3053,276 +4070,4240 @@ type CommentRepositoryBase struct {
 	Log     log.Logger
 }
 
-func ScanCommentRows(rows *sql.Rows) ([]*CommentEntity, error) {
-	var (
-		entities []*CommentEntity
-		err      error
-	)
-	for rows.Next() {
-		var ent CommentEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.NewsID,
-			&ent.NewsTitle,
-			&ent.UpdatedAt,
-		)
+func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interface{}, error) {
+	insert := NewComposer(6)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnContent); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.Content)
+	insert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCommentColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.CreatedAt)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnNewsID); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.NewsID)
+	insert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnNewsTitle); err != nil {
+		return "", nil, err
+	}
+	if insert.Dirty {
+		if _, err := insert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := insert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	insert.Add(e.NewsTitle)
+	insert.Dirty = true
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.UpdatedAt)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), insert.Args(), nil
+}
+
+func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.NewsID,
+		&e.NewsTitle,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (string, []interface{}, error) {
+	where := NewComposer(6)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.Content.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnContent); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Content)
+		where.Dirty = true
+	}
+
+	if c.CreatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.CreatedAt)
+		where.Dirty = true
+	}
+
+	// id is an empty struct, ignore
+
+	if c.NewsID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnNewsID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.NewsID)
+		where.Dirty = true
+	}
+
+	if c.NewsTitle.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnNewsTitle); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.NewsTitle)
+		where.Dirty = true
+	}
+
+	if c.UpdatedAt.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.UpdatedAt)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(where)
+	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableCommentColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
+	return buf.String(), where.Args(), nil
+}
+
+func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+	}
+
+	return ScanCommentRows(rows)
+}
+
+func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &CommentIterator{rows: rows}, nil
+}
+func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(12)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnContent); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.Content)
+	upsert.Dirty = true
+
+	if !e.CreatedAt.IsZero() {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCommentColumnCreatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnNewsID); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.NewsID)
+	upsert.Dirty = true
+
+	if columns.Len() > 0 {
+		if _, err := columns.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if _, err := columns.WriteString(TableCommentColumnNewsTitle); err != nil {
+		return "", nil, err
+	}
+	if upsert.Dirty {
+		if _, err := upsert.WriteString(", "); err != nil {
+			return "", nil, err
+		}
+	}
+	if err := upsert.WritePlaceholder(); err != nil {
+		return "", nil, err
+	}
+	upsert.Add(e.NewsTitle)
+	upsert.Dirty = true
+
+	if e.UpdatedAt.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.UpdatedAt)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.Content.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnContent); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Content)
+			upsert.Dirty = true
+
+		}
+
+		if p.CreatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnCreatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.CreatedAt)
+			upsert.Dirty = true
+
+		}
+
+		if p.ID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ID)
+			upsert.Dirty = true
+
+		}
+
+		if p.NewsID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnNewsID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.NewsID)
+			upsert.Dirty = true
+
+		}
+
+		if p.NewsTitle.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnNewsTitle); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.NewsTitle)
+			upsert.Dirty = true
+
+		}
+
+		if p.UpdatedAt.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.UpdatedAt)
+			upsert.Dirty = true
+
+		} else {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCommentColumnUpdatedAt); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("=NOW()"); err != nil {
+				return "", nil, err
+			}
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p *CommentPatch, inf ...string) (*CommentEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+		&e.CreatedAt,
+		&e.ID,
+		&e.NewsID,
+		&e.NewsTitle,
+		&e.UpdatedAt,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
+	}
+
+	return count, nil
+}
+
+const (
+	TableComplete                                 = "example.complete"
+	TableCompleteColumnColumnBool                 = "column_bool"
+	TableCompleteColumnColumnBytea                = "column_bytea"
+	TableCompleteColumnColumnCharacter0           = "column_character_0"
+	TableCompleteColumnColumnCharacter100         = "column_character_100"
+	TableCompleteColumnColumnDecimal              = "column_decimal"
+	TableCompleteColumnColumnDoubleArray0         = "column_double_array_0"
+	TableCompleteColumnColumnDoubleArray100       = "column_double_array_100"
+	TableCompleteColumnColumnInteger              = "column_integer"
+	TableCompleteColumnColumnIntegerArray0        = "column_integer_array_0"
+	TableCompleteColumnColumnIntegerArray100      = "column_integer_array_100"
+	TableCompleteColumnColumnIntegerBig           = "column_integer_big"
+	TableCompleteColumnColumnIntegerBigArray0     = "column_integer_big_array_0"
+	TableCompleteColumnColumnIntegerBigArray100   = "column_integer_big_array_100"
+	TableCompleteColumnColumnIntegerSmall         = "column_integer_small"
+	TableCompleteColumnColumnIntegerSmallArray0   = "column_integer_small_array_0"
+	TableCompleteColumnColumnIntegerSmallArray100 = "column_integer_small_array_100"
+	TableCompleteColumnColumnJson                 = "column_json"
+	TableCompleteColumnColumnJsonNn               = "column_json_nn"
+	TableCompleteColumnColumnJsonNnD              = "column_json_nn_d"
+	TableCompleteColumnColumnJsonb                = "column_jsonb"
+	TableCompleteColumnColumnJsonbNn              = "column_jsonb_nn"
+	TableCompleteColumnColumnJsonbNnD             = "column_jsonb_nn_d"
+	TableCompleteColumnColumnNumeric              = "column_numeric"
+	TableCompleteColumnColumnReal                 = "column_real"
+	TableCompleteColumnColumnSerial               = "column_serial"
+	TableCompleteColumnColumnSerialBig            = "column_serial_big"
+	TableCompleteColumnColumnSerialSmall          = "column_serial_small"
+	TableCompleteColumnColumnText                 = "column_text"
+	TableCompleteColumnColumnTextArray0           = "column_text_array_0"
+	TableCompleteColumnColumnTextArray100         = "column_text_array_100"
+	TableCompleteColumnColumnTimestamp            = "column_timestamp"
+	TableCompleteColumnColumnTimestamptz          = "column_timestamptz"
+	TableCompleteColumnColumnUUID                 = "column_uuid"
+)
+
+var (
+	TableCompleteColumns = []string{
+		TableCompleteColumnColumnBool,
+		TableCompleteColumnColumnBytea,
+		TableCompleteColumnColumnCharacter0,
+		TableCompleteColumnColumnCharacter100,
+		TableCompleteColumnColumnDecimal,
+		TableCompleteColumnColumnDoubleArray0,
+		TableCompleteColumnColumnDoubleArray100,
+		TableCompleteColumnColumnInteger,
+		TableCompleteColumnColumnIntegerArray0,
+		TableCompleteColumnColumnIntegerArray100,
+		TableCompleteColumnColumnIntegerBig,
+		TableCompleteColumnColumnIntegerBigArray0,
+		TableCompleteColumnColumnIntegerBigArray100,
+		TableCompleteColumnColumnIntegerSmall,
+		TableCompleteColumnColumnIntegerSmallArray0,
+		TableCompleteColumnColumnIntegerSmallArray100,
+		TableCompleteColumnColumnJson,
+		TableCompleteColumnColumnJsonNn,
+		TableCompleteColumnColumnJsonNnD,
+		TableCompleteColumnColumnJsonb,
+		TableCompleteColumnColumnJsonbNn,
+		TableCompleteColumnColumnJsonbNnD,
+		TableCompleteColumnColumnNumeric,
+		TableCompleteColumnColumnReal,
+		TableCompleteColumnColumnSerial,
+		TableCompleteColumnColumnSerialBig,
+		TableCompleteColumnColumnSerialSmall,
+		TableCompleteColumnColumnText,
+		TableCompleteColumnColumnTextArray0,
+		TableCompleteColumnColumnTextArray100,
+		TableCompleteColumnColumnTimestamp,
+		TableCompleteColumnColumnTimestamptz,
+		TableCompleteColumnColumnUUID,
+	}
+)
+
+// CompleteEntity ...
+type CompleteEntity struct {
+	// ColumnBool ...
+	ColumnBool sql.NullBool
+	// ColumnBytea ...
+	ColumnBytea []byte
+	// ColumnCharacter0 ...
+	ColumnCharacter0 sql.NullString
+	// ColumnCharacter100 ...
+	ColumnCharacter100 sql.NullString
+	// ColumnDecimal ...
+	ColumnDecimal sql.NullFloat64
+	// ColumnDoubleArray0 ...
+	ColumnDoubleArray0 NullFloat64Array
+	// ColumnDoubleArray100 ...
+	ColumnDoubleArray100 NullFloat64Array
+	// ColumnInteger ...
+	ColumnInteger *int32
+	// ColumnIntegerArray0 ...
+	ColumnIntegerArray0 NullInt64Array
+	// ColumnIntegerArray100 ...
+	ColumnIntegerArray100 NullInt64Array
+	// ColumnIntegerBig ...
+	ColumnIntegerBig sql.NullInt64
+	// ColumnIntegerBigArray0 ...
+	ColumnIntegerBigArray0 NullInt64Array
+	// ColumnIntegerBigArray100 ...
+	ColumnIntegerBigArray100 NullInt64Array
+	// ColumnIntegerSmall ...
+	ColumnIntegerSmall *int16
+	// ColumnIntegerSmallArray0 ...
+	ColumnIntegerSmallArray0 NullInt64Array
+	// ColumnIntegerSmallArray100 ...
+	ColumnIntegerSmallArray100 NullInt64Array
+	// ColumnJson ...
+	ColumnJson []byte
+	// ColumnJsonNn ...
+	ColumnJsonNn []byte
+	// ColumnJsonNnD ...
+	ColumnJsonNnD []byte
+	// ColumnJsonb ...
+	ColumnJsonb []byte
+	// ColumnJsonbNn ...
+	ColumnJsonbNn []byte
+	// ColumnJsonbNnD ...
+	ColumnJsonbNnD []byte
+	// ColumnNumeric ...
+	ColumnNumeric sql.NullFloat64
+	// ColumnReal ...
+	ColumnReal *float32
+	// ColumnSerial ...
+	ColumnSerial *int32
+	// ColumnSerialBig ...
+	ColumnSerialBig sql.NullInt64
+	// ColumnSerialSmall ...
+	ColumnSerialSmall *int16
+	// ColumnText ...
+	ColumnText sql.NullString
+	// ColumnTextArray0 ...
+	ColumnTextArray0 NullStringArray
+	// ColumnTextArray100 ...
+	ColumnTextArray100 NullStringArray
+	// ColumnTimestamp ...
+	ColumnTimestamp pq.NullTime
+	// ColumnTimestamptz ...
+	ColumnTimestamptz pq.NullTime
+	// ColumnUUID ...
+	ColumnUUID sql.NullString
+}
+
+func (e *CompleteEntity) Prop(cn string) (interface{}, bool) {
+	switch cn {
+
+	case TableCompleteColumnColumnBool:
+		return &e.ColumnBool, true
+	case TableCompleteColumnColumnBytea:
+		return &e.ColumnBytea, true
+	case TableCompleteColumnColumnCharacter0:
+		return &e.ColumnCharacter0, true
+	case TableCompleteColumnColumnCharacter100:
+		return &e.ColumnCharacter100, true
+	case TableCompleteColumnColumnDecimal:
+		return &e.ColumnDecimal, true
+	case TableCompleteColumnColumnDoubleArray0:
+		return &e.ColumnDoubleArray0, true
+	case TableCompleteColumnColumnDoubleArray100:
+		return &e.ColumnDoubleArray100, true
+	case TableCompleteColumnColumnInteger:
+		return e.ColumnInteger, true
+	case TableCompleteColumnColumnIntegerArray0:
+		return &e.ColumnIntegerArray0, true
+	case TableCompleteColumnColumnIntegerArray100:
+		return &e.ColumnIntegerArray100, true
+	case TableCompleteColumnColumnIntegerBig:
+		return &e.ColumnIntegerBig, true
+	case TableCompleteColumnColumnIntegerBigArray0:
+		return &e.ColumnIntegerBigArray0, true
+	case TableCompleteColumnColumnIntegerBigArray100:
+		return &e.ColumnIntegerBigArray100, true
+	case TableCompleteColumnColumnIntegerSmall:
+		return e.ColumnIntegerSmall, true
+	case TableCompleteColumnColumnIntegerSmallArray0:
+		return &e.ColumnIntegerSmallArray0, true
+	case TableCompleteColumnColumnIntegerSmallArray100:
+		return &e.ColumnIntegerSmallArray100, true
+	case TableCompleteColumnColumnJson:
+		return &e.ColumnJson, true
+	case TableCompleteColumnColumnJsonNn:
+		return &e.ColumnJsonNn, true
+	case TableCompleteColumnColumnJsonNnD:
+		return &e.ColumnJsonNnD, true
+	case TableCompleteColumnColumnJsonb:
+		return &e.ColumnJsonb, true
+	case TableCompleteColumnColumnJsonbNn:
+		return &e.ColumnJsonbNn, true
+	case TableCompleteColumnColumnJsonbNnD:
+		return &e.ColumnJsonbNnD, true
+	case TableCompleteColumnColumnNumeric:
+		return &e.ColumnNumeric, true
+	case TableCompleteColumnColumnReal:
+		return e.ColumnReal, true
+	case TableCompleteColumnColumnSerial:
+		return e.ColumnSerial, true
+	case TableCompleteColumnColumnSerialBig:
+		return &e.ColumnSerialBig, true
+	case TableCompleteColumnColumnSerialSmall:
+		return e.ColumnSerialSmall, true
+	case TableCompleteColumnColumnText:
+		return &e.ColumnText, true
+	case TableCompleteColumnColumnTextArray0:
+		return &e.ColumnTextArray0, true
+	case TableCompleteColumnColumnTextArray100:
+		return &e.ColumnTextArray100, true
+	case TableCompleteColumnColumnTimestamp:
+		return &e.ColumnTimestamp, true
+	case TableCompleteColumnColumnTimestamptz:
+		return &e.ColumnTimestamptz, true
+	case TableCompleteColumnColumnUUID:
+		return &e.ColumnUUID, true
+	default:
+		return nil, false
+	}
+}
+
+func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}
+
+// CompleteIterator is not thread safe.
+type CompleteIterator struct {
+	rows *sql.Rows
+	cols []string
+}
+
+func (i *CompleteIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *CompleteIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *CompleteIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+func (i *CompleteIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
 		if err != nil {
 			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around Complete method that makes iterator more generic.
+func (i *CompleteIterator) Ent() (interface{}, error) {
+	return i.Complete()
+}
+
+func (i *CompleteIterator) Complete() (*CompleteEntity, error) {
+	var ent CompleteEntity
+	cols, err := i.rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+type CompleteCriteria struct {
+	Offset, Limit              int64
+	Sort                       map[string]bool
+	ColumnBool                 sql.NullBool
+	ColumnBytea                []byte
+	ColumnCharacter0           sql.NullString
+	ColumnCharacter100         sql.NullString
+	ColumnDecimal              sql.NullFloat64
+	ColumnDoubleArray0         NullFloat64Array
+	ColumnDoubleArray100       NullFloat64Array
+	ColumnInteger              *int32
+	ColumnIntegerArray0        NullInt64Array
+	ColumnIntegerArray100      NullInt64Array
+	ColumnIntegerBig           sql.NullInt64
+	ColumnIntegerBigArray0     NullInt64Array
+	ColumnIntegerBigArray100   NullInt64Array
+	ColumnIntegerSmall         *int16
+	ColumnIntegerSmallArray0   NullInt64Array
+	ColumnIntegerSmallArray100 NullInt64Array
+	ColumnJson                 []byte
+	ColumnJsonNn               []byte
+	ColumnJsonNnD              []byte
+	ColumnJsonb                []byte
+	ColumnJsonbNn              []byte
+	ColumnJsonbNnD             []byte
+	ColumnNumeric              sql.NullFloat64
+	ColumnReal                 *float32
+	ColumnSerial               *int32
+	ColumnSerialBig            sql.NullInt64
+	ColumnSerialSmall          *int16
+	ColumnText                 sql.NullString
+	ColumnTextArray0           NullStringArray
+	ColumnTextArray100         NullStringArray
+	ColumnTimestamp            pq.NullTime
+	ColumnTimestamptz          pq.NullTime
+	ColumnUUID                 sql.NullString
+}
+
+type CompletePatch struct {
+	ColumnBool                 sql.NullBool
+	ColumnBytea                []byte
+	ColumnCharacter0           sql.NullString
+	ColumnCharacter100         sql.NullString
+	ColumnDecimal              sql.NullFloat64
+	ColumnDoubleArray0         NullFloat64Array
+	ColumnDoubleArray100       NullFloat64Array
+	ColumnInteger              *int32
+	ColumnIntegerArray0        NullInt64Array
+	ColumnIntegerArray100      NullInt64Array
+	ColumnIntegerBig           sql.NullInt64
+	ColumnIntegerBigArray0     NullInt64Array
+	ColumnIntegerBigArray100   NullInt64Array
+	ColumnIntegerSmall         *int16
+	ColumnIntegerSmallArray0   NullInt64Array
+	ColumnIntegerSmallArray100 NullInt64Array
+	ColumnJson                 []byte
+	ColumnJsonNn               []byte
+	ColumnJsonNnD              []byte
+	ColumnJsonb                []byte
+	ColumnJsonbNn              []byte
+	ColumnJsonbNnD             []byte
+	ColumnNumeric              sql.NullFloat64
+	ColumnReal                 *float32
+	ColumnSerial               *int32
+	ColumnSerialBig            sql.NullInt64
+	ColumnSerialSmall          *int16
+	ColumnText                 sql.NullString
+	ColumnTextArray0           NullStringArray
+	ColumnTextArray100         NullStringArray
+	ColumnTimestamp            pq.NullTime
+	ColumnTimestamptz          pq.NullTime
+	ColumnUUID                 sql.NullString
+}
+
+func ScanCompleteRows(rows *sql.Rows) (entities []*CompleteEntity, err error) {
+	for rows.Next() {
+		var ent CompleteEntity
+		err = rows.Scan(&ent.ColumnBool,
+			&ent.ColumnBytea,
+			&ent.ColumnCharacter0,
+			&ent.ColumnCharacter100,
+			&ent.ColumnDecimal,
+			&ent.ColumnDoubleArray0,
+			&ent.ColumnDoubleArray100,
+			&ent.ColumnInteger,
+			&ent.ColumnIntegerArray0,
+			&ent.ColumnIntegerArray100,
+			&ent.ColumnIntegerBig,
+			&ent.ColumnIntegerBigArray0,
+			&ent.ColumnIntegerBigArray100,
+			&ent.ColumnIntegerSmall,
+			&ent.ColumnIntegerSmallArray0,
+			&ent.ColumnIntegerSmallArray100,
+			&ent.ColumnJson,
+			&ent.ColumnJsonNn,
+			&ent.ColumnJsonNnD,
+			&ent.ColumnJsonb,
+			&ent.ColumnJsonbNn,
+			&ent.ColumnJsonbNnD,
+			&ent.ColumnNumeric,
+			&ent.ColumnReal,
+			&ent.ColumnSerial,
+			&ent.ColumnSerialBig,
+			&ent.ColumnSerialSmall,
+			&ent.ColumnText,
+			&ent.ColumnTextArray0,
+			&ent.ColumnTextArray100,
+			&ent.ColumnTimestamp,
+			&ent.ColumnTimestamptz,
+			&ent.ColumnUUID,
+		)
+		if err != nil {
+			return
 		}
 
 		entities = append(entities, &ent)
 	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
+	if err = rows.Err(); err != nil {
+		return
 	}
 
-	return entities, nil
+	return
 }
 
-func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
+type CompleteRepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Debug   bool
+	Log     log.Logger
+}
 
-	com := pqtgo.NewComposer(6)
-	buf := bytes.NewBufferString("SELECT COUNT(*) FROM ")
+func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []interface{}, error) {
+	insert := NewComposer(33)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
 
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
+	if e.ColumnBool.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnBool)
+		insert.Dirty = true
+	}
+
+	if e.ColumnBytea != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnBytea)
+		insert.Dirty = true
+	}
+
+	if e.ColumnCharacter0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnCharacter0)
+		insert.Dirty = true
+	}
+
+	if e.ColumnCharacter100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnCharacter100)
+		insert.Dirty = true
+	}
+
+	if e.ColumnDecimal.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnDecimal)
+		insert.Dirty = true
+	}
+
+	if e.ColumnDoubleArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnDoubleArray0)
+		insert.Dirty = true
+	}
+
+	if e.ColumnDoubleArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnDoubleArray100)
+		insert.Dirty = true
+	}
+
+	if e.ColumnInteger != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnInteger)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerArray0)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerArray100)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerBig.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerBig)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerBigArray0)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerBigArray100)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmall != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerSmall)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerSmallArray0)
+		insert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnIntegerSmallArray100)
+		insert.Dirty = true
+	}
+
+	if e.ColumnJson != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnJson)
+		insert.Dirty = true
+	}
+
+	if e.ColumnJsonNn != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnJsonNn)
+		insert.Dirty = true
+	}
+
+	if e.ColumnJsonNnD != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnJsonNnD)
+		insert.Dirty = true
+	}
+
+	if e.ColumnJsonb != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnJsonb)
+		insert.Dirty = true
+	}
+
+	if e.ColumnJsonbNn != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnJsonbNn)
+		insert.Dirty = true
+	}
+
+	if e.ColumnJsonbNnD != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnJsonbNnD)
+		insert.Dirty = true
+	}
+
+	if e.ColumnNumeric.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnNumeric)
+		insert.Dirty = true
+	}
+
+	if e.ColumnReal != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnReal)
+		insert.Dirty = true
+	}
+
+	if e.ColumnText.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnText); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnText)
+		insert.Dirty = true
+	}
+
+	if e.ColumnTextArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnTextArray0)
+		insert.Dirty = true
+	}
+
+	if e.ColumnTextArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnTextArray100)
+		insert.Dirty = true
+	}
+
+	if e.ColumnTimestamp.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnTimestamp)
+		insert.Dirty = true
+	}
+
+	if e.ColumnTimestamptz.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnTimestamptz)
+		insert.Dirty = true
+	}
+
+	if e.ColumnUUID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.ColumnUUID)
+		insert.Dirty = true
+	}
+
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if len(r.Columns) > 0 {
+			buf.WriteString("RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), insert.Args(), nil
+}
+
+func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
+	query, args, err := r.InsertQuery(e)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ColumnBool,
+		&e.ColumnBytea,
+		&e.ColumnCharacter0,
+		&e.ColumnCharacter100,
+		&e.ColumnDecimal,
+		&e.ColumnDoubleArray0,
+		&e.ColumnDoubleArray100,
+		&e.ColumnInteger,
+		&e.ColumnIntegerArray0,
+		&e.ColumnIntegerArray100,
+		&e.ColumnIntegerBig,
+		&e.ColumnIntegerBigArray0,
+		&e.ColumnIntegerBigArray100,
+		&e.ColumnIntegerSmall,
+		&e.ColumnIntegerSmallArray0,
+		&e.ColumnIntegerSmallArray100,
+		&e.ColumnJson,
+		&e.ColumnJsonNn,
+		&e.ColumnJsonNnD,
+		&e.ColumnJsonb,
+		&e.ColumnJsonbNn,
+		&e.ColumnJsonbNnD,
+		&e.ColumnNumeric,
+		&e.ColumnReal,
+		&e.ColumnSerial,
+		&e.ColumnSerialBig,
+		&e.ColumnSerialSmall,
+		&e.ColumnText,
+		&e.ColumnTextArray0,
+		&e.ColumnTextArray100,
+		&e.ColumnTimestamp,
+		&e.ColumnTimestamptz,
+		&e.ColumnUUID,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (string, []interface{}, error) {
+	where := NewComposer(33)
+	buf := bytes.NewBufferString("SELECT ")
+	buf.WriteString(strings.Join(s, ", "))
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" ")
+	if c.ColumnBool.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnBool)
+		where.Dirty = true
+	}
+
+	if c.ColumnBytea != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnBytea)
+		where.Dirty = true
+	}
+
+	if c.ColumnCharacter0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnCharacter0)
+		where.Dirty = true
+	}
+
+	if c.ColumnCharacter100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnCharacter100)
+		where.Dirty = true
+	}
+
+	if c.ColumnDecimal.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnDecimal)
+		where.Dirty = true
+	}
+
+	if c.ColumnDoubleArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnDoubleArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnDoubleArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnDoubleArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnInteger != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnInteger)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerBig.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerBig)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerBigArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerBigArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerBigArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerBigArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerSmall != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerSmall)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerSmallArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerSmallArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnIntegerSmallArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnIntegerSmallArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnJson != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJson)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonNn != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonNn)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonNnD != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonNnD)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonb != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonb)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonbNn != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonbNn)
+		where.Dirty = true
+	}
+
+	if c.ColumnJsonbNnD != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnJsonbNnD)
+		where.Dirty = true
+	}
+
+	if c.ColumnNumeric.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnNumeric)
+		where.Dirty = true
+	}
+
+	if c.ColumnReal != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnReal)
+		where.Dirty = true
+	}
+
+	if c.ColumnSerial != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnSerial); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnSerial)
+		where.Dirty = true
+	}
+
+	// column_serial_big is an empty struct, ignore
+
+	if c.ColumnSerialSmall != nil {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnSerialSmall); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnSerialSmall)
+		where.Dirty = true
+	}
+
+	if c.ColumnText.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnText); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnText)
+		where.Dirty = true
+	}
+
+	if c.ColumnTextArray0.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTextArray0)
+		where.Dirty = true
+	}
+
+	if c.ColumnTextArray100.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTextArray100)
+		where.Dirty = true
+	}
+
+	if c.ColumnTimestamp.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTimestamp)
+		where.Dirty = true
+	}
+
+	if c.ColumnTimestamptz.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnTimestamptz)
+		where.Dirty = true
+	}
+
+	if c.ColumnUUID.Valid {
+		if where.Dirty {
+			where.WriteString(" AND ")
+		}
+		if _, err := where.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.ColumnUUID)
+		where.Dirty = true
+	}
+
+	if where.Dirty {
+		if _, err := buf.WriteString("WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(where)
+	}
+
+	if len(c.Sort) > 0 {
+		i := 0
+		where.WriteString(" ORDER BY ")
+
+		for cn, asc := range c.Sort {
+			for _, tcn := range TableCompleteColumns {
+				if cn == tcn {
+					if i > 0 {
+						if _, err := where.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := where.WriteString(cn); err != nil {
+						return "", nil, err
+					}
+					if !asc {
+						if _, err := where.WriteString(" DESC "); err != nil {
+							return "", nil, err
+						}
+					}
+					i++
+					break
+				}
+			}
+		}
+	}
+	if c.Offset > 0 {
+		if _, err := where.WriteString(" OFFSET "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Offset)
+	}
+	if c.Limit > 0 {
+		if _, err := where.WriteString(" LIMIT "); err != nil {
+			return "", nil, err
+		}
+		if err := where.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		if _, err := where.WriteString(" "); err != nil {
+			return "", nil, err
+		}
+		where.Add(c.Limit)
+	}
+
+	buf.ReadFrom(where)
+
+	return buf.String(), where.Args(), nil
+}
+
+func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) ([]*CompleteEntity, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	defer rows.Close()
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+	}
+
+	return ScanCompleteRows(rows)
+}
+
+func (r *CompleteRepositoryBase) FindIter(ctx context.Context, c *CompleteCriteria) (*CompleteIterator, error) {
+	query, args, err := r.FindQuery(r.Columns, c)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	return &CompleteIterator{rows: rows}, nil
+}
+func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch, inf ...string) (string, []interface{}, error) {
+	upsert := NewComposer(66)
+	columns := bytes.NewBuffer(nil)
+	buf := bytes.NewBufferString("INSERT INTO ")
+	buf.WriteString(r.Table)
+
+	if e.ColumnBool.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnBool)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnBytea != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnBytea)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnCharacter0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnCharacter0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnCharacter100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnCharacter100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnDecimal.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnDecimal)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnDoubleArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnDoubleArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnDoubleArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnDoubleArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnInteger != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnInteger)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerBig.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerBig)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerBigArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerBigArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerBigArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmall != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerSmall)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerSmallArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnIntegerSmallArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnIntegerSmallArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJson != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJson)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonNn != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonNn)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonNnD != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonNnD)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonb != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonb)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonbNn != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonbNn)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnJsonbNnD != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnJsonbNnD)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnNumeric.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnNumeric)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnReal != nil {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnReal)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnText.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnText); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnText)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTextArray0.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTextArray0)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTextArray100.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTextArray100)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTimestamp.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTimestamp)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnTimestamptz.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnTimestamptz)
+		upsert.Dirty = true
+	}
+
+	if e.ColumnUUID.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.ColumnUUID)
+		upsert.Dirty = true
+	}
+
+	if upsert.Dirty {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(upsert)
+		buf.WriteString(")")
+	}
+	buf.WriteString(" ON CONFLICT ")
+	if len(inf) > 0 {
+		upsert.Dirty = false
+		if p.ColumnBool.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnBool); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnBool)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnBytea != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnBytea); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnBytea)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnCharacter0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnCharacter0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnCharacter100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnCharacter100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnDecimal.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnDecimal)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnDoubleArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnDoubleArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnDoubleArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnDoubleArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnInteger != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnInteger); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnInteger)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerBig.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerBig)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerBigArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerBigArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerBigArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerBigArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerSmall != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerSmall)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerSmallArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerSmallArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnIntegerSmallArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnIntegerSmallArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJson != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJson); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJson)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonNn != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonNn)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonNnD != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonNnD)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonb != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonb)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonbNn != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonbNn)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnJsonbNnD != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnJsonbNnD)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnNumeric.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnNumeric)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnReal != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnReal); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnReal)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnSerial != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnSerial); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnSerial)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnSerialBig.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnSerialBig); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnSerialBig)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnSerialSmall != nil {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnSerialSmall); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnSerialSmall)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnText.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnText); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnText)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTextArray0.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTextArray0)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTextArray100.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTextArray100)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTimestamp.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTimestamp)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnTimestamptz.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnTimestamptz)
+			upsert.Dirty = true
+
+		}
+
+		if p.ColumnUUID.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableCompleteColumnColumnUUID); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.ColumnUUID)
+			upsert.Dirty = true
+
+		}
+
+	}
+
+	if len(inf) > 0 && upsert.Dirty {
+		buf.WriteString("(")
+		for j, i := range inf {
+			if j != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(i)
+		}
+		buf.WriteString(")")
+		buf.WriteString(" DO UPDATE SET ")
+		buf.ReadFrom(upsert)
+	} else {
+		buf.WriteString(" DO NOTHING ")
+	}
+	if upsert.Dirty {
+		if len(r.Columns) > 0 {
+			buf.WriteString(" RETURNING ")
+			buf.WriteString(strings.Join(r.Columns, ", "))
+		}
+	}
+	return buf.String(), upsert.Args(), nil
+}
+func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, p *CompletePatch, inf ...string) (*CompleteEntity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ColumnBool,
+		&e.ColumnBytea,
+		&e.ColumnCharacter0,
+		&e.ColumnCharacter100,
+		&e.ColumnDecimal,
+		&e.ColumnDoubleArray0,
+		&e.ColumnDoubleArray100,
+		&e.ColumnInteger,
+		&e.ColumnIntegerArray0,
+		&e.ColumnIntegerArray100,
+		&e.ColumnIntegerBig,
+		&e.ColumnIntegerBigArray0,
+		&e.ColumnIntegerBigArray100,
+		&e.ColumnIntegerSmall,
+		&e.ColumnIntegerSmallArray0,
+		&e.ColumnIntegerSmallArray100,
+		&e.ColumnJson,
+		&e.ColumnJsonNn,
+		&e.ColumnJsonNnD,
+		&e.ColumnJsonb,
+		&e.ColumnJsonbNn,
+		&e.ColumnJsonbNnD,
+		&e.ColumnNumeric,
+		&e.ColumnReal,
+		&e.ColumnSerial,
+		&e.ColumnSerialBig,
+		&e.ColumnSerialSmall,
+		&e.ColumnText,
+		&e.ColumnTextArray0,
+		&e.ColumnTextArray100,
+		&e.ColumnTimestamp,
+		&e.ColumnTimestamptz,
+		&e.ColumnUUID,
+	); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+	}
+	return e, nil
+}
+
+func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria) (int64, error) {
+	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	if err != nil {
 		return 0, err
 	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
+	var count int64
+	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
+		return 0, err
 	}
 
 	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Count"); err != nil {
-			return 0, err
-		}
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
 	}
 
-	var count int64
-	if err := r.DB.QueryRowContext(ctx, buf.String(), com.Args()...).Scan(&count); err != nil {
-		return 0, err
-	}
 	return count, nil
 }
 
-func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
-
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
+// ErrorConstraint returns the error constraint of err if it was produced by the pq library.
+// Otherwise, it returns empty string.
+func ErrorConstraint(err error) string {
+	if err == nil {
+		return ""
 	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
+	if pqerr, ok := err.(*pq.Error); ok {
+		return pqerr.Constraint
 	}
 
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	return ScanCommentRows(rows)
+	return ""
 }
-func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
 
-	com := pqtgo.NewComposer(1)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
-
-	if err := c.WriteComposition("", com, pqtgo.And); err != nil {
-		return nil, err
-	}
-	if com.Dirty {
-		buf.WriteString(" WHERE ")
-	}
-	if com.Len() > 0 {
-		buf.ReadFrom(com)
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", buf.String(), "function", "Find"); err != nil {
-			return nil, err
-		}
-	}
-
-	rows, err := r.DB.QueryContext(ctx, buf.String(), com.Args()...)
-	if err != nil {
-		return nil, err
-	}
-
-	return &CommentIterator{rows: rows}, nil
+type NullInt64Array struct {
+	pq.Int64Array
+	Valid bool
 }
-func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
-	insert := pqcomp.New(0, 6)
-	insert.AddExpr(TableCommentColumnContent, "", e.Content)
-	insert.AddExpr(TableCommentColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCommentColumnNewsID, "", e.NewsID)
-	insert.AddExpr(TableCommentColumnNewsTitle, "", e.NewsTitle)
-	insert.AddExpr(TableCommentColumnUpdatedAt, "", e.UpdatedAt)
 
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
+func (n *NullInt64Array) Scan(value interface{}) error {
+	if value == nil {
+		n.Int64Array, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.Int64Array.Scan(value)
+}
 
-	if insert.Len() != 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
+type NullFloat64Array struct {
+	pq.Float64Array
+	Valid bool
+}
 
-			fmt.Fprintf(b, "%s", insert.Key())
+func (n *NullFloat64Array) Scan(value interface{}) error {
+	if value == nil {
+		n.Float64Array, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.Float64Array.Scan(value)
+}
+
+type NullBoolArray struct {
+	pq.BoolArray
+	Valid bool
+}
+
+func (n *NullBoolArray) Scan(value interface{}) error {
+	if value == nil {
+		n.BoolArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.BoolArray.Scan(value)
+}
+
+type NullStringArray struct {
+	pq.StringArray
+	Valid bool
+}
+
+func (n *NullStringArray) Scan(value interface{}) error {
+	if value == nil {
+		n.StringArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.StringArray.Scan(value)
+}
+
+type NullByteaArray struct {
+	pq.ByteaArray
+	Valid bool
+}
+
+func (n *NullByteaArray) Scan(value interface{}) error {
+	if value == nil {
+		n.ByteaArray, n.Valid = nil, false
+		return nil
+	}
+	n.Valid = true
+	return n.ByteaArray.Scan(value)
+}
+
+const (
+	jsonArraySeparator     = ","
+	jsonArrayBeginningChar = "["
+	jsonArrayEndChar       = "]"
+)
+
+// JSONArrayInt64 is a slice of int64s that implements necessary interfaces.
+type JSONArrayInt64 []int64
+
+// Scan satisfy sql.Scanner interface.
+func (a *JSONArrayInt64) Scan(src interface{}) error {
+	if src == nil {
+		if a == nil {
+			*a = make(JSONArrayInt64, 0)
 		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
+		return nil
 	}
 
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Insert"); err != nil {
-			return nil, err
-		}
+	var tmp []string
+	var srcs string
+
+	switch t := src.(type) {
+	case []byte:
+		srcs = string(t)
+	case string:
+		srcs = t
+	default:
+		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.NewsID,
-		&e.NewsTitle,
-		&e.UpdatedAt,
+	l := len(srcs)
+
+	if l < 2 {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+	}
+
+	if l == 2 {
+		*a = make(JSONArrayInt64, 0)
+		return nil
+	}
+
+	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+	}
+
+	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
+	*a = make(JSONArrayInt64, 0, len(tmp))
+	for i, v := range tmp {
+		j, err := strconv.ParseInt(v, 10, 64)
+		if err != nil {
+			return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s at index %d", v, i)
+		}
+
+		*a = append(*a, j)
+	}
+
+	return nil
+}
+
+// Value satisfy driver.Valuer interface.
+func (a JSONArrayInt64) Value() (driver.Value, error) {
+	var (
+		buffer bytes.Buffer
+		err    error
 	)
-	if err != nil {
+
+	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
 		return nil, err
 	}
 
-	return e, nil
-}
-func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p *CommentPatch, inf ...string) (*CommentEntity, error) {
-	insert := pqcomp.New(0, 6)
-	update := insert.Compose(6)
-	insert.AddExpr(TableCommentColumnContent, "", e.Content)
-	insert.AddExpr(TableCommentColumnCreatedAt, "", e.CreatedAt)
-	insert.AddExpr(TableCommentColumnNewsID, "", e.NewsID)
-	insert.AddExpr(TableCommentColumnNewsTitle, "", e.NewsTitle)
-	insert.AddExpr(TableCommentColumnUpdatedAt, "", e.UpdatedAt)
-	if len(inf) > 0 {
-		update.AddExpr(TableCommentColumnContent, "=", p.Content)
-		update.AddExpr(TableCommentColumnCreatedAt, "=", p.CreatedAt)
-		update.AddExpr(TableCommentColumnNewsID, "=", p.NewsID)
-		update.AddExpr(TableCommentColumnNewsTitle, "=", p.NewsTitle)
-		update.AddExpr(TableCommentColumnUpdatedAt, "=", p.UpdatedAt)
-	}
-
-	b := bytes.NewBufferString("INSERT INTO " + r.Table)
-
-	if insert.Len() > 0 {
-		b.WriteString(" (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
+	for i, v := range a {
+		if i > 0 {
+			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
+				return nil, err
 			}
-
-			fmt.Fprintf(b, "%s", insert.Key())
 		}
-		insert.Reset()
-		b.WriteString(") VALUES (")
-		for insert.Next() {
-			if !insert.First() {
-				b.WriteString(", ")
-			}
-
-			fmt.Fprintf(b, "%s", insert.PlaceHolder())
-		}
-		b.WriteString(")")
-	}
-	b.WriteString(" ON CONFLICT ")
-	if len(inf) > 0 && update.Len() > 0 {
-		b.WriteString(" (")
-		for j, i := range inf {
-			if j != 0 {
-				b.WriteString(", ")
-			}
-			b.WriteString(i)
-		}
-		b.WriteString(") ")
-		b.WriteString(" DO UPDATE SET ")
-		for update.Next() {
-			if !update.First() {
-				b.WriteString(", ")
-			}
-
-			b.WriteString(update.Key())
-			b.WriteString(" ")
-			b.WriteString(update.Oper())
-			b.WriteString(" ")
-			b.WriteString(update.PlaceHolder())
-		}
-	} else {
-		b.WriteString(" DO NOTHING ")
-	}
-	if insert.Len() > 0 {
-		if len(r.Columns) > 0 {
-			b.WriteString(" RETURNING ")
-			b.WriteString(strings.Join(r.Columns, ", "))
-		}
-	}
-
-	if r.Debug {
-		if err := r.Log.Log("msg", b.String(), "function", "Upsert"); err != nil {
+		if _, err := buffer.WriteString(strconv.FormatInt(v, 10)); err != nil {
 			return nil, err
 		}
 	}
 
-	err := r.DB.QueryRowContext(ctx, b.String(), insert.Args()...).Scan(
-		&e.Content,
-		&e.CreatedAt,
-		&e.ID,
-		&e.NewsID,
-		&e.NewsTitle,
-		&e.UpdatedAt,
-	)
-	if err != nil {
+	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
 		return nil, err
 	}
 
-	return e, nil
+	return buffer.Bytes(), nil
 }
 
-/// SQL ...
+// JSONArrayString is a slice of strings that implements necessary interfaces.
+type JSONArrayString []string
+
+// Scan satisfy sql.Scanner interface.
+func (a *JSONArrayString) Scan(src interface{}) error {
+	if src == nil {
+		if a == nil {
+			*a = make(JSONArrayString, 0)
+		}
+		return nil
+	}
+
+	var srcs string
+
+	switch t := src.(type) {
+	case []byte:
+		srcs = string(t)
+	case string:
+		srcs = t
+	default:
+		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+	}
+
+	l := len(srcs)
+
+	if l < 2 {
+		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+	}
+
+	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
+		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+	}
+
+	*a = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
+
+	return nil
+}
+
+// Value satisfy driver.Valuer interface.
+func (a JSONArrayString) Value() (driver.Value, error) {
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
+
+	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
+		return nil, err
+	}
+
+	for i, v := range a {
+		if i > 0 {
+			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
+				return nil, err
+			}
+		}
+		if _, err = buffer.WriteString(v); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+// JSONArrayFloat64 is a slice of int64s that implements necessary interfaces.
+type JSONArrayFloat64 []float64
+
+// Scan satisfy sql.Scanner interface.
+func (a *JSONArrayFloat64) Scan(src interface{}) error {
+	if src == nil {
+		if a == nil {
+			*a = make(JSONArrayFloat64, 0)
+		}
+		return nil
+	}
+
+	var tmp []string
+	var srcs string
+
+	switch t := src.(type) {
+	case []byte:
+		srcs = string(t)
+	case string:
+		srcs = t
+	default:
+		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+	}
+
+	l := len(srcs)
+
+	if l < 2 {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+	}
+
+	if l == 2 {
+		*a = make(JSONArrayFloat64, 0)
+		return nil
+	}
+
+	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
+		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+	}
+
+	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
+	*a = make(JSONArrayFloat64, 0, len(tmp))
+	for i, v := range tmp {
+		j, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s at index %d", v, i)
+		}
+
+		*a = append(*a, j)
+	}
+
+	return nil
+}
+
+// Value satisfy driver.Valuer interface.
+func (a JSONArrayFloat64) Value() (driver.Value, error) {
+	var (
+		buffer bytes.Buffer
+		err    error
+	)
+
+	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
+		return nil, err
+	}
+
+	for i, v := range a {
+		if i > 0 {
+			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
+				return nil, err
+			}
+		}
+		if _, err := buffer.WriteString(strconv.FormatFloat(v, 'f', -1, 64)); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
+		return nil, err
+	}
+
+	return buffer.Bytes(), nil
+}
+
+var (
+	// Space is a shorthand composition option that holds space.
+	Space = &CompositionOpts{
+		Joint: " ",
+	}
+	// And is a shorthand composition option that holds AND operator.
+	And = &CompositionOpts{
+		Joint: " AND ",
+	}
+	// Or is a shorthand composition option that holds OR operator.
+	Or = &CompositionOpts{
+		Joint: " OR ",
+	}
+	// Comma is a shorthand composition option that holds comma.
+	Comma = &CompositionOpts{
+		Joint: ", ",
+	}
+)
+
+// CompositionOpts is a container for modification that can be applied.
+type CompositionOpts struct {
+	Joint                         string
+	PlaceholderFunc, SelectorFunc string
+	Cast                          string
+	IsJSON                        bool
+}
+
+// CompositionWriter is a simple wrapper for WriteComposition function.
+type CompositionWriter interface {
+	// WriteComposition is a function that allow custom struct type to be used as a part of criteria.
+	// It gives possibility to write custom query based on object that implements this interface.
+	WriteComposition(string, *Composer, *CompositionOpts) error
+}
+
+// Composer holds buffer, arguments and placeholders count.
+// In combination with external buffet can be also used to also generate sub-queries.
+// To do that simply write buffer to the parent buffer, composer will hold all arguments and remember number of last placeholder.
+type Composer struct {
+	buf     bytes.Buffer
+	args    []interface{}
+	counter int
+	Dirty   bool
+}
+
+// NewComposer allocates new Composer with inner slice of arguments of given size.
+func NewComposer(size int64) *Composer {
+	return &Composer{
+		counter: 1,
+		args:    make([]interface{}, 0, size),
+	}
+}
+
+// WriteString appends the contents of s to the query buffer, growing the buffer as
+// needed. The return value n is the length of s; err is always nil. If the
+// buffer becomes too large, WriteString will panic with bytes ErrTooLarge.
+func (c *Composer) WriteString(s string) (int, error) {
+	return c.buf.WriteString(s)
+}
+
+// Write implements io Writer interface.
+func (c *Composer) Write(b []byte) (int, error) {
+	return c.buf.Write(b)
+}
+
+// Read implements io Reader interface.
+func (c *Composer) Read(b []byte) (int, error) {
+	return c.buf.Read(b)
+}
+
+// ResetBuf resets internal buffer.
+func (c *Composer) ResetBuf() {
+	c.buf.Reset()
+}
+
+// String implements fmt Stringer interface.
+func (c *Composer) String() string {
+	return c.buf.String()
+}
+
+// WritePlaceholder writes appropriate placeholder to the query buffer based on current state of the composer.
+func (c *Composer) WritePlaceholder() error {
+	if _, err := c.buf.WriteString("$"); err != nil {
+		return err
+	}
+	if _, err := c.buf.WriteString(strconv.Itoa(c.counter)); err != nil {
+		return err
+	}
+
+	c.counter++
+	return nil
+}
+
+// Len returns number of arguments.
+func (c *Composer) Len() int {
+	return c.counter
+}
+
+// Add appends list with new element.
+func (c *Composer) Add(arg interface{}) {
+	c.args = append(c.args, arg)
+}
+
+// Args returns all arguments stored as a slice.
+func (c *Composer) Args() []interface{} {
+	return c.args
+} /// SQL ...
 const SQL = `
 -- do not modify, generated by pqt
 
@@ -3357,8 +8338,11 @@ CREATE TABLE IF NOT EXISTS example.news (
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
 	id BIGSERIAL,
 	lead TEXT,
+	meta_data JSONB,
+	score NUMERIC(20,8) DEFAULT 0 NOT NULL,
 	title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,
+	views_distribution DOUBLE PRECISION[168],
 
 	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id),
 	CONSTRAINT "example.news_title_key" UNIQUE (title),
@@ -3375,6 +8359,42 @@ CREATE TABLE IF NOT EXISTS example.comment (
 
 	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id),
 	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title)
+);
+
+CREATE TABLE IF NOT EXISTS example.complete (
+	column_bool BOOL,
+	column_bytea BYTEA,
+	column_character_0 CHARACTER[0],
+	column_character_100 CHARACTER[100],
+	column_decimal DECIMAL(20,8),
+	column_double_array_0 DOUBLE PRECISION[],
+	column_double_array_100 DOUBLE PRECISION[100],
+	column_integer INTEGER,
+	column_integer_array_0 INTEGER[],
+	column_integer_array_100 INTEGER[100],
+	column_integer_big BIGINT,
+	column_integer_big_array_0 BIGINT[],
+	column_integer_big_array_100 BIGINT[100],
+	column_integer_small SMALLINT,
+	column_integer_small_array_0 SMALLINT[],
+	column_integer_small_array_100 SMALLINT[100],
+	column_json JSON,
+	column_json_nn JSON NOT NULL,
+	column_json_nn_d JSON DEFAULT '{"field": 1}' NOT NULL,
+	column_jsonb JSONB,
+	column_jsonb_nn JSONB NOT NULL,
+	column_jsonb_nn_d JSONB DEFAULT '{"field": 1}' NOT NULL,
+	column_numeric NUMERIC(20,8),
+	column_real REAL,
+	column_serial SERIAL,
+	column_serial_big BIGSERIAL,
+	column_serial_small SMALLSERIAL,
+	column_text TEXT,
+	column_text_array_0 TEXT[],
+	column_text_array_100 TEXT[100],
+	column_timestamp TIMESTAMP,
+	column_timestamptz TIMESTAMPTZ,
+	column_uuid UUID
 );
 
 `
