@@ -750,8 +750,7 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *
 			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query success", "query", query, "table", r.%s)
 		}
 		return &ent, nil
-	}
-`,
+	}`,
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
 		g.Formatter.Identifier("table"),
@@ -1448,7 +1447,8 @@ func (g *Generator) generateEntityProp(w io.Writer, t *pqt.Table) {
 
 ColumnsLoop:
 	for _, c := range t.Columns {
-		fmt.Fprintf(w, "case %s:\n", g.Formatter.Identifier("table", t.Name, "column", c.Name))
+		fmt.Fprintf(w, `
+			case %s:`, g.Formatter.Identifier("table", t.Name, "column", c.Name))
 		for _, plugin := range g.Plugins {
 			if txt := plugin.ScanClause(c); txt != "" {
 				fmt.Fprint(w, txt)
@@ -1472,16 +1472,23 @@ ColumnsLoop:
 			}
 
 			fmt.Fprintf(w, `
-				return &e.%s, true
-				`, g.Formatter.Identifier(c.Name))
+				return &e.%s, true`, g.Formatter.Identifier(c.Name))
 		case g.canBeNil(c, ModeDefault):
-			fmt.Fprintf(w, "return e.%s, true\n", g.Formatter.Identifier(c.Name))
+			fmt.Fprintf(w, `
+				return e.%s, true`,
+				g.Formatter.Identifier(c.Name),
+			)
 		default:
-			fmt.Fprintf(w, "return &e.%s, true\n", g.Formatter.Identifier(c.Name))
+			fmt.Fprintf(w, `
+				return &e.%s, true`,
+				g.Formatter.Identifier(c.Name),
+			)
 		}
 	}
-	fmt.Fprint(w, "default:\n")
-	fmt.Fprint(w, "return nil, false\n")
+	fmt.Fprint(w, `
+		default:`)
+	fmt.Fprint(w, `
+		return nil, false`)
 	fmt.Fprint(w, "}\n}\n")
 
 }
@@ -1578,7 +1585,7 @@ func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {
 }
 
 func (g *Generator) columnType(c *pqt.Column, m int32) string {
-	m = columnMode(c,m)
+	m = columnMode(c, m)
 	for _, plugin := range g.Plugins {
 		if txt := plugin.PropertyType(c, m); txt != "" {
 			return txt
@@ -1600,8 +1607,8 @@ func (g *Generator) isNullable(c *pqt.Column, m int32) bool {
 	if mt, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range mt.Mapping {
 			if ct, ok := mapto.(CustomType); ok {
-				tof := ct.TypeOf(columnMode(c,m))
-				fmt.Println(columnMode(c,m), tof)
+				tof := ct.TypeOf(columnMode(c, m))
+				fmt.Println(columnMode(c, m), tof)
 				if tof == nil {
 					continue
 				}
@@ -2064,9 +2071,7 @@ func (c *Composer) Add(arg interface{}) {
 // Args returns all arguments stored as a slice.
 func (c *Composer) Args() []interface{} {
 	return c.args
-}
-
-`)
+}`)
 
 	for _, plugin := range g.Plugins {
 		if txt := plugin.Static(s); txt != "" {

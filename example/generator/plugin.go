@@ -6,8 +6,7 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
-type generator struct {
-}
+type generator struct{}
 
 func (g *generator) PropertyType(c *pqt.Column, m int32) string {
 	if m == 1 {
@@ -25,6 +24,9 @@ func (g *generator) WhereClause(c *pqt.Column) string {
 	return ""
 }
 
+func (g *generator) ScanClause(_ *pqt.Column) string {
+	return ""
+}
 func (g *generator) SetClause(_ *pqt.Column) string {
 	return ""
 }
