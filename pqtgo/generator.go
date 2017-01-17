@@ -1767,13 +1767,13 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
 
 	if l < 2 {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
 	}
 
 	if l == 2 {
@@ -1782,7 +1782,7 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	}
 
 	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
 	}
 
 	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
@@ -1790,7 +1790,7 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	for i, v := range tmp {
 		j, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s at index %d", v, i)
+			return fmt.Errorf("expected to get source argument in format '[1,2,...,N]', but got %s at index %d", v, i)
 		}
 
 		*a = append(*a, j)
@@ -1848,17 +1848,17 @@ func (a *JSONArrayString) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
 
 	if l < 2 {
-		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
 	}
 
 	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
 	}
 
 	*a = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
@@ -1916,13 +1916,13 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
 
 	if l < 2 {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
 	}
 
 	if l == 2 {
@@ -1931,7 +1931,7 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	}
 
 	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
 	}
 
 	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
@@ -1939,7 +1939,7 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	for i, v := range tmp {
 		j, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s at index %d", v, i)
+			return fmt.Errorf("expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s at index %d", v, i)
 		}
 
 		*a = append(*a, j)
