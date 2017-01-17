@@ -1055,15 +1055,18 @@ ColumnsLoop:
 				continue ColumnsLoop
 			}
 		}
-		if g.canBeNil(c, ModeOptional) {
+		if g.columnType(c, ModeCriteria) == "<nil>" {
+			continue ColumnsLoop
+		}
+		if g.canBeNil(c, ModeCriteria) {
 			fmt.Fprintf(w, `
 				if c.%s != nil {`, g.Formatter.Identifier(c.Name))
 		}
-		if g.isNullable(c, ModeOptional) {
+		if g.isNullable(c, ModeCriteria) {
 			fmt.Fprintf(w, `
 				if c.%s.Valid {`, g.Formatter.Identifier(c.Name))
 		}
-		if g.isType(c, ModeOptional, "time.Time") {
+		if g.isType(c, ModeCriteria, "time.Time") {
 			fmt.Fprintf(w, "if !c.%s.IsZero() {", g.Formatter.Identifier(c.Name))
 		}
 
@@ -1085,13 +1088,13 @@ ColumnsLoop:
 			g.Formatter.Identifier("table", table.Name, "column", c.Name),
 			g.Formatter.Identifier(c.Name),
 		)
-		if g.isType(c, ModeOptional, "time.Time") {
+		if g.isType(c, ModeCriteria, "time.Time") {
 			fmt.Fprintln(w, "}")
 		}
-		if g.canBeNil(c, ModeOptional) {
+		if g.canBeNil(c, ModeCriteria) {
 			fmt.Fprintln(w, "}")
 		}
-		if g.isNullable(c, ModeOptional) {
+		if g.isNullable(c, ModeCriteria) {
 			fmt.Fprintln(w, "}")
 		}
 		fmt.Fprintln(w, "")
