@@ -600,7 +600,8 @@ func (g *Generator) generateRepositorySetClause(w io.Writer, c *pqt.Column, sel 
 					}
 					if _, err := {{SELECTOR}}.WriteString("=%s"); err != nil {
 						return "", nil, err
-				}`, "{{SELECTOR}}", sel, -1),
+					}
+				{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
 				g.Formatter.Identifier("table", c.Table.Name, "column", c.Name),
 				d,
 			)
