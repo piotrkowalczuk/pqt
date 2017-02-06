@@ -47,6 +47,15 @@ func getBoolEnvOr(env string, or bool) bool {
 	return or
 }
 
+func join(arr []string, id int) string {
+	arr2 := make([]string, 0, len(arr))
+
+	for _, a := range arr {
+		arr2 = append(arr2, fmt.Sprintf("t%d.%s", id, a))
+	}
+	return strings.Join(arr2, ", ")
+}
+
 type suite struct {
 	db       *sql.DB
 	news     *model.NewsRepositoryBase
@@ -229,18 +238,20 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 }
 
 var testNewsFindData = map[string]struct {
-	criteria model.NewsCriteria
-	query    string
+	expr  model.NewsFindExpr
+	query string
 }{
 	"minimum": {
-		criteria: model.NewsCriteria{
-			Title:   sql.NullString{String: "title - minimum", Valid: true},
-			Content: sql.NullString{String: "content - minimum", Valid: true},
+		expr: model.NewsFindExpr{
+			Where: &model.NewsCriteria{
+				Title:   sql.NullString{String: "title - minimum", Valid: true},
+				Content: sql.NullString{String: "content - minimum", Valid: true},
+			},
 		},
-		query: "SELECT " + strings.Join(model.TableNewsColumns, ", ") + " FROM example.news WHERE content=$1 AND title=$2",
+		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.title=$2",
 	},
 	"full": {
-		criteria: model.NewsCriteria{
+		expr: model.NewsFindExpr{Where: &model.NewsCriteria{
 			ID: sql.NullInt64{
 				Int64: 1,
 				Valid: true,
@@ -269,8 +280,8 @@ var testNewsFindData = map[string]struct {
 				Valid: true,
 				Time:  time.Now(),
 			},
-		},
-		query: "SELECT " + strings.Join(model.TableNewsColumns, ", ") + " FROM example.news WHERE content=$1 AND continue=$2 AND created_at=$3 AND lead=$4 AND meta_data=$5 AND score=$6 AND title=$7 AND updated_at=$8 AND views_distribution=$9",
+		}},
+		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.continue=$2 AND t0.created_at=$3 AND t0.lead=$4 AND t0.meta_data=$5 AND t0.score=$6 AND t0.title=$7 AND t0.updated_at=$8 AND t0.views_distribution=$9",
 	},
 }
 
@@ -282,7 +293,7 @@ func BenchmarkNewsRepositoryBase_FindQuery(b *testing.B) {
 	for hint, given := range testNewsFindData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.news.FindQuery(s.news.Columns, &given.criteria)
+				query, args, err := s.news.FindQuery(&given.expr)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
@@ -299,7 +310,7 @@ func TestNewsRepositoryBase_FindQuery(t *testing.T) {
 
 	for hint, given := range testNewsFindData {
 		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.news.FindQuery(s.news.Columns, &given.criteria)
+			query, _, err := s.news.FindQuery(&given.expr)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
@@ -316,7 +327,7 @@ func TestNewsRepositoryBase_Find(t *testing.T) {
 
 	expected := 10
 	populateNews(t, s.news, expected)
-	got, err := s.news.Find(context.Background(), &model.NewsCriteria{})
+	got, err := s.news.Find(context.Background(), &model.NewsFindExpr{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
@@ -332,7 +343,7 @@ func TestNewsRepositoryBase_FindIter(t *testing.T) {
 
 	expected := 10
 	populateNews(t, s.news, expected)
-	iter, err := s.news.FindIter(context.Background(), &model.NewsCriteria{})
+	iter, err := s.news.FindIter(context.Background(), &model.NewsFindExpr{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}

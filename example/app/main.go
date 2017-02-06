@@ -102,11 +102,13 @@ func main() {
 		}
 	}
 
-	iter, err := repo.comment.FindIter(ctx, &model.CommentCriteria{
-		NewsID: sql.NullInt64{Int64: news.ID, Valid: true},
-		Sort: map[string]bool{
+	iter, err := repo.comment.FindIter(ctx, &model.CommentFindExpr{
+		OrderBy: map[string]bool{
 			"id": false,
 			"non_existing_column": true,
+		},
+		Where: &model.CommentCriteria{
+			NewsID: sql.NullInt64{Int64: news.ID, Valid: true},
 		},
 	})
 	if err != nil {

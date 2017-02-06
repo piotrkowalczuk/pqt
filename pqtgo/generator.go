@@ -119,6 +119,7 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 
 	g.generatePackage(b)
 	g.generateImports(b, s)
+	g.generateRepositoryJoinClause(b, s)
 	for _, t := range s.Tables {
 		g.generateConstants(b, t)
 		g.generateColumns(b, t)
@@ -127,11 +128,14 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateEntityProps(b, t)
 		g.generateIterator(b, t)
 		g.generateCriteria(b, t)
+		g.generateFindExpr(b, t)
+		g.generateJoin(b, t)
 		g.generatePatch(b, t)
 		g.generateRepositoryScanRows(b, t)
 		g.generateRepository(b, t)
 		g.generateRepositoryInsertQuery(b, t)
 		g.generateRepositoryInsert(b, t)
+		g.generateRepositoryWhereClause(b, t)
 		g.generateRepositoryFindQuery(b, t)
 		g.generateRepositoryFind(b, t)
 		g.generateRepositoryFindIter(b, t)
@@ -208,19 +212,50 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	fmt.Fprint(w, `}`)
 }
 
-func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
+func (g *Generator) generateFindExpr(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
-		type %sCriteria struct {`, g.Formatter.Identifier(t.Name))
+		type %sFindExpr struct {`, g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		%s *%sCriteria`, g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
 	fmt.Fprintf(w, `
 		%s, %s int64`, g.Formatter.Identifier("offset"), g.Formatter.Identifier("limit"))
 	fmt.Fprintf(w, `
-		%s map[string]bool`, g.Formatter.Identifier("sort"))
+		%s []string`, g.Formatter.Identifier("select"))
+	fmt.Fprintf(w, `
+		%s map[string]bool`, g.Formatter.Identifier("orderBy"))
+	for _, r := range t.OwnedRelationships {
+		fmt.Fprintf(w, `
+		Join%s *%sJoin`, g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
+	}
+	fmt.Fprintln(w, `
+		}`)
+}
 
+func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, `
+		type %sCriteria struct {`, g.Formatter.Identifier(t.Name))
 	for _, c := range t.Columns {
 		if t := g.columnType(c, ModeCriteria); t != "<nil>" {
 			fmt.Fprintf(w, `
 				%s %s`, g.Formatter.Identifier(c.Name), t)
 		}
+	}
+	fmt.Fprintln(w, `
+		}`)
+}
+
+func (g *Generator) generateJoin(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, `
+		type %sJoin struct {`, g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		%s, %s *%sCriteria`, g.Formatter.Identifier("on"), g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		%s bool`, g.Formatter.Identifier("select"))
+	fmt.Fprintf(w, `
+		%s JoinType`, g.Formatter.Identifier("kind"))
+	for _, r := range t.OwnedRelationships {
+		fmt.Fprintf(w, `
+		Join%s *%sJoin`, g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
 	}
 	fmt.Fprintln(w, `
 		}`)
@@ -1021,24 +1056,12 @@ func (g *Generator) generateRepositoryUpsert(w io.Writer, table *pqt.Table) {
 	)
 }
 
-func (g *Generator) generateRepositoryFindQuery(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
-
+func (g *Generator) generateRepositoryWhereClause(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %sQuery(s []string, c *%sCriteria) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("find"), entityName)
-	fmt.Fprintf(w, `
-		where := NewComposer(%d)
-		buf := bytes.NewBufferString("SELECT ")
-		buf.WriteString(strings.Join(s, ", "))
-		buf.WriteString(" FROM ")
-		buf.WriteString(r.%s)
-		buf.WriteString(" ")`,
-		len(table.Columns),
-		g.Formatter.Identifier("table"),
-	)
-
+		func %sCriteriaWhereClause(comp *Composer, c *%sCriteria, id int) (error) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier(t.Name))
 ColumnsLoop:
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
+		braces := 0
 		for _, plugin := range g.Plugins {
 			if txt := plugin.WhereClause(c); txt != "" {
 				tmpl, err := template.New("root").Parse(txt)
@@ -1046,9 +1069,10 @@ ColumnsLoop:
 					panic(err)
 				}
 				if err = tmpl.Execute(w, map[string]interface{}{
-					"selector": fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
-					"column":   g.Formatter.Identifier("table", table.Name, "column", c.Name),
-					"composer": "where",
+					"selector":   fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
+					"column":     g.Formatter.Identifier("table", t.Name, "column", c.Name),
+					"composer":   "comp",
+					"tableAlias": "ta",
 				}); err != nil {
 					panic(err)
 				}
@@ -1057,75 +1081,226 @@ ColumnsLoop:
 			}
 		}
 		if g.columnType(c, ModeCriteria) == "<nil>" {
-			continue ColumnsLoop
+			return
 		}
 		if g.canBeNil(c, ModeCriteria) {
+			braces++
 			fmt.Fprintf(w, `
 				if c.%s != nil {`, g.Formatter.Identifier(c.Name))
 		}
 		if g.isNullable(c, ModeCriteria) {
+			braces++
 			fmt.Fprintf(w, `
 				if c.%s.Valid {`, g.Formatter.Identifier(c.Name))
 		}
 		if g.isType(c, ModeCriteria, "time.Time") {
-			fmt.Fprintf(w, "if !c.%s.IsZero() {", g.Formatter.Identifier(c.Name))
+			braces++
+			fmt.Fprintf(w, `
+				if !c.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
 		}
 
 		fmt.Fprintf(w,
-			`if where.Dirty {
-				where.WriteString(" AND ")
+			`if comp.Dirty {
+				comp.WriteString(" AND ")
 			}
-			if _, err := where.WriteString(%s); err != nil {
-				return "", nil, err
+			if err := comp.WriteAlias(id); err != nil {
+				return err
 			}
-			if _, err := where.WriteString("="); err != nil {
-				return "", nil, err
+			if _, err := comp.WriteString(%s); err != nil {
+				return err
 			}
-			if err := where.WritePlaceholder(); err != nil {
-				return "", nil, err
+			if _, err := comp.WriteString("="); err != nil {
+				return err
 			}
-			where.Add(c.%s)
-			where.Dirty=true`,
-			g.Formatter.Identifier("table", table.Name, "column", c.Name),
+			if err := comp.WritePlaceholder(); err != nil {
+				return err
+			}
+			comp.Add(c.%s)
+			comp.Dirty=true`,
+			g.Formatter.Identifier("table", t.Name, "column", c.Name),
 			g.Formatter.Identifier(c.Name),
 		)
-		if g.isType(c, ModeCriteria, "time.Time") {
-			fmt.Fprintln(w, "}")
-		}
-		if g.canBeNil(c, ModeCriteria) {
-			fmt.Fprintln(w, "}")
-		}
-		if g.isNullable(c, ModeCriteria) {
-			fmt.Fprintln(w, "}")
-		}
+		closeBrace(w, braces)
 		fmt.Fprintln(w, "")
 	}
+	fmt.Fprint(w, `
+	return nil`)
+	closeBrace(w, 1)
+}
 
-	fmt.Fprint(w, `if where.Dirty {
-		if _, err := buf.WriteString("WHERE "); err != nil {
+func (g *Generator) generateRepositoryJoinClause(w io.Writer, s *pqt.Schema) {
+	fmt.Fprint(w, `
+	func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
+		if jt != JoinDoNot {
+			switch jt {
+			case JoinInner:
+				if _, err = comp.WriteString(" INNER JOIN "); err != nil {
+					return
+				}
+			case JoinLeft:
+				if _, err = comp.WriteString(" LEFT JOIN "); err != nil {
+					return
+				}
+			case JoinRight:
+				if _, err = comp.WriteString(" RIGHT JOIN "); err != nil {
+					return
+				}
+			case JoinCross:
+				if _, err = comp.WriteString(" CROSS JOIN "); err != nil {
+					return
+				}
+			default:
+				return
+			}
+			if _, err = comp.WriteString(on); err != nil {
+				return
+			}
+			comp.Dirty = true
+			ok = true
+			return
+		}
+		return
+	}`,
+	)
+}
+
+func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+
+	fmt.Fprintf(w, `
+		func (r *%sRepositoryBase) %sQuery(fe *%sFindExpr) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("find"), entityName)
+	fmt.Fprintf(w, `
+		comp := NewComposer(%d)
+		buf := bytes.NewBufferString("SELECT ")
+		if len(fe.%s) == 0 {
+		buf.WriteString("`, len(t.Columns), g.Formatter.Identifier("select"))
+	for i, c := range t.Columns {
+		if i != 0 {
+			fmt.Fprint(w, ", ")
+		}
+		fmt.Fprintf(w, "t0.%s", c.Name)
+	}
+	fmt.Fprintf(w, `")
+		} else {
+			buf.WriteString(strings.Join(fe.%s, ", "))
+		}`, g.Formatter.Identifier("select"))
+	for nb, r := range t.OwnedRelationships {
+		fmt.Fprintf(w, `
+			if fe.%s != nil && fe.%s.Select {`,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+		)
+		fmt.Fprint(w, `
+		buf.WriteString("`)
+		for _, c := range r.InversedTable.Columns {
+			fmt.Fprintf(w, ", t%d.%s", nb+1, c.Name)
+		}
+		fmt.Fprint(w, `")`)
+		closeBrace(w, 1)
+	}
+	fmt.Fprintf(w, `
+		buf.WriteString(" FROM ")
+		buf.WriteString(r.%s)
+		buf.WriteString(" AS t0")`, g.Formatter.Identifier("table"))
+	for nb, r := range t.OwnedRelationships {
+		oc := r.OwnerColumns
+		ic := r.InversedColumns
+		if len(oc) != len(ic) {
+			panic("number of owned and inversed foreign key columns is not equal")
+		}
+
+		fmt.Fprintf(w, `
+			if fe.%s != nil {`,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+		)
+		fmt.Fprintf(w, `
+			joinClause(comp, fe.%s.Kind, "%s AS t%d ON `,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			r.InversedTable.FullName(),
+			nb+1,
+		)
+
+		for i := 0; i < len(oc); i++ {
+			if i > 0 {
+				fmt.Fprint(w, `AND `)
+			}
+			fmt.Fprintf(w, `t%d.%s=t%d.%s`, 0, oc[i].Name, nb+1, ic[i].Name)
+		}
+		fmt.Fprint(w, `")`)
+
+		fmt.Fprintf(w, `
+		if fe.%s.On != nil {
+			comp.Dirty = true
+			if err := %sCriteriaWhereClause(comp, fe.%s.On, %d); err != nil {
+				return "", nil, err
+			}
+		}`,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier(r.InversedTable.Name),
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			nb+1,
+		)
+
+		closeBrace(w, 1)
+	}
+
+	fmt.Fprintf(w, `
+	if comp.Dirty {
+		buf.ReadFrom(comp)
+		comp.Dirty = false
+	}
+	if fe.Where != nil {
+		if err := %sCriteriaWhereClause(comp, fe.Where, 0); err != nil {
 			return "", nil, err
 		}
-		buf.ReadFrom(where)
-	}
-	`)
-	fmt.Fprintf(w, `
-	if len(c.%s) > 0 {
-		i:=0
-		where.WriteString(" ORDER BY ")
+	}`, g.Formatter.Identifier(t.Name))
 
-		for cn, asc := range c.%s {
+	for nb, r := range t.OwnedRelationships {
+		fmt.Fprintf(w, `
+		if fe.%s != nil && fe.%s.Where != nil {
+			if err := %sCriteriaWhereClause(comp, fe.%s.Where,%d); err != nil {
+				return "", nil, err
+			}
+		}`,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier(r.InversedTable.Name),
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			nb+1,
+		)
+	}
+
+	fmt.Fprint(w, `
+		if comp.Dirty {
+			//fmt.Println("comp", comp.String())
+			//fmt.Println("buf", buf.String())
+			if _, err := buf.WriteString(" WHERE "); err != nil {
+				return "", nil, err
+			}
+			buf.ReadFrom(comp)
+			//fmt.Println("comp - after", comp.String())
+			//fmt.Println("buf - after", buf.String())
+		}
+	`)
+
+	fmt.Fprintf(w, `
+	if len(fe.%s) > 0 {
+		i:=0
+		comp.WriteString(" ORDER BY ")
+
+		for cn, asc := range fe.%s {
 			for _, tcn := range %s {
 				if cn == tcn {
 					if i > 0 {
-						if _, err := where.WriteString(", "); err != nil {
+						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
 						}
 					}
-					if _, err := where.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(cn); err != nil {
 						return "", nil, err
 					}
 					if !asc {
-						if _, err := where.WriteString(" DESC "); err != nil {
+						if _, err := comp.WriteString(" DESC "); err != nil {
 							return "", nil, err
 						}
 					}
@@ -1135,34 +1310,34 @@ ColumnsLoop:
 			}
 		}
 	}
-	if c.%s > 0 {
-		if _, err := where.WriteString(" OFFSET "); err != nil {
+	if fe.%s > 0 {
+		if _, err := comp.WriteString(" OFFSET "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.%s)
+		comp.Add(fe.%s)
 	}
-	if c.%s > 0 {
-		if _, err := where.WriteString(" LIMIT "); err != nil {
+	if fe.%s > 0 {
+		if _, err := comp.WriteString(" LIMIT "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.%s)
+		comp.Add(fe.%s)
 	}
 `,
-		g.Formatter.Identifier("sort"),
-		g.Formatter.Identifier("sort"),
-		g.Formatter.Identifier("table", table.Name, "columns"),
+		g.Formatter.Identifier("orderBy"),
+		g.Formatter.Identifier("orderBy"),
+		g.Formatter.Identifier("table", t.Name, "columns"),
 		g.Formatter.Identifier("offset"),
 		g.Formatter.Identifier("offset"),
 		g.Formatter.Identifier("limit"),
@@ -1170,10 +1345,10 @@ ColumnsLoop:
 	)
 
 	fmt.Fprint(w, `
-		buf.ReadFrom(where)
+		buf.ReadFrom(comp)
 	`)
 	fmt.Fprintln(w, `
-	return buf.String(), where.Args(), nil
+	return buf.String(), comp.Args(), nil
 }`)
 }
 
@@ -1181,15 +1356,14 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 	entityName := g.Formatter.Identifier(table.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) ([]*%sEntity, error) {`, entityName, g.Formatter.Identifier("find"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, g.Formatter.Identifier("find"), entityName, entityName)
 	fmt.Fprintf(w, `
-			query, args, err := r.%sQuery(r.%s, c)
+			query, args, err := r.%sQuery(fe)
 			if err != nil {
 				return nil, err
 			}
 			rows, err := r.%s.QueryContext(ctx, query, args...)`,
 		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
 	)
 
@@ -1223,9 +1397,9 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
 	fmt.Fprintf(w, `
-			query, args, err := r.%sQuery(r.%s, c)
+			query, args, err := r.%sQuery(fe)
 			if err != nil {
 				return nil, err
 			}
@@ -1236,7 +1410,6 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 			return &%sIterator{rows: rows}, nil
 		}`,
 		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
 		g.Formatter.Identifier(t.Name),
 	)
@@ -1248,13 +1421,19 @@ func (g *Generator) generateRepositoryCount(w io.Writer, table *pqt.Table) {
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (int64, error) {`, entityName, g.Formatter.Identifier("count"), entityName)
 	fmt.Fprintf(w, `
-		query, args, err := r.%sQuery([]string{"COUNT(*)"}, c)
+		query, args, err := r.%sQuery(&%sFindExpr{
+			%s: c,
+			%s: []string{"COUNT(*)"},
+		})
 		if err != nil {
 			return 0, err
 		}
 		var count int64
 		if err := r.%s.QueryRowContext(ctx, query, args...).Scan(&count)`,
 		g.Formatter.Identifier("find"),
+		g.Formatter.Identifier(entityName),
+		g.Formatter.Identifier("where"),
+		g.Formatter.Identifier("select"),
 		g.Formatter.Identifier("db"),
 	)
 
@@ -1657,6 +1836,33 @@ func (g *Generator) isNullable(c *pqt.Column, m int32) bool {
 
 func (g *Generator) generateStatics(w io.Writer, s *pqt.Schema) {
 	fmt.Fprint(w, `
+
+const (
+	JoinDoNot = iota
+	JoinInner
+	JoinLeft
+	JoinRight
+	JoinCross
+)
+
+type JoinType int
+
+func (jt JoinType) String() string {
+	switch jt {
+
+	case JoinInner:
+		return "INNER JOIN"
+	case JoinLeft:
+		return "LEFT JOIN"
+	case JoinRight:
+		return "RIGHT JOIN"
+	case JoinCross:
+		return "CROSS JOIN"
+	default:
+		return ""
+	}
+}
+
 // ErrorConstraint returns the error constraint of err if it was produced by the pq library.
 // Otherwise, it returns empty string.
 func ErrorConstraint(err error) string {
@@ -2068,6 +2274,19 @@ func (c *Composer) WritePlaceholder() error {
 	}
 
 	c.counter++
+	return nil
+}
+
+func (c *Composer) WriteAlias(i int) error {
+	if _, err := c.buf.WriteString("t"); err != nil {
+		return err
+	}
+	if _, err := c.buf.WriteString(strconv.Itoa(i)); err != nil {
+		return err
+	}
+	if _, err := c.buf.WriteString("."); err != nil {
+		return err
+	}
 	return nil
 }
 

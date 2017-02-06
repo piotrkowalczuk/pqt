@@ -54,6 +54,9 @@ func (t *Table) FullName() string {
 func (t *Table) AddColumn(c *Column) *Table {
 	if c.Reference != nil {
 		r := newRelationship(t, c.Reference.Table, nil, RelationshipTypeManyToOne, c.ReferenceOptions...)
+		r.OwnerColumns = Columns{c}
+		r.InversedColumns = Columns{c.Reference}
+
 		t.OwnedRelationships = append(t.OwnedRelationships, r)
 		if r.Bidirectional && r.InversedTable != nil {
 			r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
@@ -137,7 +140,10 @@ func (t *Table) addRelationship(r *Relationship, opts ...ColumnOption) *Table {
 		r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
 	}
 
-	r.OwnerTable.addColumn(NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...))
+	col := NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...)
+	r.OwnerTable.addColumn(col)
+	r.OwnerColumns = Columns{col}
+	r.InversedColumns = Columns{pk}
 
 	return t
 }

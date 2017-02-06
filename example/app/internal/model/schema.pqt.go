@@ -18,6 +18,38 @@ import (
 	"github.com/lib/pq"
 )
 
+func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
+	if jt != JoinDoNot {
+		switch jt {
+		case JoinInner:
+			if _, err = comp.WriteString(" INNER JOIN "); err != nil {
+				return
+			}
+		case JoinLeft:
+			if _, err = comp.WriteString(" LEFT JOIN "); err != nil {
+				return
+			}
+		case JoinRight:
+			if _, err = comp.WriteString(" RIGHT JOIN "); err != nil {
+				return
+			}
+		case JoinCross:
+			if _, err = comp.WriteString(" CROSS JOIN "); err != nil {
+				return
+			}
+		default:
+			return
+		}
+		if _, err = comp.WriteString(on); err != nil {
+			return
+		}
+		comp.Dirty = true
+		ok = true
+		return
+	}
+	return
+}
+
 const (
 	TableCategory                     = "example.category"
 	TableCategoryColumnContent        = "content"
@@ -149,14 +181,27 @@ func (i *CategoryIterator) Category() (*CategoryEntity, error) {
 }
 
 type CategoryCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       sql.NullString
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	Name          sql.NullString
-	ParentID      sql.NullInt64
-	UpdatedAt     pq.NullTime
+	Content   sql.NullString
+	CreatedAt pq.NullTime
+	ID        sql.NullInt64
+	Name      sql.NullString
+	ParentID  sql.NullInt64
+	UpdatedAt pq.NullTime
+}
+
+type CategoryFindExpr struct {
+	Where             *CategoryCriteria
+	Offset, Limit     int64
+	Select            []string
+	OrderBy           map[string]bool
+	JoinChildCategory *CategoryJoin
+}
+
+type CategoryJoin struct {
+	On, Where         *CategoryCriteria
+	Select            bool
+	Kind              JoinType
+	JoinChildCategory *CategoryJoin
 }
 
 type CategoryPatch struct {
@@ -342,124 +387,179 @@ func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) 
 	return e, nil
 }
 
-func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (string, []interface{}, error) {
-	where := NewComposer(6)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(s, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
+func CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) error {
 	if c.Content.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCategoryColumnContent); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCategoryColumnContent); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Content)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Content)
+		comp.Dirty = true
 	}
 
 	if c.CreatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCategoryColumnCreatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCategoryColumnCreatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.CreatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.CreatedAt)
+		comp.Dirty = true
 	}
 
 	// id is an empty struct, ignore
 
 	if c.Name.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCategoryColumnName); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCategoryColumnName); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Name)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Name)
+		comp.Dirty = true
 	}
 
 	if c.ParentID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCategoryColumnParentID); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCategoryColumnParentID); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ParentID)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ParentID)
+		comp.Dirty = true
 	}
 
 	if c.UpdatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCategoryColumnUpdatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCategoryColumnUpdatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.UpdatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.UpdatedAt)
+		comp.Dirty = true
 	}
 
-	if where.Dirty {
-		if _, err := buf.WriteString("WHERE "); err != nil {
-			return "", nil, err
-		}
-		buf.ReadFrom(where)
+	return nil
+}
+
+func (r *CategoryRepositoryBase) FindQuery(fe *CategoryFindExpr) (string, []interface{}, error) {
+	comp := NewComposer(6)
+	buf := bytes.NewBufferString("SELECT ")
+	if len(fe.Select) == 0 {
+		buf.WriteString("t0.content, t0.created_at, t0.id, t0.name, t0.parent_id, t0.updated_at")
+	} else {
+		buf.WriteString(strings.Join(fe.Select, ", "))
+	}
+	if fe.JoinChildCategory != nil && fe.JoinChildCategory.Select {
+		buf.WriteString(", t1.content, t1.created_at, t1.id, t1.name, t1.parent_id, t1.updated_at")
 	}
 
-	if len(c.Sort) > 0 {
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" AS t0")
+	if fe.JoinChildCategory != nil {
+		joinClause(comp, fe.JoinChildCategory.Kind, "example.category AS t1 ON t0.parent_id=t1.id")
+		if fe.JoinChildCategory.On != nil {
+			comp.Dirty = true
+			if err := CategoryCriteriaWhereClause(comp, fe.JoinChildCategory.On, 1); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+
+	if comp.Dirty {
+		buf.ReadFrom(comp)
+		comp.Dirty = false
+	}
+	if fe.Where != nil {
+		if err := CategoryCriteriaWhereClause(comp, fe.Where, 0); err != nil {
+			return "", nil, err
+		}
+	}
+	if fe.JoinChildCategory != nil && fe.JoinChildCategory.Where != nil {
+		if err := CategoryCriteriaWhereClause(comp, fe.JoinChildCategory.Where, 1); err != nil {
+			return "", nil, err
+		}
+	}
+	if comp.Dirty {
+		//fmt.Println("comp", comp.String())
+		//fmt.Println("buf", buf.String())
+		if _, err := buf.WriteString(" WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(comp)
+		//fmt.Println("comp - after", comp.String())
+		//fmt.Println("buf - after", buf.String())
+	}
+
+	if len(fe.OrderBy) > 0 {
 		i := 0
-		where.WriteString(" ORDER BY ")
+		comp.WriteString(" ORDER BY ")
 
-		for cn, asc := range c.Sort {
+		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableCategoryColumns {
 				if cn == tcn {
 					if i > 0 {
-						if _, err := where.WriteString(", "); err != nil {
+						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
 						}
 					}
-					if _, err := where.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(cn); err != nil {
 						return "", nil, err
 					}
 					if !asc {
-						if _, err := where.WriteString(" DESC "); err != nil {
+						if _, err := comp.WriteString(" DESC "); err != nil {
 							return "", nil, err
 						}
 					}
@@ -469,38 +569,38 @@ func (r *CategoryRepositoryBase) FindQuery(s []string, c *CategoryCriteria) (str
 			}
 		}
 	}
-	if c.Offset > 0 {
-		if _, err := where.WriteString(" OFFSET "); err != nil {
+	if fe.Offset > 0 {
+		if _, err := comp.WriteString(" OFFSET "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Offset)
+		comp.Add(fe.Offset)
 	}
-	if c.Limit > 0 {
-		if _, err := where.WriteString(" LIMIT "); err != nil {
+	if fe.Limit > 0 {
+		if _, err := comp.WriteString(" LIMIT "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Limit)
+		comp.Add(fe.Limit)
 	}
 
-	buf.ReadFrom(where)
+	buf.ReadFrom(comp)
 
-	return buf.String(), where.Args(), nil
+	return buf.String(), comp.Args(), nil
 }
 
-func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) ([]*CategoryEntity, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr) ([]*CategoryEntity, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -520,8 +620,8 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, c *CategoryCriteria) 
 	return ScanCategoryRows(rows)
 }
 
-func (r *CategoryRepositoryBase) FindIter(ctx context.Context, c *CategoryCriteria) (*CategoryIterator, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindExpr) (*CategoryIterator, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -670,6 +770,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
+		update.Dirty = true
 	}
 
 	if !update.Dirty {
@@ -938,6 +1039,7 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 			if _, err := upsert.WriteString("=NOW()"); err != nil {
 				return "", nil, err
 			}
+			upsert.Dirty = true
 		}
 
 	}
@@ -988,7 +1090,10 @@ func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, 
 }
 
 func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
-	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	query, args, err := r.FindQuery(&CategoryFindExpr{
+		Where:  c,
+		Select: []string{"COUNT(*)"},
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -1144,13 +1249,26 @@ func (i *PackageIterator) Package() (*PackageEntity, error) {
 }
 
 type PackageCriteria struct {
+	Break      sql.NullString
+	CategoryID sql.NullInt64
+	CreatedAt  pq.NullTime
+	ID         sql.NullInt64
+	UpdatedAt  pq.NullTime
+}
+
+type PackageFindExpr struct {
+	Where         *PackageCriteria
 	Offset, Limit int64
-	Sort          map[string]bool
-	Break         sql.NullString
-	CategoryID    sql.NullInt64
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	UpdatedAt     pq.NullTime
+	Select        []string
+	OrderBy       map[string]bool
+	JoinCategory  *CategoryJoin
+}
+
+type PackageJoin struct {
+	On, Where    *PackageCriteria
+	Select       bool
+	Kind         JoinType
+	JoinCategory *CategoryJoin
 }
 
 type PackagePatch struct {
@@ -1316,107 +1434,159 @@ func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*
 	return e, nil
 }
 
-func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (string, []interface{}, error) {
-	where := NewComposer(5)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(s, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
+func PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) error {
 	if c.Break.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TablePackageColumnBreak); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TablePackageColumnBreak); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Break)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Break)
+		comp.Dirty = true
 	}
 
 	if c.CategoryID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TablePackageColumnCategoryID); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TablePackageColumnCategoryID); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.CategoryID)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.CategoryID)
+		comp.Dirty = true
 	}
 
 	if c.CreatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TablePackageColumnCreatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TablePackageColumnCreatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.CreatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.CreatedAt)
+		comp.Dirty = true
 	}
 
 	// id is an empty struct, ignore
 
 	if c.UpdatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TablePackageColumnUpdatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TablePackageColumnUpdatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.UpdatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.UpdatedAt)
+		comp.Dirty = true
 	}
 
-	if where.Dirty {
-		if _, err := buf.WriteString("WHERE "); err != nil {
-			return "", nil, err
-		}
-		buf.ReadFrom(where)
+	return nil
+}
+
+func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interface{}, error) {
+	comp := NewComposer(5)
+	buf := bytes.NewBufferString("SELECT ")
+	if len(fe.Select) == 0 {
+		buf.WriteString("t0.break, t0.category_id, t0.created_at, t0.id, t0.updated_at")
+	} else {
+		buf.WriteString(strings.Join(fe.Select, ", "))
+	}
+	if fe.JoinCategory != nil && fe.JoinCategory.Select {
+		buf.WriteString(", t1.content, t1.created_at, t1.id, t1.name, t1.parent_id, t1.updated_at")
 	}
 
-	if len(c.Sort) > 0 {
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" AS t0")
+	if fe.JoinCategory != nil {
+		joinClause(comp, fe.JoinCategory.Kind, "example.category AS t1 ON t0.category_id=t1.id")
+		if fe.JoinCategory.On != nil {
+			comp.Dirty = true
+			if err := CategoryCriteriaWhereClause(comp, fe.JoinCategory.On, 1); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+
+	if comp.Dirty {
+		buf.ReadFrom(comp)
+		comp.Dirty = false
+	}
+	if fe.Where != nil {
+		if err := PackageCriteriaWhereClause(comp, fe.Where, 0); err != nil {
+			return "", nil, err
+		}
+	}
+	if fe.JoinCategory != nil && fe.JoinCategory.Where != nil {
+		if err := CategoryCriteriaWhereClause(comp, fe.JoinCategory.Where, 1); err != nil {
+			return "", nil, err
+		}
+	}
+	if comp.Dirty {
+		//fmt.Println("comp", comp.String())
+		//fmt.Println("buf", buf.String())
+		if _, err := buf.WriteString(" WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(comp)
+		//fmt.Println("comp - after", comp.String())
+		//fmt.Println("buf - after", buf.String())
+	}
+
+	if len(fe.OrderBy) > 0 {
 		i := 0
-		where.WriteString(" ORDER BY ")
+		comp.WriteString(" ORDER BY ")
 
-		for cn, asc := range c.Sort {
+		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TablePackageColumns {
 				if cn == tcn {
 					if i > 0 {
-						if _, err := where.WriteString(", "); err != nil {
+						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
 						}
 					}
-					if _, err := where.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(cn); err != nil {
 						return "", nil, err
 					}
 					if !asc {
-						if _, err := where.WriteString(" DESC "); err != nil {
+						if _, err := comp.WriteString(" DESC "); err != nil {
 							return "", nil, err
 						}
 					}
@@ -1426,38 +1596,38 @@ func (r *PackageRepositoryBase) FindQuery(s []string, c *PackageCriteria) (strin
 			}
 		}
 	}
-	if c.Offset > 0 {
-		if _, err := where.WriteString(" OFFSET "); err != nil {
+	if fe.Offset > 0 {
+		if _, err := comp.WriteString(" OFFSET "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Offset)
+		comp.Add(fe.Offset)
 	}
-	if c.Limit > 0 {
-		if _, err := where.WriteString(" LIMIT "); err != nil {
+	if fe.Limit > 0 {
+		if _, err := comp.WriteString(" LIMIT "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Limit)
+		comp.Add(fe.Limit)
 	}
 
-	buf.ReadFrom(where)
+	buf.ReadFrom(comp)
 
-	return buf.String(), where.Args(), nil
+	return buf.String(), comp.Args(), nil
 }
 
-func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([]*PackageEntity, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) ([]*PackageEntity, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -1477,8 +1647,8 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, c *PackageCriteria) ([
 	return ScanPackageRows(rows)
 }
 
-func (r *PackageRepositoryBase) FindIter(ctx context.Context, c *PackageCriteria) (*PackageIterator, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExpr) (*PackageIterator, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -1607,6 +1777,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
+		update.Dirty = true
 	}
 
 	if !update.Dirty {
@@ -1838,6 +2009,7 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 			if _, err := upsert.WriteString("=NOW()"); err != nil {
 				return "", nil, err
 			}
+			upsert.Dirty = true
 		}
 
 	}
@@ -1887,7 +2059,10 @@ func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p 
 }
 
 func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
-	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	query, args, err := r.FindQuery(&PackageFindExpr{
+		Where:  c,
+		Select: []string{"COUNT(*)"},
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -2077,8 +2252,6 @@ func (i *NewsIterator) News() (*NewsEntity, error) {
 }
 
 type NewsCriteria struct {
-	Offset, Limit     int64
-	Sort              map[string]bool
 	Content           sql.NullString
 	Continue          sql.NullBool
 	CreatedAt         pq.NullTime
@@ -2089,6 +2262,19 @@ type NewsCriteria struct {
 	Title             sql.NullString
 	UpdatedAt         pq.NullTime
 	ViewsDistribution NullFloat64Array
+}
+
+type NewsFindExpr struct {
+	Where         *NewsCriteria
+	Offset, Limit int64
+	Select        []string
+	OrderBy       map[string]bool
+}
+
+type NewsJoin struct {
+	On, Where *NewsCriteria
+	Select    bool
+	Kind      JoinType
 }
 
 type NewsPatch struct {
@@ -2366,192 +2552,240 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	return e, nil
 }
 
-func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []interface{}, error) {
-	where := NewComposer(10)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(s, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
+func NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 	if c.Content.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnContent); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnContent); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Content)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Content)
+		comp.Dirty = true
 	}
 
 	if c.Continue.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnContinue); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnContinue); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Continue)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Continue)
+		comp.Dirty = true
 	}
 
 	if c.CreatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnCreatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnCreatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.CreatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.CreatedAt)
+		comp.Dirty = true
 	}
 
 	// id is an empty struct, ignore
 
 	if c.Lead.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnLead); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnLead); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Lead)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Lead)
+		comp.Dirty = true
 	}
 
 	if c.MetaData != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnMetaData); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnMetaData); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.MetaData)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.MetaData)
+		comp.Dirty = true
 	}
 
 	if c.Score.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnScore); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnScore); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Score)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Score)
+		comp.Dirty = true
 	}
 
 	if c.Title.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnTitle); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnTitle); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Title)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Title)
+		comp.Dirty = true
 	}
 
 	if c.UpdatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnUpdatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnUpdatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.UpdatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.UpdatedAt)
+		comp.Dirty = true
 	}
 
 	if c.ViewsDistribution.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableNewsColumnViewsDistribution); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableNewsColumnViewsDistribution); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ViewsDistribution)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ViewsDistribution)
+		comp.Dirty = true
 	}
 
-	if where.Dirty {
-		if _, err := buf.WriteString("WHERE "); err != nil {
+	return nil
+}
+
+func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{}, error) {
+	comp := NewComposer(10)
+	buf := bytes.NewBufferString("SELECT ")
+	if len(fe.Select) == 0 {
+		buf.WriteString("t0.content, t0.continue, t0.created_at, t0.id, t0.lead, t0.meta_data, t0.score, t0.title, t0.updated_at, t0.views_distribution")
+	} else {
+		buf.WriteString(strings.Join(fe.Select, ", "))
+	}
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" AS t0")
+	if comp.Dirty {
+		buf.ReadFrom(comp)
+		comp.Dirty = false
+	}
+	if fe.Where != nil {
+		if err := NewsCriteriaWhereClause(comp, fe.Where, 0); err != nil {
 			return "", nil, err
 		}
-		buf.ReadFrom(where)
+	}
+	if comp.Dirty {
+		//fmt.Println("comp", comp.String())
+		//fmt.Println("buf", buf.String())
+		if _, err := buf.WriteString(" WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(comp)
+		//fmt.Println("comp - after", comp.String())
+		//fmt.Println("buf - after", buf.String())
 	}
 
-	if len(c.Sort) > 0 {
+	if len(fe.OrderBy) > 0 {
 		i := 0
-		where.WriteString(" ORDER BY ")
+		comp.WriteString(" ORDER BY ")
 
-		for cn, asc := range c.Sort {
+		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableNewsColumns {
 				if cn == tcn {
 					if i > 0 {
-						if _, err := where.WriteString(", "); err != nil {
+						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
 						}
 					}
-					if _, err := where.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(cn); err != nil {
 						return "", nil, err
 					}
 					if !asc {
-						if _, err := where.WriteString(" DESC "); err != nil {
+						if _, err := comp.WriteString(" DESC "); err != nil {
 							return "", nil, err
 						}
 					}
@@ -2561,38 +2795,38 @@ func (r *NewsRepositoryBase) FindQuery(s []string, c *NewsCriteria) (string, []i
 			}
 		}
 	}
-	if c.Offset > 0 {
-		if _, err := where.WriteString(" OFFSET "); err != nil {
+	if fe.Offset > 0 {
+		if _, err := comp.WriteString(" OFFSET "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Offset)
+		comp.Add(fe.Offset)
 	}
-	if c.Limit > 0 {
-		if _, err := where.WriteString(" LIMIT "); err != nil {
+	if fe.Limit > 0 {
+		if _, err := comp.WriteString(" LIMIT "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Limit)
+		comp.Add(fe.Limit)
 	}
 
-	buf.ReadFrom(where)
+	buf.ReadFrom(comp)
 
-	return buf.String(), where.Args(), nil
+	return buf.String(), comp.Args(), nil
 }
 
-func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*NewsEntity, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*NewsEntity, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -2612,8 +2846,8 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, c *NewsCriteria) ([]*News
 	return ScanNewsRows(rows)
 }
 
-func (r *NewsRepositoryBase) FindIter(ctx context.Context, c *NewsCriteria) (*NewsIterator, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*NewsIterator, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -2879,6 +3113,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
+		update.Dirty = true
 	}
 
 	if p.ViewsDistribution.Valid {
@@ -3114,6 +3349,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
+		update.Dirty = true
 	}
 
 	if p.ViewsDistribution.Valid {
@@ -3325,6 +3561,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		if _, err := update.WriteString("=NOW()"); err != nil {
 			return "", nil, err
 		}
+		update.Dirty = true
 	}
 
 	if p.ViewsDistribution.Valid {
@@ -3782,6 +4019,7 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			if _, err := upsert.WriteString("=NOW()"); err != nil {
 				return "", nil, err
 			}
+			upsert.Dirty = true
 		}
 
 		if p.ViewsDistribution.Valid {
@@ -3856,7 +4094,10 @@ func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsP
 }
 
 func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
-	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	query, args, err := r.FindQuery(&NewsFindExpr{
+		Where:  c,
+		Select: []string{"COUNT(*)"},
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -4020,14 +4261,29 @@ func (i *CommentIterator) Comment() (*CommentEntity, error) {
 }
 
 type CommentCriteria struct {
-	Offset, Limit int64
-	Sort          map[string]bool
-	Content       sql.NullString
-	CreatedAt     pq.NullTime
-	ID            sql.NullInt64
-	NewsID        sql.NullInt64
-	NewsTitle     sql.NullString
-	UpdatedAt     pq.NullTime
+	Content   sql.NullString
+	CreatedAt pq.NullTime
+	ID        sql.NullInt64
+	NewsID    sql.NullInt64
+	NewsTitle sql.NullString
+	UpdatedAt pq.NullTime
+}
+
+type CommentFindExpr struct {
+	Where           *CommentCriteria
+	Offset, Limit   int64
+	Select          []string
+	OrderBy         map[string]bool
+	JoinNewsByTitle *NewsJoin
+	JoinNewsByID    *NewsJoin
+}
+
+type CommentJoin struct {
+	On, Where       *CommentCriteria
+	Select          bool
+	Kind            JoinType
+	JoinNewsByTitle *NewsJoin
+	JoinNewsByID    *NewsJoin
 }
 
 type CommentPatch struct {
@@ -4212,124 +4468,198 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 	return e, nil
 }
 
-func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (string, []interface{}, error) {
-	where := NewComposer(6)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(s, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
+func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
 	if c.Content.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCommentColumnContent); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCommentColumnContent); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.Content)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Content)
+		comp.Dirty = true
 	}
 
 	if c.CreatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCommentColumnCreatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCommentColumnCreatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.CreatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.CreatedAt)
+		comp.Dirty = true
 	}
 
 	// id is an empty struct, ignore
 
 	if c.NewsID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCommentColumnNewsID); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCommentColumnNewsID); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.NewsID)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.NewsID)
+		comp.Dirty = true
 	}
 
 	if c.NewsTitle.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCommentColumnNewsTitle); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCommentColumnNewsTitle); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.NewsTitle)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.NewsTitle)
+		comp.Dirty = true
 	}
 
 	if c.UpdatedAt.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCommentColumnUpdatedAt); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCommentColumnUpdatedAt); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.UpdatedAt)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.UpdatedAt)
+		comp.Dirty = true
 	}
 
-	if where.Dirty {
-		if _, err := buf.WriteString("WHERE "); err != nil {
-			return "", nil, err
-		}
-		buf.ReadFrom(where)
+	return nil
+}
+
+func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interface{}, error) {
+	comp := NewComposer(6)
+	buf := bytes.NewBufferString("SELECT ")
+	if len(fe.Select) == 0 {
+		buf.WriteString("t0.content, t0.created_at, t0.id, t0.news_id, t0.news_title, t0.updated_at")
+	} else {
+		buf.WriteString(strings.Join(fe.Select, ", "))
+	}
+	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Select {
+		buf.WriteString(", t1.content, t1.continue, t1.created_at, t1.id, t1.lead, t1.meta_data, t1.score, t1.title, t1.updated_at, t1.views_distribution")
 	}
 
-	if len(c.Sort) > 0 {
+	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Select {
+		buf.WriteString(", t2.content, t2.continue, t2.created_at, t2.id, t2.lead, t2.meta_data, t2.score, t2.title, t2.updated_at, t2.views_distribution")
+	}
+
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" AS t0")
+	if fe.JoinNewsByTitle != nil {
+		joinClause(comp, fe.JoinNewsByTitle.Kind, "example.news AS t1 ON t0.news_title=t1.title")
+		if fe.JoinNewsByTitle.On != nil {
+			comp.Dirty = true
+			if err := NewsCriteriaWhereClause(comp, fe.JoinNewsByTitle.On, 1); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+
+	if fe.JoinNewsByID != nil {
+		joinClause(comp, fe.JoinNewsByID.Kind, "example.news AS t2 ON t0.news_id=t2.id")
+		if fe.JoinNewsByID.On != nil {
+			comp.Dirty = true
+			if err := NewsCriteriaWhereClause(comp, fe.JoinNewsByID.On, 2); err != nil {
+				return "", nil, err
+			}
+		}
+	}
+
+	if comp.Dirty {
+		buf.ReadFrom(comp)
+		comp.Dirty = false
+	}
+	if fe.Where != nil {
+		if err := CommentCriteriaWhereClause(comp, fe.Where, 0); err != nil {
+			return "", nil, err
+		}
+	}
+	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Where != nil {
+		if err := NewsCriteriaWhereClause(comp, fe.JoinNewsByTitle.Where, 1); err != nil {
+			return "", nil, err
+		}
+	}
+	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Where != nil {
+		if err := NewsCriteriaWhereClause(comp, fe.JoinNewsByID.Where, 2); err != nil {
+			return "", nil, err
+		}
+	}
+	if comp.Dirty {
+		//fmt.Println("comp", comp.String())
+		//fmt.Println("buf", buf.String())
+		if _, err := buf.WriteString(" WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(comp)
+		//fmt.Println("comp - after", comp.String())
+		//fmt.Println("buf - after", buf.String())
+	}
+
+	if len(fe.OrderBy) > 0 {
 		i := 0
-		where.WriteString(" ORDER BY ")
+		comp.WriteString(" ORDER BY ")
 
-		for cn, asc := range c.Sort {
+		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableCommentColumns {
 				if cn == tcn {
 					if i > 0 {
-						if _, err := where.WriteString(", "); err != nil {
+						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
 						}
 					}
-					if _, err := where.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(cn); err != nil {
 						return "", nil, err
 					}
 					if !asc {
-						if _, err := where.WriteString(" DESC "); err != nil {
+						if _, err := comp.WriteString(" DESC "); err != nil {
 							return "", nil, err
 						}
 					}
@@ -4339,38 +4669,38 @@ func (r *CommentRepositoryBase) FindQuery(s []string, c *CommentCriteria) (strin
 			}
 		}
 	}
-	if c.Offset > 0 {
-		if _, err := where.WriteString(" OFFSET "); err != nil {
+	if fe.Offset > 0 {
+		if _, err := comp.WriteString(" OFFSET "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Offset)
+		comp.Add(fe.Offset)
 	}
-	if c.Limit > 0 {
-		if _, err := where.WriteString(" LIMIT "); err != nil {
+	if fe.Limit > 0 {
+		if _, err := comp.WriteString(" LIMIT "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Limit)
+		comp.Add(fe.Limit)
 	}
 
-	buf.ReadFrom(where)
+	buf.ReadFrom(comp)
 
-	return buf.String(), where.Args(), nil
+	return buf.String(), comp.Args(), nil
 }
 
-func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([]*CommentEntity, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) ([]*CommentEntity, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -4390,8 +4720,8 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, c *CommentCriteria) ([
 	return ScanCommentRows(rows)
 }
 
-func (r *CommentRepositoryBase) FindIter(ctx context.Context, c *CommentCriteria) (*CommentIterator, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -4646,6 +4976,7 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			if _, err := upsert.WriteString("=NOW()"); err != nil {
 				return "", nil, err
 			}
+			upsert.Dirty = true
 		}
 
 	}
@@ -4696,7 +5027,10 @@ func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p 
 }
 
 func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
-	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	query, args, err := r.FindQuery(&CommentFindExpr{
+		Where:  c,
+		Select: []string{"COUNT(*)"},
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -4999,8 +5333,6 @@ func (i *CompleteIterator) Complete() (*CompleteEntity, error) {
 }
 
 type CompleteCriteria struct {
-	Offset, Limit              int64
-	Sort                       map[string]bool
 	ColumnBool                 sql.NullBool
 	ColumnBytea                []byte
 	ColumnCharacter0           sql.NullString
@@ -5034,6 +5366,19 @@ type CompleteCriteria struct {
 	ColumnTimestamp            pq.NullTime
 	ColumnTimestamptz          pq.NullTime
 	ColumnUUID                 sql.NullString
+}
+
+type CompleteFindExpr struct {
+	Where         *CompleteCriteria
+	Offset, Limit int64
+	Select        []string
+	OrderBy       map[string]bool
+}
+
+type CompleteJoin struct {
+	On, Where *CompleteCriteria
+	Select    bool
+	Kind      JoinType
 }
 
 type CompletePatch struct {
@@ -5830,583 +6175,700 @@ func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) 
 	return e, nil
 }
 
-func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (string, []interface{}, error) {
-	where := NewComposer(33)
-	buf := bytes.NewBufferString("SELECT ")
-	buf.WriteString(strings.Join(s, ", "))
-	buf.WriteString(" FROM ")
-	buf.WriteString(r.Table)
-	buf.WriteString(" ")
+func CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) error {
 	if c.ColumnBool.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnBool); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnBool); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnBool)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnBool)
+		comp.Dirty = true
 	}
 
 	if c.ColumnBytea != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnBytea); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnBytea); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnBytea)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnBytea)
+		comp.Dirty = true
 	}
 
 	if c.ColumnCharacter0.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnCharacter0); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnCharacter0)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnCharacter0)
+		comp.Dirty = true
 	}
 
 	if c.ColumnCharacter100.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnCharacter100); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnCharacter100)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnCharacter100)
+		comp.Dirty = true
 	}
 
 	if c.ColumnDecimal.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnDecimal); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnDecimal); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnDecimal)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnDecimal)
+		comp.Dirty = true
 	}
 
 	if c.ColumnDoubleArray0.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnDoubleArray0); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnDoubleArray0)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnDoubleArray0)
+		comp.Dirty = true
 	}
 
 	if c.ColumnDoubleArray100.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnDoubleArray100); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnDoubleArray100)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnDoubleArray100)
+		comp.Dirty = true
 	}
 
 	if c.ColumnInteger != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnInteger); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnInteger); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnInteger)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnInteger)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerArray0.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerArray0); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerArray0)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerArray0)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerArray100.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerArray100); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerArray100)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerArray100)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerBig.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerBig); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerBig)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerBig)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerBigArray0.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerBigArray0); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerBigArray0)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerBigArray0)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerBigArray100.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerBigArray100); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerBigArray100)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerBigArray100)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerSmall != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerSmall); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerSmall)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerSmall)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerSmallArray0.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerSmallArray0); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerSmallArray0)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerSmallArray0)
+		comp.Dirty = true
 	}
 
 	if c.ColumnIntegerSmallArray100.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnIntegerSmallArray100); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnIntegerSmallArray100)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnIntegerSmallArray100)
+		comp.Dirty = true
 	}
 
 	if c.ColumnJson != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnJson); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnJson); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnJson)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnJson)
+		comp.Dirty = true
 	}
 
 	if c.ColumnJsonNn != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnJsonNn); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnJsonNn)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnJsonNn)
+		comp.Dirty = true
 	}
 
 	if c.ColumnJsonNnD != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnJsonNnD); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnJsonNnD)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnJsonNnD)
+		comp.Dirty = true
 	}
 
 	if c.ColumnJsonb != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnJsonb); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnJsonb); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnJsonb)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnJsonb)
+		comp.Dirty = true
 	}
 
 	if c.ColumnJsonbNn != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnJsonbNn); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnJsonbNn)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnJsonbNn)
+		comp.Dirty = true
 	}
 
 	if c.ColumnJsonbNnD != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnJsonbNnD); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnJsonbNnD)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnJsonbNnD)
+		comp.Dirty = true
 	}
 
 	if c.ColumnNumeric.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnNumeric); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnNumeric); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnNumeric)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnNumeric)
+		comp.Dirty = true
 	}
 
 	if c.ColumnReal != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnReal); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnReal); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnReal)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnReal)
+		comp.Dirty = true
 	}
 
 	if c.ColumnSerial != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnSerial); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnSerial); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnSerial)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnSerial)
+		comp.Dirty = true
 	}
 
 	// column_serial_big is an empty struct, ignore
 
 	if c.ColumnSerialSmall != nil {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnSerialSmall); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnSerialSmall); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnSerialSmall)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnSerialSmall)
+		comp.Dirty = true
 	}
 
 	if c.ColumnText.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnText); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnText); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnText)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnText)
+		comp.Dirty = true
 	}
 
 	if c.ColumnTextArray0.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnTextArray0); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnTextArray0)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnTextArray0)
+		comp.Dirty = true
 	}
 
 	if c.ColumnTextArray100.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnTextArray100); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnTextArray100)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnTextArray100)
+		comp.Dirty = true
 	}
 
 	if c.ColumnTimestamp.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnTimestamp); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnTimestamp)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnTimestamp)
+		comp.Dirty = true
 	}
 
 	if c.ColumnTimestamptz.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnTimestamptz); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnTimestamptz)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnTimestamptz)
+		comp.Dirty = true
 	}
 
 	if c.ColumnUUID.Valid {
-		if where.Dirty {
-			where.WriteString(" AND ")
+		if comp.Dirty {
+			comp.WriteString(" AND ")
 		}
-		if _, err := where.WriteString(TableCompleteColumnColumnUUID); err != nil {
-			return "", nil, err
+		if err := comp.WriteAlias(id); err != nil {
+			return err
 		}
-		if _, err := where.WriteString("="); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString(TableCompleteColumnColumnUUID); err != nil {
+			return err
 		}
-		if err := where.WritePlaceholder(); err != nil {
-			return "", nil, err
+		if _, err := comp.WriteString("="); err != nil {
+			return err
 		}
-		where.Add(c.ColumnUUID)
-		where.Dirty = true
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.ColumnUUID)
+		comp.Dirty = true
 	}
 
-	if where.Dirty {
-		if _, err := buf.WriteString("WHERE "); err != nil {
+	return nil
+}
+
+func (r *CompleteRepositoryBase) FindQuery(fe *CompleteFindExpr) (string, []interface{}, error) {
+	comp := NewComposer(33)
+	buf := bytes.NewBufferString("SELECT ")
+	if len(fe.Select) == 0 {
+		buf.WriteString("t0.column_bool, t0.column_bytea, t0.column_character_0, t0.column_character_100, t0.column_decimal, t0.column_double_array_0, t0.column_double_array_100, t0.column_integer, t0.column_integer_array_0, t0.column_integer_array_100, t0.column_integer_big, t0.column_integer_big_array_0, t0.column_integer_big_array_100, t0.column_integer_small, t0.column_integer_small_array_0, t0.column_integer_small_array_100, t0.column_json, t0.column_json_nn, t0.column_json_nn_d, t0.column_jsonb, t0.column_jsonb_nn, t0.column_jsonb_nn_d, t0.column_numeric, t0.column_real, t0.column_serial, t0.column_serial_big, t0.column_serial_small, t0.column_text, t0.column_text_array_0, t0.column_text_array_100, t0.column_timestamp, t0.column_timestamptz, t0.column_uuid")
+	} else {
+		buf.WriteString(strings.Join(fe.Select, ", "))
+	}
+	buf.WriteString(" FROM ")
+	buf.WriteString(r.Table)
+	buf.WriteString(" AS t0")
+	if comp.Dirty {
+		buf.ReadFrom(comp)
+		comp.Dirty = false
+	}
+	if fe.Where != nil {
+		if err := CompleteCriteriaWhereClause(comp, fe.Where, 0); err != nil {
 			return "", nil, err
 		}
-		buf.ReadFrom(where)
+	}
+	if comp.Dirty {
+		//fmt.Println("comp", comp.String())
+		//fmt.Println("buf", buf.String())
+		if _, err := buf.WriteString(" WHERE "); err != nil {
+			return "", nil, err
+		}
+		buf.ReadFrom(comp)
+		//fmt.Println("comp - after", comp.String())
+		//fmt.Println("buf - after", buf.String())
 	}
 
-	if len(c.Sort) > 0 {
+	if len(fe.OrderBy) > 0 {
 		i := 0
-		where.WriteString(" ORDER BY ")
+		comp.WriteString(" ORDER BY ")
 
-		for cn, asc := range c.Sort {
+		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableCompleteColumns {
 				if cn == tcn {
 					if i > 0 {
-						if _, err := where.WriteString(", "); err != nil {
+						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
 						}
 					}
-					if _, err := where.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(cn); err != nil {
 						return "", nil, err
 					}
 					if !asc {
-						if _, err := where.WriteString(" DESC "); err != nil {
+						if _, err := comp.WriteString(" DESC "); err != nil {
 							return "", nil, err
 						}
 					}
@@ -6416,38 +6878,38 @@ func (r *CompleteRepositoryBase) FindQuery(s []string, c *CompleteCriteria) (str
 			}
 		}
 	}
-	if c.Offset > 0 {
-		if _, err := where.WriteString(" OFFSET "); err != nil {
+	if fe.Offset > 0 {
+		if _, err := comp.WriteString(" OFFSET "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Offset)
+		comp.Add(fe.Offset)
 	}
-	if c.Limit > 0 {
-		if _, err := where.WriteString(" LIMIT "); err != nil {
+	if fe.Limit > 0 {
+		if _, err := comp.WriteString(" LIMIT "); err != nil {
 			return "", nil, err
 		}
-		if err := where.WritePlaceholder(); err != nil {
+		if err := comp.WritePlaceholder(); err != nil {
 			return "", nil, err
 		}
-		if _, err := where.WriteString(" "); err != nil {
+		if _, err := comp.WriteString(" "); err != nil {
 			return "", nil, err
 		}
-		where.Add(c.Limit)
+		comp.Add(fe.Limit)
 	}
 
-	buf.ReadFrom(where)
+	buf.ReadFrom(comp)
 
-	return buf.String(), where.Args(), nil
+	return buf.String(), comp.Args(), nil
 }
 
-func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) ([]*CompleteEntity, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr) ([]*CompleteEntity, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -6467,8 +6929,8 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, c *CompleteCriteria) 
 	return ScanCompleteRows(rows)
 }
 
-func (r *CompleteRepositoryBase) FindIter(ctx context.Context, c *CompleteCriteria) (*CompleteIterator, error) {
-	query, args, err := r.FindQuery(r.Columns, c)
+func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindExpr) (*CompleteIterator, error) {
+	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
@@ -7859,7 +8321,10 @@ func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, 
 }
 
 func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria) (int64, error) {
-	query, args, err := r.FindQuery([]string{"COUNT(*)"}, c)
+	query, args, err := r.FindQuery(&CompleteFindExpr{
+		Where:  c,
+		Select: []string{"COUNT(*)"},
+	})
 	if err != nil {
 		return 0, err
 	}
@@ -7876,6 +8341,32 @@ func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria)
 	}
 
 	return count, nil
+}
+
+const (
+	JoinDoNot = iota
+	JoinInner
+	JoinLeft
+	JoinRight
+	JoinCross
+)
+
+type JoinType int
+
+func (jt JoinType) String() string {
+	switch jt {
+
+	case JoinInner:
+		return "INNER JOIN"
+	case JoinLeft:
+		return "LEFT JOIN"
+	case JoinRight:
+		return "RIGHT JOIN"
+	case JoinCross:
+		return "CROSS JOIN"
+	default:
+		return ""
+	}
 }
 
 // ErrorConstraint returns the error constraint of err if it was produced by the pq library.
@@ -7988,13 +8479,13 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
 
 	if l < 2 {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
 	}
 
 	if l == 2 {
@@ -8003,7 +8494,7 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	}
 
 	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1,2,...,N]', but got %s", srcs)
 	}
 
 	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
@@ -8011,7 +8502,7 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	for i, v := range tmp {
 		j, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
-			return fmt.Errorf("pqt: expected to get source argument in format '[1,2,...,N]', but got %s at index %d", v, i)
+			return fmt.Errorf("expected to get source argument in format '[1,2,...,N]', but got %s at index %d", v, i)
 		}
 
 		*a = append(*a, j)
@@ -8069,17 +8560,17 @@ func (a *JSONArrayString) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
 
 	if l < 2 {
-		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
 	}
 
 	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("pqt: expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
 	}
 
 	*a = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
@@ -8137,13 +8628,13 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("pqt: expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
 
 	if l < 2 {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
 	}
 
 	if l == 2 {
@@ -8152,7 +8643,7 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	}
 
 	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
+		return fmt.Errorf("expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s", srcs)
 	}
 
 	tmp = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
@@ -8160,7 +8651,7 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	for i, v := range tmp {
 		j, err := strconv.ParseFloat(v, 64)
 		if err != nil {
-			return fmt.Errorf("pqt: expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s at index %d", v, i)
+			return fmt.Errorf("expected to get source argument in format '[1.3,2.4,...,N.M]', but got %s at index %d", v, i)
 		}
 
 		*a = append(*a, j)
@@ -8287,6 +8778,19 @@ func (c *Composer) WritePlaceholder() error {
 	}
 
 	c.counter++
+	return nil
+}
+
+func (c *Composer) WriteAlias(i int) error {
+	if _, err := c.buf.WriteString("t"); err != nil {
+		return err
+	}
+	if _, err := c.buf.WriteString(strconv.Itoa(i)); err != nil {
+		return err
+	}
+	if _, err := c.buf.WriteString("."); err != nil {
+		return err
+	}
 	return nil
 }
 
