@@ -70,7 +70,7 @@ func main() {
 
 	ctx := context.Background()
 
-	count, err := repo.news.Count(ctx, &model.NewsCriteria{})
+	count, err := repo.news.Count(ctx, &model.NewsCountExpr{})
 	if err != nil {
 		sklog.Fatal(log, err)
 	}
@@ -149,8 +149,10 @@ func main() {
 		}
 	}
 
-	count, err = repo.category.Count(ctx, &model.CategoryCriteria{
-		ParentID: sql.NullInt64{Int64: category.ID, Valid: true},
+	count, err = repo.category.Count(ctx, &model.CategoryCountExpr{
+		Where: &model.CategoryCriteria{
+			ParentID: sql.NullInt64{Int64: category.ID, Valid: true},
+		},
 	})
 	if err != nil {
 		sklog.Fatal(log, err)
@@ -177,7 +179,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Nanosecond)
 	defer cancel()
 
-	count, err = repo.news.Count(ctx, &model.NewsCriteria{})
+	count, err = repo.news.Count(ctx, &model.NewsCountExpr{})
 	if err != nil {
 		if err != context.DeadlineExceeded {
 			sklog.Fatal(log, err)
