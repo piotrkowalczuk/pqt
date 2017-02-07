@@ -129,6 +129,7 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		g.generateIterator(b, t)
 		g.generateCriteria(b, t)
 		g.generateFindExpr(b, t)
+		g.generateCountExpr(b, t)
 		g.generateJoin(b, t)
 		g.generatePatch(b, t)
 		g.generateRepositoryScanRows(b, t)
@@ -220,12 +221,25 @@ func (g *Generator) generateFindExpr(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		%s, %s int64`, g.Formatter.Identifier("offset"), g.Formatter.Identifier("limit"))
 	fmt.Fprintf(w, `
-		%s []string`, g.Formatter.Identifier("select"))
+		%s []string`, g.Formatter.Identifier("columns"))
 	fmt.Fprintf(w, `
 		%s map[string]bool`, g.Formatter.Identifier("orderBy"))
-	for _, r := range t.OwnedRelationships {
+	for _, r := range joinableRelationships(t) {
 		fmt.Fprintf(w, `
-		Join%s *%sJoin`, g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
+		%s *%sJoin`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
+	}
+	fmt.Fprintln(w, `
+		}`)
+}
+
+func (g *Generator) generateCountExpr(w io.Writer, t *pqt.Table) {
+	fmt.Fprintf(w, `
+		type %sCountExpr struct {`, g.Formatter.Identifier(t.Name))
+	fmt.Fprintf(w, `
+		%s *%sCriteria`, g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
+	for _, r := range joinableRelationships(t) {
+		fmt.Fprintf(w, `
+		%s *%sJoin`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
 	}
 	fmt.Fprintln(w, `
 		}`)
@@ -250,10 +264,10 @@ func (g *Generator) generateJoin(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		%s, %s *%sCriteria`, g.Formatter.Identifier("on"), g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
 	fmt.Fprintf(w, `
-		%s bool`, g.Formatter.Identifier("select"))
+		%s bool`, g.Formatter.Identifier("fetch"))
 	fmt.Fprintf(w, `
 		%s JoinType`, g.Formatter.Identifier("kind"))
-	for _, r := range t.OwnedRelationships {
+	for _, r := range joinableRelationships(t) {
 		fmt.Fprintf(w, `
 		Join%s *%sJoin`, g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
 	}
@@ -1069,10 +1083,10 @@ ColumnsLoop:
 					panic(err)
 				}
 				if err = tmpl.Execute(w, map[string]interface{}{
-					"selector":   fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
-					"column":     g.Formatter.Identifier("table", t.Name, "column", c.Name),
-					"composer":   "comp",
-					"tableAlias": "ta",
+					"selector": fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
+					"column":   g.Formatter.Identifier("table", t.Name, "column", c.Name),
+					"composer": "comp",
+					"id":       "id",
 				}); err != nil {
 					panic(err)
 				}
@@ -1173,7 +1187,7 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 		comp := NewComposer(%d)
 		buf := bytes.NewBufferString("SELECT ")
 		if len(fe.%s) == 0 {
-		buf.WriteString("`, len(t.Columns), g.Formatter.Identifier("select"))
+		buf.WriteString("`, len(t.Columns), g.Formatter.Identifier("columns"))
 	for i, c := range t.Columns {
 		if i != 0 {
 			fmt.Fprint(w, ", ")
@@ -1183,12 +1197,13 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `")
 		} else {
 			buf.WriteString(strings.Join(fe.%s, ", "))
-		}`, g.Formatter.Identifier("select"))
-	for nb, r := range t.OwnedRelationships {
+		}`, g.Formatter.Identifier("columns"))
+	for nb, r := range joinableRelationships(t) {
 		fmt.Fprintf(w, `
-			if fe.%s != nil && fe.%s.Select {`,
+			if fe.%s != nil && fe.%s.%s {`,
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("fetch"),
 		)
 		fmt.Fprint(w, `
 		buf.WriteString("`)
@@ -1202,7 +1217,7 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 		buf.WriteString(" FROM ")
 		buf.WriteString(r.%s)
 		buf.WriteString(" AS t0")`, g.Formatter.Identifier("table"))
-	for nb, r := range t.OwnedRelationships {
+	for nb, r := range joinableRelationships(t) {
 		oc := r.OwnerColumns
 		ic := r.InversedColumns
 		if len(oc) != len(ic) {
@@ -1214,8 +1229,9 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
 		)
 		fmt.Fprintf(w, `
-			joinClause(comp, fe.%s.Kind, "%s AS t%d ON `,
+			joinClause(comp, fe.%s.%s, "%s AS t%d ON `,
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("kind"),
 			r.InversedTable.FullName(),
 			nb+1,
 		)
@@ -1229,15 +1245,17 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 		fmt.Fprint(w, `")`)
 
 		fmt.Fprintf(w, `
-		if fe.%s.On != nil {
+		if fe.%s.%s != nil {
 			comp.Dirty = true
-			if err := %sCriteriaWhereClause(comp, fe.%s.On, %d); err != nil {
+			if err := %sCriteriaWhereClause(comp, fe.%s.%s, %d); err != nil {
 				return "", nil, err
 			}
 		}`,
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("on"),
 			g.Formatter.Identifier(r.InversedTable.Name),
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("on"),
 			nb+1,
 		)
 
@@ -1249,23 +1267,29 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 		buf.ReadFrom(comp)
 		comp.Dirty = false
 	}
-	if fe.Where != nil {
-		if err := %sCriteriaWhereClause(comp, fe.Where, 0); err != nil {
+	if fe.%s != nil {
+		if err := %sCriteriaWhereClause(comp, fe.%s, 0); err != nil {
 			return "", nil, err
 		}
-	}`, g.Formatter.Identifier(t.Name))
+	}`,
+		g.Formatter.Identifier("where"),
+		g.Formatter.Identifier(t.Name),
+		g.Formatter.Identifier("where"),
+	)
 
-	for nb, r := range t.OwnedRelationships {
+	for nb, r := range joinableRelationships(t) {
 		fmt.Fprintf(w, `
-		if fe.%s != nil && fe.%s.Where != nil {
-			if err := %sCriteriaWhereClause(comp, fe.%s.Where,%d); err != nil {
+		if fe.%s != nil && fe.%s.%s != nil {
+			if err := %sCriteriaWhereClause(comp, fe.%s.%s, %d); err != nil {
 				return "", nil, err
 			}
 		}`,
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("where"),
 			g.Formatter.Identifier(r.InversedTable.Name),
 			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("where"),
 			nb+1,
 		)
 	}
@@ -1352,8 +1376,8 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 }`)
 }
 
-func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
+func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, g.Formatter.Identifier("find"), entityName, entityName)
@@ -1380,8 +1404,6 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.%s)
 		}
 
-		return %s(rows)
-	}
 `,
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
@@ -1389,8 +1411,59 @@ func (g *Generator) generateRepositoryFind(w io.Writer, table *pqt.Table) {
 		g.Formatter.Identifier("debug"),
 		g.Formatter.Identifier("log"),
 		g.Formatter.Identifier("table"),
-		g.Formatter.Identifier("Scan", table.Name, "rows"),
 	)
+
+	fmt.Fprintf(w, `
+		var entities []*%sEntity
+		var props []interface{}
+		for rows.Next() {
+			var ent %sEntity
+			if props, err = ent.%s(); err != nil {
+				return nil, err
+			}`,
+		entityName,
+		g.Formatter.Identifier(t.Name),
+		g.Formatter.Identifier("props"),
+	)
+	if hasJoinableRelationships(t) {
+		fmt.Fprintf(w, `
+		var prop []interface{}`)
+	}
+	for _, r := range joinableRelationships(t) {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		fmt.Fprintf(w, `
+			if fe.%s != nil && fe.%s.%s {
+				ent.%s = &%sEntity{}
+				if prop, err = ent.%s.%s(); err != nil {
+					return nil, err
+				}
+				props = append(props, prop...)
+			}`,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("fetch"),
+			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier(r.InversedTable.Name),
+			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("props"),
+		)
+	}
+	fmt.Fprint(w, `
+			err = rows.Scan(props...)
+			if err != nil {
+				return nil, err
+			}
+
+			entities = append(entities, &ent)
+		}
+		if err = rows.Err(); err != nil {
+			return nil, err
+		}
+
+		return entities, nil
+	}`)
 }
 
 func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
@@ -1415,25 +1488,33 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	)
 }
 
-func (g *Generator) generateRepositoryCount(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
+func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCriteria) (int64, error) {`, entityName, g.Formatter.Identifier("count"), entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCountExpr) (int64, error) {`, entityName, g.Formatter.Identifier("count"), entityName)
 	fmt.Fprintf(w, `
 		query, args, err := r.%sQuery(&%sFindExpr{
-			%s: c,
+			%s: c.%s,
 			%s: []string{"COUNT(*)"},
+		`,
+		g.Formatter.Identifier("find"),
+		g.Formatter.Identifier(entityName),
+		g.Formatter.Identifier("where"),
+		g.Formatter.Identifier("where"),
+		g.Formatter.Identifier("columns"),
+	)
+	for _, r := range joinableRelationships(t) {
+		fmt.Fprintf(w, `
+		%s: c.%s,`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)))
+	}
+	fmt.Fprintf(w, `
 		})
 		if err != nil {
 			return 0, err
 		}
 		var count int64
 		if err := r.%s.QueryRowContext(ctx, query, args...).Scan(&count)`,
-		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier(entityName),
-		g.Formatter.Identifier("where"),
-		g.Formatter.Identifier("select"),
 		g.Formatter.Identifier("db"),
 	)
 
@@ -1690,6 +1771,9 @@ func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier("props"))
 	fmt.Fprintf(w, `
+		if len(cns) == 0 {
+			cns = %s
+		}
 		res := make([]interface{}, 0, len(cns))
 		for _, cn := range cns {
 			if prop, ok := e.%s(cn); ok {
@@ -1698,7 +1782,10 @@ func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
 				return nil, fmt.Errorf("unexpected column provided: %%s", cn)
 			}
 		}
-		return res, nil`, g.Formatter.Identifier("prop"))
+		return res, nil`,
+		g.Formatter.Identifier("table", t.Name, "columns"),
+		g.Formatter.Identifier("prop"),
+	)
 	fmt.Fprint(w, `
 		}`)
 }
@@ -2324,4 +2411,18 @@ func (g *Generator) uniqueConstraints(t *pqt.Table) []*pqt.Constraint {
 		return nil
 	}
 	return unique
+}
+
+func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
+	for _, r := range t.OwnedRelationships {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		rels = append(rels, r)
+	}
+	return
+}
+
+func hasJoinableRelationships(t *pqt.Table) bool {
+	return len(joinableRelationships(t)) > 0
 }

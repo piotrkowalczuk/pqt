@@ -117,6 +117,9 @@ func (e *CategoryEntity) Prop(cn string) (interface{}, bool) {
 }
 
 func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
+	if len(cns) == 0 {
+		cns = TableCategoryColumns
+	}
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -190,18 +193,20 @@ type CategoryCriteria struct {
 }
 
 type CategoryFindExpr struct {
-	Where             *CategoryCriteria
-	Offset, Limit     int64
-	Select            []string
-	OrderBy           map[string]bool
-	JoinChildCategory *CategoryJoin
+	Where         *CategoryCriteria
+	Offset, Limit int64
+	Columns       []string
+	OrderBy       map[string]bool
+}
+
+type CategoryCountExpr struct {
+	Where *CategoryCriteria
 }
 
 type CategoryJoin struct {
-	On, Where         *CategoryCriteria
-	Select            bool
-	Kind              JoinType
-	JoinChildCategory *CategoryJoin
+	On, Where *CategoryCriteria
+	Fetch     bool
+	Kind      JoinType
 }
 
 type CategoryPatch struct {
@@ -496,39 +501,20 @@ func CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) er
 func (r *CategoryRepositoryBase) FindQuery(fe *CategoryFindExpr) (string, []interface{}, error) {
 	comp := NewComposer(6)
 	buf := bytes.NewBufferString("SELECT ")
-	if len(fe.Select) == 0 {
+	if len(fe.Columns) == 0 {
 		buf.WriteString("t0.content, t0.created_at, t0.id, t0.name, t0.parent_id, t0.updated_at")
 	} else {
-		buf.WriteString(strings.Join(fe.Select, ", "))
+		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
-	if fe.JoinChildCategory != nil && fe.JoinChildCategory.Select {
-		buf.WriteString(", t1.content, t1.created_at, t1.id, t1.name, t1.parent_id, t1.updated_at")
-	}
-
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
 	buf.WriteString(" AS t0")
-	if fe.JoinChildCategory != nil {
-		joinClause(comp, fe.JoinChildCategory.Kind, "example.category AS t1 ON t0.parent_id=t1.id")
-		if fe.JoinChildCategory.On != nil {
-			comp.Dirty = true
-			if err := CategoryCriteriaWhereClause(comp, fe.JoinChildCategory.On, 1); err != nil {
-				return "", nil, err
-			}
-		}
-	}
-
 	if comp.Dirty {
 		buf.ReadFrom(comp)
 		comp.Dirty = false
 	}
 	if fe.Where != nil {
 		if err := CategoryCriteriaWhereClause(comp, fe.Where, 0); err != nil {
-			return "", nil, err
-		}
-	}
-	if fe.JoinChildCategory != nil && fe.JoinChildCategory.Where != nil {
-		if err := CategoryCriteriaWhereClause(comp, fe.JoinChildCategory.Where, 1); err != nil {
 			return "", nil, err
 		}
 	}
@@ -617,9 +603,26 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
-	return ScanCategoryRows(rows)
-}
+	var entities []*CategoryEntity
+	var props []interface{}
+	for rows.Next() {
+		var ent CategoryEntity
+		if props, err = ent.Props(); err != nil {
+			return nil, err
+		}
+		err = rows.Scan(props...)
+		if err != nil {
+			return nil, err
+		}
 
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
 func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindExpr) (*CategoryIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -1089,10 +1092,10 @@ func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, 
 	return e, nil
 }
 
-func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCriteria) (int64, error) {
+func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&CategoryFindExpr{
-		Where:  c,
-		Select: []string{"COUNT(*)"},
+		Where:   c.Where,
+		Columns: []string{"COUNT(*)"},
 	})
 	if err != nil {
 		return 0, err
@@ -1185,6 +1188,9 @@ func (e *PackageEntity) Prop(cn string) (interface{}, bool) {
 }
 
 func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
+	if len(cns) == 0 {
+		cns = TablePackageColumns
+	}
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -1259,14 +1265,19 @@ type PackageCriteria struct {
 type PackageFindExpr struct {
 	Where         *PackageCriteria
 	Offset, Limit int64
-	Select        []string
+	Columns       []string
 	OrderBy       map[string]bool
 	JoinCategory  *CategoryJoin
 }
 
+type PackageCountExpr struct {
+	Where        *PackageCriteria
+	JoinCategory *CategoryJoin
+}
+
 type PackageJoin struct {
 	On, Where    *PackageCriteria
-	Select       bool
+	Fetch        bool
 	Kind         JoinType
 	JoinCategory *CategoryJoin
 }
@@ -1523,12 +1534,12 @@ func PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) erro
 func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interface{}, error) {
 	comp := NewComposer(5)
 	buf := bytes.NewBufferString("SELECT ")
-	if len(fe.Select) == 0 {
+	if len(fe.Columns) == 0 {
 		buf.WriteString("t0.break, t0.category_id, t0.created_at, t0.id, t0.updated_at")
 	} else {
-		buf.WriteString(strings.Join(fe.Select, ", "))
+		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
-	if fe.JoinCategory != nil && fe.JoinCategory.Select {
+	if fe.JoinCategory != nil && fe.JoinCategory.Fetch {
 		buf.WriteString(", t1.content, t1.created_at, t1.id, t1.name, t1.parent_id, t1.updated_at")
 	}
 
@@ -1644,9 +1655,34 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
-	return ScanPackageRows(rows)
-}
+	var entities []*PackageEntity
+	var props []interface{}
+	for rows.Next() {
+		var ent PackageEntity
+		if props, err = ent.Props(); err != nil {
+			return nil, err
+		}
+		var prop []interface{}
+		if fe.JoinCategory != nil && fe.JoinCategory.Fetch {
+			ent.Category = &CategoryEntity{}
+			if prop, err = ent.Category.Props(); err != nil {
+				return nil, err
+			}
+			props = append(props, prop...)
+		}
+		err = rows.Scan(props...)
+		if err != nil {
+			return nil, err
+		}
 
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
 func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExpr) (*PackageIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -2058,10 +2094,12 @@ func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p 
 	return e, nil
 }
 
-func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCriteria) (int64, error) {
+func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&PackageFindExpr{
-		Where:  c,
-		Select: []string{"COUNT(*)"},
+		Where:   c.Where,
+		Columns: []string{"COUNT(*)"},
+
+		JoinCategory: c.JoinCategory,
 	})
 	if err != nil {
 		return 0, err
@@ -2188,6 +2226,9 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 }
 
 func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
+	if len(cns) == 0 {
+		cns = TableNewsColumns
+	}
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -2267,13 +2308,17 @@ type NewsCriteria struct {
 type NewsFindExpr struct {
 	Where         *NewsCriteria
 	Offset, Limit int64
-	Select        []string
+	Columns       []string
 	OrderBy       map[string]bool
+}
+
+type NewsCountExpr struct {
+	Where *NewsCriteria
 }
 
 type NewsJoin struct {
 	On, Where *NewsCriteria
-	Select    bool
+	Fetch     bool
 	Kind      JoinType
 }
 
@@ -2741,10 +2786,10 @@ func NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{}, error) {
 	comp := NewComposer(10)
 	buf := bytes.NewBufferString("SELECT ")
-	if len(fe.Select) == 0 {
+	if len(fe.Columns) == 0 {
 		buf.WriteString("t0.content, t0.continue, t0.created_at, t0.id, t0.lead, t0.meta_data, t0.score, t0.title, t0.updated_at, t0.views_distribution")
 	} else {
-		buf.WriteString(strings.Join(fe.Select, ", "))
+		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
@@ -2843,9 +2888,26 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
-	return ScanNewsRows(rows)
-}
+	var entities []*NewsEntity
+	var props []interface{}
+	for rows.Next() {
+		var ent NewsEntity
+		if props, err = ent.Props(); err != nil {
+			return nil, err
+		}
+		err = rows.Scan(props...)
+		if err != nil {
+			return nil, err
+		}
 
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
 func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*NewsIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -4093,10 +4155,10 @@ func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsP
 	return e, nil
 }
 
-func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCriteria) (int64, error) {
+func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&NewsFindExpr{
-		Where:  c,
-		Select: []string{"COUNT(*)"},
+		Where:   c.Where,
+		Columns: []string{"COUNT(*)"},
 	})
 	if err != nil {
 		return 0, err
@@ -4197,6 +4259,9 @@ func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
 }
 
 func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
+	if len(cns) == 0 {
+		cns = TableCommentColumns
+	}
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -4272,15 +4337,21 @@ type CommentCriteria struct {
 type CommentFindExpr struct {
 	Where           *CommentCriteria
 	Offset, Limit   int64
-	Select          []string
+	Columns         []string
 	OrderBy         map[string]bool
+	JoinNewsByTitle *NewsJoin
+	JoinNewsByID    *NewsJoin
+}
+
+type CommentCountExpr struct {
+	Where           *CommentCriteria
 	JoinNewsByTitle *NewsJoin
 	JoinNewsByID    *NewsJoin
 }
 
 type CommentJoin struct {
 	On, Where       *CommentCriteria
-	Select          bool
+	Fetch           bool
 	Kind            JoinType
 	JoinNewsByTitle *NewsJoin
 	JoinNewsByID    *NewsJoin
@@ -4577,16 +4648,16 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interface{}, error) {
 	comp := NewComposer(6)
 	buf := bytes.NewBufferString("SELECT ")
-	if len(fe.Select) == 0 {
+	if len(fe.Columns) == 0 {
 		buf.WriteString("t0.content, t0.created_at, t0.id, t0.news_id, t0.news_title, t0.updated_at")
 	} else {
-		buf.WriteString(strings.Join(fe.Select, ", "))
+		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
-	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Select {
+	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Fetch {
 		buf.WriteString(", t1.content, t1.continue, t1.created_at, t1.id, t1.lead, t1.meta_data, t1.score, t1.title, t1.updated_at, t1.views_distribution")
 	}
 
-	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Select {
+	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Fetch {
 		buf.WriteString(", t2.content, t2.continue, t2.created_at, t2.id, t2.lead, t2.meta_data, t2.score, t2.title, t2.updated_at, t2.views_distribution")
 	}
 
@@ -4717,9 +4788,41 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
-	return ScanCommentRows(rows)
-}
+	var entities []*CommentEntity
+	var props []interface{}
+	for rows.Next() {
+		var ent CommentEntity
+		if props, err = ent.Props(); err != nil {
+			return nil, err
+		}
+		var prop []interface{}
+		if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Fetch {
+			ent.NewsByTitle = &NewsEntity{}
+			if prop, err = ent.NewsByTitle.Props(); err != nil {
+				return nil, err
+			}
+			props = append(props, prop...)
+		}
+		if fe.JoinNewsByID != nil && fe.JoinNewsByID.Fetch {
+			ent.NewsByID = &NewsEntity{}
+			if prop, err = ent.NewsByID.Props(); err != nil {
+				return nil, err
+			}
+			props = append(props, prop...)
+		}
+		err = rows.Scan(props...)
+		if err != nil {
+			return nil, err
+		}
 
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
 func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -5026,10 +5129,13 @@ func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p 
 	return e, nil
 }
 
-func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCriteria) (int64, error) {
+func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&CommentFindExpr{
-		Where:  c,
-		Select: []string{"COUNT(*)"},
+		Where:   c.Where,
+		Columns: []string{"COUNT(*)"},
+
+		JoinNewsByTitle: c.JoinNewsByTitle,
+		JoinNewsByID:    c.JoinNewsByID,
 	})
 	if err != nil {
 		return 0, err
@@ -5269,6 +5375,9 @@ func (e *CompleteEntity) Prop(cn string) (interface{}, bool) {
 }
 
 func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
+	if len(cns) == 0 {
+		cns = TableCompleteColumns
+	}
 	res := make([]interface{}, 0, len(cns))
 	for _, cn := range cns {
 		if prop, ok := e.Prop(cn); ok {
@@ -5371,13 +5480,17 @@ type CompleteCriteria struct {
 type CompleteFindExpr struct {
 	Where         *CompleteCriteria
 	Offset, Limit int64
-	Select        []string
+	Columns       []string
 	OrderBy       map[string]bool
+}
+
+type CompleteCountExpr struct {
+	Where *CompleteCriteria
 }
 
 type CompleteJoin struct {
 	On, Where *CompleteCriteria
-	Select    bool
+	Fetch     bool
 	Kind      JoinType
 }
 
@@ -6824,10 +6937,10 @@ func CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) er
 func (r *CompleteRepositoryBase) FindQuery(fe *CompleteFindExpr) (string, []interface{}, error) {
 	comp := NewComposer(33)
 	buf := bytes.NewBufferString("SELECT ")
-	if len(fe.Select) == 0 {
+	if len(fe.Columns) == 0 {
 		buf.WriteString("t0.column_bool, t0.column_bytea, t0.column_character_0, t0.column_character_100, t0.column_decimal, t0.column_double_array_0, t0.column_double_array_100, t0.column_integer, t0.column_integer_array_0, t0.column_integer_array_100, t0.column_integer_big, t0.column_integer_big_array_0, t0.column_integer_big_array_100, t0.column_integer_small, t0.column_integer_small_array_0, t0.column_integer_small_array_100, t0.column_json, t0.column_json_nn, t0.column_json_nn_d, t0.column_jsonb, t0.column_jsonb_nn, t0.column_jsonb_nn_d, t0.column_numeric, t0.column_real, t0.column_serial, t0.column_serial_big, t0.column_serial_small, t0.column_text, t0.column_text_array_0, t0.column_text_array_100, t0.column_timestamp, t0.column_timestamptz, t0.column_uuid")
 	} else {
-		buf.WriteString(strings.Join(fe.Select, ", "))
+		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
@@ -6926,9 +7039,26 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 
-	return ScanCompleteRows(rows)
-}
+	var entities []*CompleteEntity
+	var props []interface{}
+	for rows.Next() {
+		var ent CompleteEntity
+		if props, err = ent.Props(); err != nil {
+			return nil, err
+		}
+		err = rows.Scan(props...)
+		if err != nil {
+			return nil, err
+		}
 
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return entities, nil
+}
 func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindExpr) (*CompleteIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -8320,10 +8450,10 @@ func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, 
 	return e, nil
 }
 
-func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCriteria) (int64, error) {
+func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&CompleteFindExpr{
-		Where:  c,
-		Select: []string{"COUNT(*)"},
+		Where:   c.Where,
+		Columns: []string{"COUNT(*)"},
 	})
 	if err != nil {
 		return 0, err

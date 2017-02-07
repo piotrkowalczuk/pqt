@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"reflect"
+
 	"github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
@@ -48,8 +50,8 @@ var testCommentFindData = map[string]struct {
 				},
 			},
 			JoinNewsByID: &model.NewsJoin{
-				Kind:   model.JoinLeft,
-				Select: true,
+				Kind:  model.JoinLeft,
+				Fetch: true,
 				On: &model.NewsCriteria{
 					Title: sql.NullString{String: "title - minimum", Valid: true},
 				},
@@ -128,12 +130,22 @@ func TestCommentRepositoryBase_Find(t *testing.T) {
 	expected := 10
 	populateNews(t, s.news, expected)
 	populateComment(t, s.comment, expected)
-	got, err := s.comment.Find(context.Background(), &model.CommentFindExpr{})
+	got, err := s.comment.Find(context.Background(), &model.CommentFindExpr{
+		JoinNewsByID: &model.NewsJoin{
+			Kind:  model.JoinLeft,
+			Fetch: true,
+		},
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if len(got) != expected {
-		t.Errorf("wrong output, expected %d but got %d", expected, got)
+		t.Errorf("wrong output, expected %d but got %d", expected, len(got))
+	}
+	for _, g := range got {
+		if g.NewsByID == nil || reflect.DeepEqual(*g.NewsByID, model.NewsEntity{}) {
+			t.Errorf("news expected to be fetched, got: %#v", g.NewsByID)
+		}
 	}
 }
 
@@ -162,6 +174,26 @@ func TestCommentRepositoryBase_FindIter(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if len(got) != expected {
+		t.Errorf("wrong output, expected %d but got %d", expected, got)
+	}
+}
+
+func TestCommentRepositoryBase_Count(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	expected := 10
+	populateNews(t, s.news, expected)
+	populateComment(t, s.comment, expected)
+	got, err := s.comment.Count(context.Background(), &model.CommentCountExpr{
+		JoinNewsByID: &model.NewsJoin{
+			Kind: model.JoinLeft,
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+	if got != int64(expected) {
 		t.Errorf("wrong output, expected %d but got %d", expected, got)
 	}
 }

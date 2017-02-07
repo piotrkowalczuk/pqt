@@ -425,7 +425,7 @@ func TestNewsRepositoryBase_Count(t *testing.T) {
 
 	expected := 10
 	populateNews(t, s.news, expected)
-	got, err := s.news.Count(context.Background(), &model.NewsCriteria{})
+	got, err := s.news.Count(context.Background(), &model.NewsCountExpr{})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
