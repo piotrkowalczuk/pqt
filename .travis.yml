@@ -1,13 +1,18 @@
 language: go
 go:
-  - tip
+  - 1.8.x
+  - master
 addons:
   postgresql: '9.4'
-before_script:
+before_install:
   - psql -c 'create database travis_ci_test;' -U postgres
+  - mkdir -p $GOPATH/bin
+  - curl https://glide.sh/get | sh
 install:
   - go get github.com/aryann/difflib
   - go get ./...
+  - cd ./example/ && glide install
+  - cd ../
 script:
   - ./test.sh
 env:

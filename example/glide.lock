@@ -1,0 +1,20 @@
+hash: f28da3388360a6a636e88b193991f995c003de1a0b4836d01a4839c930f82d97
+updated: 2017-02-07T22:06:04.504126663+01:00
+imports:
+- name: github.com/go-kit/kit
+  version: f66b0e13579bfc5a48b9e2a94b1209c107ea1f41
+  subpackages:
+  - log
+- name: github.com/go-logfmt/logfmt
+  version: 390ab7935ee28ec6b286364bba9b4dd6410cb3d5
+- name: github.com/go-stack/stack
+  version: 100eb0c0a9c5b306ca2fb4f165df21d80ada4b82
+- name: github.com/kr/logfmt
+  version: b84e30acd515aadc4b783ad4ff83aff3299bdfe0
+- name: github.com/lib/pq
+  version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617
+  subpackages:
+  - oid
+- name: github.com/piotrkowalczuk/sklog
+  version: ec5c8660c571ff906c65341ba96de449706d63fa
+testImports: []
