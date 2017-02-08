@@ -2,3 +2,5 @@
 .idea
 coverage.txt
 *cover*
+*.out
+vendor

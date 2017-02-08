@@ -42,6 +42,7 @@ type Relationship struct {
 	OwnerName, InversedName                 string
 	OwnerTable, InversedTable, ThroughTable *Table
 	OwnerForeignKey, InversedForeignKey     *Constraint
+	OwnerColumns, InversedColumns           Columns
 	ColumnName                              string
 	OnDelete, OnUpdate                      int32
 }
