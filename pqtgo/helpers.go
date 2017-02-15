@@ -136,9 +136,10 @@ var keywords = map[string]string{
 }
 
 type structField struct {
-	Name string
-	Type string
-	Tags reflect.StructTag
+	Name     string
+	Type     string
+	Tags     reflect.StructTag
+	ReadOnly bool
 }
 
 func or(s1, s2 string) string {

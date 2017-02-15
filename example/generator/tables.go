@@ -3,6 +3,21 @@ package main
 import "github.com/piotrkowalczuk/pqt"
 
 func schema(sn string) *pqt.Schema {
+	multiply := &pqt.Function{
+		Name: "multiply",
+		Type: pqt.TypeIntegerBig(),
+		Body: "SELECT x * y",
+		Args: []*pqt.FunctionArg{
+			{
+				Name: "x",
+				Type: pqt.TypeIntegerBig(),
+			},
+			{
+				Name: "y",
+				Type: pqt.TypeIntegerBig(),
+			},
+		},
+	}
 	title := pqt.NewColumn("title", pqt.TypeText(), pqt.WithNotNull(), pqt.WithUnique())
 	lead := pqt.NewColumn("lead", pqt.TypeText())
 
@@ -17,15 +32,18 @@ func schema(sn string) *pqt.Schema {
 		AddColumn(pqt.NewColumn("meta_data", pqt.TypeJSONB())).
 		AddUnique(title, lead)
 
+	commentID := pqt.NewColumn("id", pqt.TypeSerialBig())
 	comment := pqt.NewTable("comment", pqt.WithTableIfNotExists()).
-		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig())).
+		AddColumn(commentID).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
 		AddColumn(pqt.NewColumn(
 			"news_title",
 			pqt.TypeText(),
 			pqt.WithNotNull(),
 			pqt.WithReference(title, pqt.WithBidirectional(), pqt.WithOwnerName("comments_by_news_title"), pqt.WithInversedName("news_by_title")),
-		))
+		)).
+		AddColumn(pqt.NewDynamicColumn("right_now", pqt.FunctionNow())).
+		AddColumn(pqt.NewDynamicColumn("id_multiply", multiply, commentID, commentID))
 
 	category := pqt.NewTable("category", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
@@ -98,7 +116,8 @@ func schema(sn string) *pqt.Schema {
 		AddTable(pkg).
 		AddTable(news).
 		AddTable(comment).
-		AddTable(complete)
+		AddTable(complete).
+		AddFunction(multiply)
 }
 
 func timestampable(t *pqt.Table) {

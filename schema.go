@@ -5,8 +5,8 @@ type Schema struct {
 	Name        string
 	IfNotExists bool
 	Tables      []*Table
-	Types       []Type
 	Functions   []*Function
+	Types       []Type
 }
 
 // NewSchema ...
@@ -34,6 +34,15 @@ func (s *Schema) AddTable(t *Table) *Schema {
 		*t.Schema = *s
 	}
 	s.Tables = append(s.Tables, t)
+	return s
+}
+
+func (s *Schema) AddFunction(f *Function) *Schema {
+	if s.Functions == nil {
+		s.Functions = make([]*Function, 0, 1)
+	}
+	s.Functions = append(s.Functions, f)
+
 	return s
 }
 

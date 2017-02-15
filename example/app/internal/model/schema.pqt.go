@@ -361,14 +361,15 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		buf.WriteString(") VALUES (")
 		buf.ReadFrom(insert)
 		buf.WriteString(") ")
+		buf.WriteString("RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("content, created_at, id, name, parent_id, updated_at")
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
-
 func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -618,11 +619,17 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 		entities = append(entities, &ent)
 	}
 	if err = rows.Err(); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
 	}
-
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+	}
 	return entities, nil
 }
+
 func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindExpr) (*CategoryIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -637,7 +644,11 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
 	find := NewComposer(6)
 	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) == 0 {
+		find.WriteString("content, created_at, id, name, parent_id, updated_at")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
 	find.WriteString(" FROM ")
 	find.WriteString(TableCategory)
 	find.WriteString(" WHERE ")
@@ -654,7 +665,14 @@ func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Ca
 	}
 	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query failure", "query", find.String(), "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query success", "query", find.String(), "table", r.Table)
 	}
 
 	return &ent, nil
@@ -790,8 +808,11 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 
 	buf.ReadFrom(update)
 	buf.WriteString(" RETURNING ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-
+	if len(r.Columns) > 0 {
+		buf.WriteString(strings.Join(r.Columns, ", "))
+	} else {
+		buf.WriteString("content, created_at, id, name, parent_id, updated_at")
+	}
 	return buf.String(), update.Args(), nil
 }
 func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *CategoryPatch) (*CategoryEntity, error) {
@@ -1062,9 +1083,11 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 		buf.WriteString(" DO NOTHING ")
 	}
 	if upsert.Dirty {
+		buf.WriteString(" RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString(" RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("content, created_at, id, name, parent_id, updated_at")
 		}
 	}
 	return buf.String(), upsert.Args(), nil
@@ -1415,14 +1438,15 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 		buf.WriteString(") VALUES (")
 		buf.ReadFrom(insert)
 		buf.WriteString(") ")
+		buf.WriteString("RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("break, category_id, created_at, id, updated_at")
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
-
 func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -1678,11 +1702,17 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 		entities = append(entities, &ent)
 	}
 	if err = rows.Err(); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
 	}
-
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+	}
 	return entities, nil
 }
+
 func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExpr) (*PackageIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -1697,7 +1727,11 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
 	find := NewComposer(5)
 	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) == 0 {
+		find.WriteString("break, category_id, created_at, id, updated_at")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
 	find.WriteString(" FROM ")
 	find.WriteString(TablePackage)
 	find.WriteString(" WHERE ")
@@ -1714,7 +1748,14 @@ func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Pac
 	}
 	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query failure", "query", find.String(), "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query success", "query", find.String(), "table", r.Table)
 	}
 
 	return &ent, nil
@@ -1830,8 +1871,11 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 
 	buf.ReadFrom(update)
 	buf.WriteString(" RETURNING ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-
+	if len(r.Columns) > 0 {
+		buf.WriteString(strings.Join(r.Columns, ", "))
+	} else {
+		buf.WriteString("break, category_id, created_at, id, updated_at")
+	}
 	return buf.String(), update.Args(), nil
 }
 func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *PackagePatch) (*PackageEntity, error) {
@@ -2065,9 +2109,11 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 		buf.WriteString(" DO NOTHING ")
 	}
 	if upsert.Dirty {
+		buf.WriteString(" RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString(" RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("break, category_id, created_at, id, updated_at")
 		}
 	}
 	return buf.String(), upsert.Args(), nil
@@ -2562,14 +2608,15 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		buf.WriteString(") VALUES (")
 		buf.ReadFrom(insert)
 		buf.WriteString(") ")
+		buf.WriteString("RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
-
 func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -2903,11 +2950,17 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 		entities = append(entities, &ent)
 	}
 	if err = rows.Err(); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
 	}
-
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+	}
 	return entities, nil
 }
+
 func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*NewsIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -2922,7 +2975,11 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
 	find := NewComposer(10)
 	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) == 0 {
+		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
 	find.WriteString(" FROM ")
 	find.WriteString(TableNews)
 	find.WriteString(" WHERE ")
@@ -2939,7 +2996,14 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 	}
 	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query failure", "query", find.String(), "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query success", "query", find.String(), "table", r.Table)
 	}
 
 	return &ent, nil
@@ -2947,7 +3011,11 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
 	find := NewComposer(10)
 	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) == 0 {
+		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
 	find.WriteString(" FROM ")
 	find.WriteString(TableNews)
 	find.WriteString(" WHERE ")
@@ -2973,7 +3041,11 @@ func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle strin
 func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
 	find := NewComposer(10)
 	find.WriteString("SELECT ")
-	find.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) == 0 {
+		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
 	find.WriteString(" FROM ")
 	find.WriteString(TableNews)
 	find.WriteString(" WHERE ")
@@ -3212,8 +3284,11 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 
 	buf.ReadFrom(update)
 	buf.WriteString(" RETURNING ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
-
+	if len(r.Columns) > 0 {
+		buf.WriteString(strings.Join(r.Columns, ", "))
+	} else {
+		buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	}
 	return buf.String(), update.Args(), nil
 }
 func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *NewsPatch) (*NewsEntity, error) {
@@ -3446,7 +3521,11 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 	update.Add(newsTitle)
 	buf.ReadFrom(update)
 	buf.WriteString(" RETURNING ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) > 0 {
+		buf.WriteString(strings.Join(r.Columns, ", "))
+	} else {
+		buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	}
 	return buf.String(), update.Args(), nil
 }
 func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, newsLead string, p *NewsPatch) (string, []interface{}, error) {
@@ -3663,7 +3742,11 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 	update.Add(newsLead)
 	buf.ReadFrom(update)
 	buf.WriteString(" RETURNING ")
-	buf.WriteString(strings.Join(r.Columns, ", "))
+	if len(r.Columns) > 0 {
+		buf.WriteString(strings.Join(r.Columns, ", "))
+	} else {
+		buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	}
 	return buf.String(), update.Args(), nil
 }
 func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle string, p *NewsPatch) (*NewsEntity, error) {
@@ -4121,9 +4204,11 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 		buf.WriteString(" DO NOTHING ")
 	}
 	if upsert.Dirty {
+		buf.WriteString(" RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString(" RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
 		}
 	}
 	return buf.String(), upsert.Args(), nil
@@ -4199,8 +4284,10 @@ const (
 	TableCommentColumnContent              = "content"
 	TableCommentColumnCreatedAt            = "created_at"
 	TableCommentColumnID                   = "id"
+	TableCommentColumnIDMultiply           = "id_multiply"
 	TableCommentColumnNewsID               = "news_id"
 	TableCommentColumnNewsTitle            = "news_title"
+	TableCommentColumnRightNow             = "right_now"
 	TableCommentColumnUpdatedAt            = "updated_at"
 	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
 
@@ -4212,8 +4299,10 @@ var (
 		TableCommentColumnContent,
 		TableCommentColumnCreatedAt,
 		TableCommentColumnID,
+		TableCommentColumnIDMultiply,
 		TableCommentColumnNewsID,
 		TableCommentColumnNewsTitle,
+		TableCommentColumnRightNow,
 		TableCommentColumnUpdatedAt,
 	}
 )
@@ -4226,10 +4315,16 @@ type CommentEntity struct {
 	CreatedAt time.Time
 	// ID ...
 	ID sql.NullInt64
+	// IDMultiply ...
+	// IDMultiply is read only
+	IDMultiply int64
 	// NewsID ...
 	NewsID int64
 	// NewsTitle ...
 	NewsTitle string
+	// RightNow ...
+	// RightNow is read only
+	RightNow time.Time
 	// UpdatedAt ...
 	UpdatedAt pq.NullTime
 	// NewsByTitle ...
@@ -4247,10 +4342,14 @@ func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
 		return &e.CreatedAt, true
 	case TableCommentColumnID:
 		return &e.ID, true
+	case TableCommentColumnIDMultiply:
+		return &e.IDMultiply, true
 	case TableCommentColumnNewsID:
 		return &e.NewsID, true
 	case TableCommentColumnNewsTitle:
 		return &e.NewsTitle, true
+	case TableCommentColumnRightNow:
+		return &e.RightNow, true
 	case TableCommentColumnUpdatedAt:
 		return &e.UpdatedAt, true
 	default:
@@ -4326,12 +4425,14 @@ func (i *CommentIterator) Comment() (*CommentEntity, error) {
 }
 
 type CommentCriteria struct {
-	Content   sql.NullString
-	CreatedAt pq.NullTime
-	ID        sql.NullInt64
-	NewsID    sql.NullInt64
-	NewsTitle sql.NullString
-	UpdatedAt pq.NullTime
+	Content    sql.NullString
+	CreatedAt  pq.NullTime
+	ID         sql.NullInt64
+	IDMultiply sql.NullInt64
+	NewsID     sql.NullInt64
+	NewsTitle  sql.NullString
+	RightNow   pq.NullTime
+	UpdatedAt  pq.NullTime
 }
 
 type CommentFindExpr struct {
@@ -4358,12 +4459,14 @@ type CommentJoin struct {
 }
 
 type CommentPatch struct {
-	Content   sql.NullString
-	CreatedAt pq.NullTime
-	ID        sql.NullInt64
-	NewsID    sql.NullInt64
-	NewsTitle sql.NullString
-	UpdatedAt pq.NullTime
+	Content    sql.NullString
+	CreatedAt  pq.NullTime
+	ID         sql.NullInt64
+	IDMultiply sql.NullInt64
+	NewsID     sql.NullInt64
+	NewsTitle  sql.NullString
+	RightNow   pq.NullTime
+	UpdatedAt  pq.NullTime
 }
 
 func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
@@ -4372,8 +4475,10 @@ func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
 		err = rows.Scan(&ent.Content,
 			&ent.CreatedAt,
 			&ent.ID,
+			&ent.IDMultiply,
 			&ent.NewsID,
 			&ent.NewsTitle,
+			&ent.RightNow,
 			&ent.UpdatedAt,
 		)
 		if err != nil {
@@ -4398,7 +4503,7 @@ type CommentRepositoryBase struct {
 }
 
 func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interface{}, error) {
-	insert := NewComposer(6)
+	insert := NewComposer(8)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
@@ -4508,14 +4613,15 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		buf.WriteString(") VALUES (")
 		buf.ReadFrom(insert)
 		buf.WriteString(") ")
+		buf.WriteString("RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("content, created_at, id, multiply(id, id) AS id_multiply, news_id, news_title, now() AS right_now, updated_at")
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
-
 func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -4524,8 +4630,10 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
 		&e.CreatedAt,
 		&e.ID,
+		&e.IDMultiply,
 		&e.NewsID,
 		&e.NewsTitle,
+		&e.RightNow,
 		&e.UpdatedAt,
 	); err != nil {
 		if r.Debug {
@@ -4582,6 +4690,26 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 
 	// id is an empty struct, ignore
 
+	if c.IDMultiply.Valid {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableCommentColumnIDMultiply); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.IDMultiply)
+		comp.Dirty = true
+	}
+
 	if c.NewsID.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -4622,6 +4750,26 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 		comp.Dirty = true
 	}
 
+	if c.RightNow.Valid {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableCommentColumnRightNow); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.RightNow)
+		comp.Dirty = true
+	}
+
 	if c.UpdatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -4646,10 +4794,10 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 }
 
 func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interface{}, error) {
-	comp := NewComposer(6)
+	comp := NewComposer(8)
 	buf := bytes.NewBufferString("SELECT ")
 	if len(fe.Columns) == 0 {
-		buf.WriteString("t0.content, t0.created_at, t0.id, t0.news_id, t0.news_title, t0.updated_at")
+		buf.WriteString("t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at")
 	} else {
 		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
@@ -4818,11 +4966,17 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 		entities = append(entities, &ent)
 	}
 	if err = rows.Err(); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
 	}
-
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+	}
 	return entities, nil
 }
+
 func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -4835,7 +4989,7 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	return &CommentIterator{rows: rows}, nil
 }
 func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, inf ...string) (string, []interface{}, error) {
-	upsert := NewComposer(12)
+	upsert := NewComposer(16)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
@@ -5099,9 +5253,11 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 		buf.WriteString(" DO NOTHING ")
 	}
 	if upsert.Dirty {
+		buf.WriteString(" RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString(" RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("content, created_at, id, multiply(id, id) AS id_multiply, news_id, news_title, now() AS right_now, updated_at")
 		}
 	}
 	return buf.String(), upsert.Args(), nil
@@ -5114,8 +5270,10 @@ func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p 
 	if err := r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
 		&e.CreatedAt,
 		&e.ID,
+		&e.IDMultiply,
 		&e.NewsID,
 		&e.NewsTitle,
+		&e.RightNow,
 		&e.UpdatedAt,
 	); err != nil {
 		if r.Debug {
@@ -6230,14 +6388,15 @@ func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []inter
 		buf.WriteString(") VALUES (")
 		buf.ReadFrom(insert)
 		buf.WriteString(") ")
+		buf.WriteString("RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString("RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("column_bool, column_bytea, column_character_0, column_character_100, column_decimal, column_double_array_0, column_double_array_100, column_integer, column_integer_array_0, column_integer_array_100, column_integer_big, column_integer_big_array_0, column_integer_big_array_100, column_integer_small, column_integer_small_array_0, column_integer_small_array_100, column_json, column_json_nn, column_json_nn_d, column_jsonb, column_jsonb_nn, column_jsonb_nn_d, column_numeric, column_real, column_serial, column_serial_big, column_serial_small, column_text, column_text_array_0, column_text_array_100, column_timestamp, column_timestamptz, column_uuid")
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
-
 func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
 	query, args, err := r.InsertQuery(e)
 	if err != nil {
@@ -7054,11 +7213,17 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 		entities = append(entities, &ent)
 	}
 	if err = rows.Err(); err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
 	}
-
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+	}
 	return entities, nil
 }
+
 func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindExpr) (*CompleteIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -8393,9 +8558,11 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 		buf.WriteString(" DO NOTHING ")
 	}
 	if upsert.Dirty {
+		buf.WriteString(" RETURNING ")
 		if len(r.Columns) > 0 {
-			buf.WriteString(" RETURNING ")
 			buf.WriteString(strings.Join(r.Columns, ", "))
+		} else {
+			buf.WriteString("column_bool, column_bytea, column_character_0, column_character_100, column_decimal, column_double_array_0, column_double_array_100, column_integer, column_integer_array_0, column_integer_array_100, column_integer_big, column_integer_big_array_0, column_integer_big_array_100, column_integer_small, column_integer_small_array_0, column_integer_small_array_100, column_json, column_json_nn, column_json_nn_d, column_jsonb, column_jsonb_nn, column_jsonb_nn_d, column_numeric, column_real, column_serial, column_serial_big, column_serial_small, column_text, column_text_array_0, column_text_array_100, column_timestamp, column_timestamptz, column_uuid")
 		}
 	}
 	return buf.String(), upsert.Args(), nil
@@ -8942,6 +9109,11 @@ const SQL = `
 -- do not modify, generated by pqt
 
 CREATE SCHEMA IF NOT EXISTS example; 
+
+CREATE OR REPLACE FUNCTION multiply(x BIGINT, y BIGINT) RETURNS BIGINT
+	AS 'SELECT x * y'
+	LANGUAGE SQL
+	VOLATILE;
 
 CREATE TABLE IF NOT EXISTS example.category (
 	content TEXT NOT NULL,

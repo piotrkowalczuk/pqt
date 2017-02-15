@@ -23,7 +23,7 @@ var testCommentFindData = map[string]struct {
 				Content: sql.NullString{String: "content - minimum", Valid: true},
 			},
 		},
-		query: "SELECT " + join(model.TableCommentColumns, 0) + " FROM example.comment AS t0 WHERE t0.content=$1",
+		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at FROM example.comment AS t0 WHERE t0.content=$1",
 	},
 	"minimum-join-news-by-id": {
 		expr: model.CommentFindExpr{
@@ -34,7 +34,7 @@ var testCommentFindData = map[string]struct {
 				Kind: model.JoinInner,
 			},
 		},
-		query: "SELECT " + join(model.TableCommentColumns, 0) + " FROM example.comment AS t0 INNER JOIN example.news AS t1 ON t0.news_title=t1.title WHERE t0.content=$1",
+		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at FROM example.comment AS t0 INNER JOIN example.news AS t1 ON t0.news_title=t1.title WHERE t0.content=$1",
 	},
 	"full": {
 		expr: model.CommentFindExpr{
@@ -83,7 +83,7 @@ var testCommentFindData = map[string]struct {
 				},
 			},
 		},
-		query: "SELECT " + join(model.TableCommentColumns, 0) + ", " + join(model.TableNewsColumns, 2) + " FROM example.comment AS t0 LEFT JOIN example.news AS t2 ON t0.news_id=t2.id AND t2.title=$1 WHERE t0.content=$2 AND t0.created_at=$3 AND t0.updated_at=$4 AND t2.content=$5 AND t2.continue=$6 AND t2.created_at=$7 AND t2.lead=$8 AND t2.meta_data=$9 AND t2.score=$10 AND t2.title=$11 AND t2.updated_at=$12 AND t2.views_distribution=$13",
+		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at, " + join(model.TableNewsColumns, 2) + " FROM example.comment AS t0 LEFT JOIN example.news AS t2 ON t0.news_id=t2.id AND t2.title=$1 WHERE t0.content=$2 AND t0.created_at=$3 AND t0.updated_at=$4 AND t2.content=$5 AND t2.continue=$6 AND t2.created_at=$7 AND t2.lead=$8 AND t2.meta_data=$9 AND t2.score=$10 AND t2.title=$11 AND t2.updated_at=$12 AND t2.views_distribution=$13",
 	},
 }
 
@@ -146,6 +146,18 @@ func TestCommentRepositoryBase_Find(t *testing.T) {
 		if g.NewsByID == nil || reflect.DeepEqual(*g.NewsByID, model.NewsEntity{}) {
 			t.Errorf("news expected to be fetched, got: %#v", g.NewsByID)
 		}
+		if g.RightNow.IsZero() {
+			t.Error("dynamic column right_now is invalid")
+		} else {
+			t.Logf("dynamic column right_now has value: %v", g.RightNow)
+		}
+		if g.IDMultiply == 0 {
+			t.Error("dynamic column id_multiply is zero")
+		} else if (g.ID.Int64 * g.ID.Int64) != (g.IDMultiply) {
+			t.Logf("dynamic column id_multiply has wrong value, expected %d but got %d", (g.ID.Int64 * g.ID.Int64), g.IDMultiply)
+		} else {
+			t.Logf("dynamic column id_multiply has value: %v", g.IDMultiply)
+		}
 	}
 }
 
@@ -200,8 +212,7 @@ func TestCommentRepositoryBase_Count(t *testing.T) {
 
 func populateComment(t testing.TB, r *model.CommentRepositoryBase, nb int) {
 	for i := 1; i <= nb; i++ {
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		_, err := r.Insert(ctx, &model.CommentEntity{
+		_, err := r.Insert(context.Background(), &model.CommentEntity{
 			NewsID:    int64(i),
 			NewsTitle: fmt.Sprintf("title-%d", i),
 			Content:   fmt.Sprintf("content-%d", i),
@@ -209,6 +220,5 @@ func populateComment(t testing.TB, r *model.CommentRepositoryBase, nb int) {
 		if err != nil {
 			t.Fatalf("unexpected error #%d: %s", i, err.Error())
 		}
-		cancel()
 	}
 }
