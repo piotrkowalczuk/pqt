@@ -19,7 +19,7 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	flag.BoolVar(&testPostgresDebug, "postgres.debug", getBoolEnvOr("PQT_POSTGRES_DEBUG", true), "if true, all queries will be logged")
+	flag.BoolVar(&testPostgresDebug, "postgres.debug", getBoolEnvOr("PQT_POSTGRES_DEBUG", false), "if true, all queries will be logged")
 	flag.StringVar(&testPostgresAddress, "postgres.address", getStringEnvOr("PQT_POSTGRES_ADDRESS", "postgres://postgres:@localhost/test?sslmode=disable"), "postgres database connection address")
 	flag.Parse()
 
