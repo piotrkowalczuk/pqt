@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
-	"github.com/piotrkowalczuk/sklog"
 )
 
 var (
@@ -72,32 +71,27 @@ func setup(t testing.TB) *suite {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 
-	logger := sklog.NewTestLogger(t)
 	return &suite{
 		db: db,
 		news: &model.NewsRepositoryBase{
 			Table: model.TableNews,
 			DB:    db,
 			Debug: testPostgresDebug,
-			Log:   logger,
 		},
 		comment: &model.CommentRepositoryBase{
 			Table: model.TableComment,
 			DB:    db,
 			Debug: testPostgresDebug,
-			Log:   logger,
 		},
 		category: &model.CategoryRepositoryBase{
 			Table: model.TableCategory,
 			DB:    db,
 			Debug: testPostgresDebug,
-			Log:   logger,
 		},
 		complete: &model.CompleteRepositoryBase{
 			Table: model.TableComplete,
 			DB:    db,
 			Debug: testPostgresDebug,
-			Log:   logger,
 		},
 	}
 }
