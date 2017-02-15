@@ -26,6 +26,10 @@ type Column struct {
 	ReferenceOptions                                                     []RelationshipOption
 	Match, OnDelete, OnUpdate                                            int32
 	NoInherit, DeferrableInitiallyDeferred, DeferrableInitiallyImmediate bool
+	// Dynamic
+	IsDynamic bool
+	Func      *Function
+	Columns   Columns
 }
 
 // NewColumn ...
@@ -40,6 +44,18 @@ func NewColumn(n string, t Type, opts ...ColumnOption) *Column {
 	}
 
 	return c
+}
+
+// NewDynamicColumn ...
+func NewDynamicColumn(n string, f *Function, cs ...*Column) *Column {
+	return &Column{
+		IsDynamic: true,
+		NotNull:   true,
+		Name:      n,
+		Type:      f.Type,
+		Func:      f,
+		Columns:   cs,
+	}
 }
 
 // Constraints ...

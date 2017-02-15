@@ -197,6 +197,10 @@ func (g *Generator) generateEntity(w io.Writer, t *pqt.Table) {
 	for prop := range g.entityPropertiesGenerator(t) {
 		fmt.Fprintf(w, `
 			// %s ...`, g.Formatter.Identifier(prop.Name))
+		if prop.ReadOnly {
+			fmt.Fprintf(w, `
+			// %s is read only`, g.Formatter.Identifier(prop.Name))
+		}
 		if prop.Tags != "" {
 			fmt.Fprintf(w,
 				`%s %s %s`,
@@ -377,7 +381,7 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 	go func(out chan structField) {
 		for _, c := range t.Columns {
 			if t := g.columnType(c, ModeDefault); t != "<nil>" {
-				out <- structField{Name: g.Formatter.Identifier(c.Name), Type: t}
+				out <- structField{Name: g.Formatter.Identifier(c.Name), Type: t, ReadOnly: c.IsDynamic}
 			}
 		}
 
@@ -445,9 +449,9 @@ func (g *Generator) generateColumns(w io.Writer, table *pqt.Table) {
 		var (
 			%s  = []string{`, g.Formatter.Identifier("table", table.Name, "columns"))
 
-	for _, name := range sortedColumns(table.Columns) {
+	for _, c := range table.Columns {
 		fmt.Fprintf(w, `
-			%s,`, g.Formatter.Identifier("table", table.Name, "column", name))
+			%s,`, g.Formatter.Identifier("table", table.Name, "column", c.Name))
 	}
 	io.WriteString(w, `
 		})`)
@@ -466,9 +470,9 @@ func (g *Generator) generateConstantsColumns(w io.Writer, table *pqt.Table) {
 	fmt.Fprintf(w, `
 		%s = "%s"`, g.Formatter.Identifier("table", table.Name), table.FullName())
 
-	for _, name := range sortedColumns(table.Columns) {
+	for _, c := range table.Columns {
 		fmt.Fprintf(w, `
-			%s = "%s"`, g.Formatter.Identifier("table", table.Name, "column", name), name)
+			%s = "%s"`, g.Formatter.Identifier("table", table.Name, "column", c.Name), c.Name)
 	}
 }
 
@@ -501,8 +505,8 @@ func (g *Generator) generateConstantsConstraints(w io.Writer, table *pqt.Table) 
 	}
 }
 
-func (g *Generator) generateRepositoryInsertQuery(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
+func (g *Generator) generateRepositoryInsertQuery(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %sQuery(e *%sEntity) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("insert"), entityName)
@@ -511,28 +515,38 @@ func (g *Generator) generateRepositoryInsertQuery(w io.Writer, table *pqt.Table)
 		columns := bytes.NewBuffer(nil)
 		buf := bytes.NewBufferString("INSERT INTO ")
 		buf.WriteString(r.%s)
-	`, len(table.Columns), g.Formatter.Identifier("table"))
+	`, len(t.Columns), g.Formatter.Identifier("table"))
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
+		if c.IsDynamic {
+			continue
+		}
 		g.generateRepositoryInsertClause(w, c, "insert")
 	}
-	fmt.Fprintf(w, `if columns.Len() > 0 {
-				buf.WriteString(" (")
-				buf.ReadFrom(columns)
-				buf.WriteString(") VALUES (")
-				buf.ReadFrom(insert)
-				buf.WriteString(") ")
-				if len(r.%s) > 0 {
-					buf.WriteString("RETURNING ")
-					buf.WriteString(strings.Join(r.%s, ", "))
-				}
-			}
-			return buf.String(), insert.Args(), nil
-}
-`,
+	fmt.Fprint(w, `
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")`)
+	fmt.Fprintf(w, `
+			buf.WriteString("RETURNING ")
+			if len(r.%s) > 0 {
+				buf.WriteString(strings.Join(r.%s, ", "))
+			} else {`,
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("columns"),
 	)
+	fmt.Fprint(w, `
+		buf.WriteString("`)
+	selectList(w, t, -1)
+	fmt.Fprint(w, `")
+	}`)
+	fmt.Fprint(w, `
+		}
+		return buf.String(), insert.Args(), nil
+	}`)
 }
 
 func (g *Generator) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
@@ -712,9 +726,9 @@ func (g *Generator) generateRepositoryInsertClause(w io.Writer, c *pqt.Column, s
 	}
 }
 
-func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
-	pk, ok := table.PrimaryKey()
+func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
 	}
@@ -731,10 +745,10 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, ta
 		buf.WriteString(r.%s)
 		update := NewComposer(%d)`,
 		g.Formatter.Identifier("table"),
-		len(table.Columns),
+		len(t.Columns),
 	)
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
 		g.generateRepositorySetClause(w, c, "update")
 	}
 	fmt.Fprintf(w, `
@@ -754,13 +768,22 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, ta
 
 		buf.ReadFrom(update)
 		buf.WriteString(" RETURNING ")
-		buf.WriteString(strings.Join(r.%s, ", "))
-
-		return buf.String(), update.Args(), nil
-	}`,
-		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
+		if len(r.%s) > 0 {
+			buf.WriteString(strings.Join(r.%s, ", "))
+		} else {`,
+		g.Formatter.Identifier("table", t.Name, "column", pk.Name),
+		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("columns"),
 	)
+
+	fmt.Fprint(w, `
+		buf.WriteString("`)
+	selectList(w, t, -1)
+	fmt.Fprint(w, `")
+	}`)
+	fmt.Fprint(w, `
+		return buf.String(), update.Args(), nil
+	}`)
 }
 
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
@@ -869,10 +892,21 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 		fmt.Fprintf(w, `
 			buf.ReadFrom(update)
 			buf.WriteString(" RETURNING ")
-			buf.WriteString(strings.Join(r.%s, ", "))`, g.Formatter.Identifier("columns"))
+			if len(r.%s) > 0 {
+				buf.WriteString(strings.Join(r.%s, ", "))
+			} else {`,
+			g.Formatter.Identifier("columns"),
+			g.Formatter.Identifier("columns"),
+		)
+
 		fmt.Fprint(w, `
-			return buf.String(), update.Args(), nil
-			}`)
+		buf.WriteString("`)
+		selectList(w, table, -1)
+		fmt.Fprint(w, `")
+	}`)
+		fmt.Fprint(w, `
+		return buf.String(), update.Args(), nil
+	}`)
 	}
 }
 
@@ -948,11 +982,11 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 	}
 }
 
-func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, table *pqt.Table) {
+func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, t *pqt.Table) {
 	if g.Version < 9.5 {
 		return
 	}
-	entityName := g.Formatter.Identifier(table.Name)
+	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %sQuery(e *%sEntity, p *%sPatch, inf ...string) (string, []interface{}, error) {`,
@@ -966,9 +1000,12 @@ func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, table *pqt.Table)
 		columns := bytes.NewBuffer(nil)
 		buf := bytes.NewBufferString("INSERT INTO ")
 		buf.WriteString(r.%s)
-	`, len(table.Columns)*2, g.Formatter.Identifier("table"))
+	`, len(t.Columns)*2, g.Formatter.Identifier("table"))
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
+		if c.IsDynamic {
+			continue
+		}
 		g.generateRepositoryInsertClause(w, c, "upsert")
 	}
 
@@ -986,7 +1023,10 @@ func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, table *pqt.Table)
 	fmt.Fprint(w, `
 		if len(inf) > 0 {
 		upsert.Dirty=false`)
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
+		if c.IsDynamic {
+			continue
+		}
 		g.generateRepositorySetClause(w, c, "upsert")
 	}
 	closeBrace(w, 1)
@@ -1007,17 +1047,21 @@ func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, table *pqt.Table)
 			buf.WriteString(" DO NOTHING ")
 		}
 		if upsert.Dirty {
+			buf.WriteString(" RETURNING ")
 			if len(r.%s) > 0 {
-				buf.WriteString(" RETURNING ")
 				buf.WriteString(strings.Join(r.%s, ", "))
-			}
-		}`,
+			} else {`,
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("columns"),
 	)
-
 	fmt.Fprint(w, `
-	return buf.String(), upsert.Args(), nil
+		buf.WriteString("`)
+	selectList(w, t, -1)
+	fmt.Fprint(w, `")
+	}`)
+	fmt.Fprint(w, `
+		}
+		return buf.String(), upsert.Args(), nil
 	}`)
 }
 
@@ -1178,6 +1222,36 @@ func (g *Generator) generateRepositoryJoinClause(w io.Writer, s *pqt.Schema) {
 	)
 }
 
+func selectList(w io.Writer, t *pqt.Table, nb int) {
+	for i, c := range t.Columns {
+		if i != 0 {
+			fmt.Fprint(w, ", ")
+		}
+		if c.IsDynamic {
+			fmt.Fprintf(w, "%s(", c.Func.Name)
+			for i, arg := range c.Func.Args {
+				if arg.Type != c.Columns[i].Type {
+					fmt.Printf("wrong function (%s) argument type, expected %v but got %v\n", c.Func.Name, arg.Type, c.Columns[i].Type)
+				}
+				if i != 0 {
+					fmt.Fprint(w, ", ")
+				}
+				if nb > -1 {
+					fmt.Fprintf(w, "t%d.%s", nb, c.Columns[i].Name)
+				} else {
+					fmt.Fprintf(w, "%s", c.Columns[i].Name)
+				}
+			}
+			fmt.Fprintf(w, ") AS %s", c.Name)
+		} else {
+			if nb > -1 {
+				fmt.Fprintf(w, "t%d.%s", nb, c.Name)
+			} else {
+				fmt.Fprintf(w, "%s", c.Name)
+			}
+		}
+	}
+}
 func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
@@ -1188,12 +1262,7 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 		buf := bytes.NewBufferString("SELECT ")
 		if len(fe.%s) == 0 {
 		buf.WriteString("`, len(t.Columns), g.Formatter.Identifier("columns"))
-	for i, c := range t.Columns {
-		if i != 0 {
-			fmt.Fprint(w, ", ")
-		}
-		fmt.Fprintf(w, "t0.%s", c.Name)
-	}
+	selectList(w, t, 0)
 	fmt.Fprintf(w, `")
 		} else {
 			buf.WriteString(strings.Join(fe.%s, ", "))
@@ -1206,10 +1275,8 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 			g.Formatter.Identifier("fetch"),
 		)
 		fmt.Fprint(w, `
-		buf.WriteString("`)
-		for _, c := range r.InversedTable.Columns {
-			fmt.Fprintf(w, ", t%d.%s", nb+1, c.Name)
-		}
+		buf.WriteString(", `)
+		selectList(w, r.InversedTable, nb+1)
 		fmt.Fprint(w, `")`)
 		closeBrace(w, 1)
 	}
@@ -1457,13 +1524,27 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 			}
 
 			entities = append(entities, &ent)
-		}
+		}`)
+	fmt.Fprintf(w, `
 		if err = rows.Err(); err != nil {
+			if r.%s {
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.%s, "error", err.Error())
+			}
 			return nil, err
 		}
-
+		if r.%s {
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.%s)
+		}
 		return entities, nil
-	}`)
+	}
+`,
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+	)
 }
 
 func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
@@ -1557,7 +1638,16 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 	fmt.Fprintf(w, `
 		find := NewComposer(%d)
 		find.WriteString("SELECT ")
-		find.WriteString(strings.Join(r.%s, ", "))
+		if len(r.%s) == 0 {
+			find.WriteString("`,
+		len(table.Columns), g.Formatter.Identifier("columns"))
+	selectList(w, table, -1)
+	fmt.Fprintf(w, `")
+		} else {
+			find.WriteString(strings.Join(r.%s, ", "))
+		}`, g.Formatter.Identifier("columns"))
+
+	fmt.Fprintf(w, `
 		find.WriteString(" FROM ")
 		find.WriteString(%s)
 		find.WriteString(" WHERE ")
@@ -1568,8 +1658,6 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 		var (
 			ent %sEntity
 		)`,
-		len(table.Columns),
-		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("table", table.Name),
 		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
 		entityName,
@@ -1585,13 +1673,27 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
 	)
-	fmt.Fprint(w, `
+	fmt.Fprintf(w, `
 		if err != nil {
+			if r.%s {
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query failure", "query", find.String(), "table", r.%s, "error", err.Error())
+			}
 			return nil, err
 		}
 
+		if r.%s {
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query success", "query", find.String(), "table", r.%s)
+		}
+
 		return &ent, nil
-	}`)
+	}`,
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+	)
 }
 
 func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
@@ -1620,12 +1722,19 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 		fmt.Fprintf(w, `
 			find := NewComposer(%d)
 			find.WriteString("SELECT ")
+					if len(r.%s) == 0 {
+			find.WriteString("`,
+			len(table.Columns), g.Formatter.Identifier("columns"))
+		selectList(w, table, -1)
+		fmt.Fprintf(w, `")
+		} else {
 			find.WriteString(strings.Join(r.%s, ", "))
+		}`, g.Formatter.Identifier("columns"))
+
+		fmt.Fprintf(w, `
 			find.WriteString(" FROM ")
 			find.WriteString(%s)
 			find.WriteString(" WHERE ")`,
-			len(table.Columns),
-			g.Formatter.Identifier("columns"),
 			g.Formatter.Identifier("table", table.Name),
 		)
 		for i, c := range u.Columns {
@@ -1759,6 +1868,7 @@ ColumnsLoop:
 			)
 		}
 	}
+
 	fmt.Fprint(w, `
 		default:`)
 	fmt.Fprint(w, `

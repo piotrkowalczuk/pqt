@@ -47,6 +47,11 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		}
 		fmt.Fprintf(code, "%s; \n\n", s.Name)
 	}
+	for _, f := range s.Functions {
+		if err := g.generateCreateFunction(code, f); err != nil {
+			return nil, err
+		}
+	}
 	for _, t := range s.Tables {
 		if err := g.generateCreateTable(code, t); err != nil {
 			return nil, err
@@ -56,16 +61,53 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	return code, nil
 }
 
+func (g *Generator) generateCreateFunction(buf *bytes.Buffer, f *pqt.Function) error {
+	if f == nil {
+		return nil
+	}
+	if f.Name == "" {
+		return errors.New("missing function name")
+	}
+
+	buf.WriteString("CREATE OR REPLACE FUNCTION ")
+	buf.WriteString(f.Name)
+	buf.WriteString("(")
+	for i, arg := range f.Args {
+		if i != 0 {
+			buf.WriteString(", ")
+		}
+		buf.WriteString(arg.Name)
+		buf.WriteString(" ")
+		buf.WriteString(arg.Type.String())
+	}
+	buf.WriteString(") RETURNS ")
+	buf.WriteString(f.Type.String())
+	buf.WriteString("\n	AS '")
+	buf.WriteString(f.Body)
+	buf.WriteString("'\n	LANGUAGE SQL")
+	switch f.Behaviour {
+	case pqt.FunctionBehaviourVolatile:
+		buf.WriteString("\n	VOLATILE")
+	case pqt.FunctionBehaviourImmutable:
+		buf.WriteString("\n	IMMUTABLE")
+	case pqt.FunctionBehaviourStable:
+		buf.WriteString("\n	STABLE")
+	}
+	buf.WriteString(";\n\n")
+
+	return nil
+}
+
 func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 	if t == nil {
 		return nil
 	}
 
 	if t.Name == "" {
-		return errors.New("pqt: missing table name")
+		return errors.New("missing table name")
 	}
 	if len(t.Columns) == 0 {
-		return fmt.Errorf("pqt: table %s has no columns", t.Name)
+		return fmt.Errorf("table %s has no columns", t.Name)
 	}
 
 	constraints := tableConstraints(t)
@@ -87,6 +129,9 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 	}
 	buf.WriteString(" (\n")
 	for i, c := range t.Columns {
+		if c.IsDynamic {
+			continue
+		}
 		buf.WriteRune('	')
 		buf.WriteString(c.Name)
 		buf.WriteRune(' ')
@@ -140,7 +185,7 @@ func (g *Generator) generateConstraint(buf *bytes.Buffer, c *pqt.Constraint) err
 	case pqt.ConstraintTypeCheck:
 		checkConstraintQuery(buf, c)
 	default:
-		return fmt.Errorf("pqt: unknown constraint type: %s", c.Type)
+		return fmt.Errorf("unknown constraint type: %s", c.Type)
 	}
 
 	return nil
@@ -157,11 +202,11 @@ func primaryKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
 func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
 	switch {
 	case len(c.Columns) == 0:
-		return errors.New("pqt: foreign key constraint require at least one column")
+		return errors.New("foreign key constraint require at least one column")
 	case len(c.ReferenceColumns) == 0:
-		return errors.New("pqt: foreign key constraint require at least one reference column")
+		return errors.New("foreign key constraint require at least one reference column")
 	case c.ReferenceTable == nil:
-		return errors.New("pqt: foreiqn key constraint missing reference table")
+		return errors.New("foreiqn key constraint missing reference table")
 	}
 
 	fmt.Fprintf(buf, `CONSTRAINT "%s" FOREIGN KEY (%s) REFERENCES %s (%s)`,
@@ -203,6 +248,9 @@ func checkConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
 func tableConstraints(t *pqt.Table) []*pqt.Constraint {
 	constraints := make([]*pqt.Constraint, 0, len(t.Constraints)+len(t.Columns))
 	for _, c := range t.Columns {
+		if c.IsDynamic {
+			continue
+		}
 		constraints = append(constraints, c.Constraints()...)
 	}
 
