@@ -2475,6 +2475,9 @@ func (c *Composer) WritePlaceholder() error {
 }
 
 func (c *Composer) WriteAlias(i int) error {
+	if i < 0 {
+		return nil
+	}
 	if _, err := c.buf.WriteString("t"); err != nil {
 		return err
 	}
