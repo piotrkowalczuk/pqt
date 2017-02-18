@@ -2454,6 +2454,7 @@ type CompositionOpts struct {
 	PlaceholderFunc, SelectorFunc string
 	Cast                          string
 	IsJSON                        bool
+	IsDynamic                     bool
 }
 
 // CompositionWriter is a simple wrapper for WriteComposition function.
