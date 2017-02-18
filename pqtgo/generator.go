@@ -1128,7 +1128,7 @@ ColumnsLoop:
 				}
 				if err = tmpl.Execute(w, map[string]interface{}{
 					"selector": fmt.Sprintf("c.%s", g.Formatter.Identifier(c.Name)),
-					"column":   g.Formatter.Identifier("table", t.Name, "column", c.Name),
+					"column":   g.sqlSelector(c, "id"),
 					"composer": "comp",
 					"id":       "id",
 				}); err != nil {
@@ -2586,4 +2586,27 @@ func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
 
 func hasJoinableRelationships(t *pqt.Table) bool {
 	return len(joinableRelationships(t)) > 0
+}
+
+func (g *Generator) sqlSelector(c *pqt.Column, id string) string {
+	if !c.IsDynamic {
+		return g.Formatter.Identifier("table", c.Table.Name, "column", c.Name)
+	}
+	sel := c.Func.Name
+	sel += "("
+	for i := range c.Func.Args {
+		if i != 0 {
+			sel += ", "
+		}
+		sel += fmt.Sprint("t%d.")
+		sel += c.Columns[i].Name
+	}
+	sel += ")"
+
+	ret := fmt.Sprintf(`fmt.Sprintf("%s"`, sel)
+	for range c.Func.Args {
+		ret += ", "
+		ret += id
+	}
+	return ret + ")"
 }
