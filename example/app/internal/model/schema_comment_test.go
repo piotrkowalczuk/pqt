@@ -44,6 +44,10 @@ var testCommentFindData = map[string]struct {
 					Valid: true,
 					Time:  time.Now(),
 				},
+				IDMultiply: sql.NullInt64{
+					Int64: 10,
+					Valid: true,
+				},
 				UpdatedAt: pq.NullTime{
 					Valid: true,
 					Time:  time.Now(),
@@ -83,7 +87,7 @@ var testCommentFindData = map[string]struct {
 				},
 			},
 		},
-		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at, " + join(model.TableNewsColumns, 2) + " FROM example.comment AS t0 LEFT JOIN example.news AS t2 ON t0.news_id=t2.id AND t2.title=$1 WHERE t0.content=$2 AND t0.created_at=$3 AND t0.updated_at=$4 AND t2.content=$5 AND t2.continue=$6 AND t2.created_at=$7 AND t2.lead=$8 AND t2.meta_data=$9 AND t2.score=$10 AND t2.title=$11 AND t2.updated_at=$12 AND t2.views_distribution=$13",
+		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at, " + join(model.TableNewsColumns, 2) + " FROM example.comment AS t0 LEFT JOIN example.news AS t2 ON t0.news_id=t2.id AND t2.title=$1 WHERE t0.content=$2 AND t0.created_at=$3 AND multiply(t0.id, t0.id)=$4 AND t0.updated_at=$5 AND t2.content=$6 AND t2.continue=$7 AND t2.created_at=$8 AND t2.lead=$9 AND t2.meta_data=$10 AND t2.score=$11 AND t2.title=$12 AND t2.updated_at=$13 AND t2.views_distribution=$14",
 	},
 }
 

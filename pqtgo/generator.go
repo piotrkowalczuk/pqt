@@ -323,7 +323,7 @@ func (i *%sIterator) Err() error {
 	return i.rows.Err()
 }
 
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
 func (i *%sIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
@@ -342,7 +342,7 @@ func (i *%sIterator) Ent() (interface{}, error) {
 
 func (i *%sIterator) %s() (*%sEntity, error) {
 	var ent %sEntity
-	cols, err := i.rows.Columns()
+	cols, err := i.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -1157,16 +1157,56 @@ ColumnsLoop:
 				if !c.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
 		}
 
-		fmt.Fprintf(w,
+		fmt.Fprint(w,
 			`if comp.Dirty {
 				comp.WriteString(" AND ")
+			}`)
+
+		if c.IsDynamic {
+			fmt.Fprintf(w, `
+				if _, err := comp.WriteString("%s"); err != nil {
+					return err
+				}
+				if _, err := comp.WriteString("("); err != nil {
+					return err
+				}`, c.Func.Name)
+			for i, arg := range c.Func.Args {
+				if arg.Type != c.Columns[i].Type {
+					fmt.Printf("wrong function (%s) argument type, expected %v but got %v\n", c.Func.Name, arg.Type, c.Columns[i].Type)
+				}
+				if i != 0 {
+					fmt.Fprint(w, `
+					if _, err := comp.WriteString(", "); err != nil {
+						return err
+					}`)
+				}
+				fmt.Fprintf(w, `
+					if err := comp.WriteAlias(id); err != nil {
+						return err
+					}
+					if _, err := comp.WriteString(%s); err != nil {
+						return err
+					}`,
+					g.Formatter.Identifier("table", c.Columns[i].Table.Name, "column", c.Columns[i].Name),
+				)
 			}
-			if err := comp.WriteAlias(id); err != nil {
-				return err
-			}
-			if _, err := comp.WriteString(%s); err != nil {
-				return err
-			}
+			fmt.Fprint(w, `
+				if _, err := comp.WriteString(")"); err != nil {
+					return err
+				}`)
+		} else {
+			fmt.Fprintf(w, `
+				if err := comp.WriteAlias(id); err != nil {
+					return err
+				}
+				if _, err := comp.WriteString(%s); err != nil {
+					return err
+				}`,
+				g.Formatter.Identifier("table", t.Name, "column", c.Name),
+			)
+		}
+
+		fmt.Fprintf(w, `
 			if _, err := comp.WriteString("="); err != nil {
 				return err
 			}
@@ -1175,7 +1215,6 @@ ColumnsLoop:
 			}
 			comp.Add(c.%s)
 			comp.Dirty=true`,
-			g.Formatter.Identifier("table", t.Name, "column", c.Name),
 			g.Formatter.Identifier(c.Name),
 		)
 		closeBrace(w, braces)
@@ -1252,6 +1291,7 @@ func selectList(w io.Writer, t *pqt.Table, nb int) {
 		}
 	}
 }
+
 func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
@@ -1493,7 +1533,7 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 		g.Formatter.Identifier("props"),
 	)
 	if hasJoinableRelationships(t) {
-		fmt.Fprintf(w, `
+		fmt.Fprint(w, `
 		var prop []interface{}`)
 	}
 	for _, r := range joinableRelationships(t) {
@@ -1533,7 +1573,7 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 			return nil, err
 		}
 		if r.%s {
-			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.%s)
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.%s)
 		}
 		return entities, nil
 	}
@@ -1561,12 +1601,19 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 			if err != nil {
 				return nil, err
 			}
-			return &%sIterator{rows: rows}, nil
-		}`,
+			return &%sIterator{
+				rows: rows,
+				cols: []string{`,
 		g.Formatter.Identifier("find"),
 		g.Formatter.Identifier("db"),
 		g.Formatter.Identifier(t.Name),
 	)
+	for _, c := range t.Columns {
+		fmt.Fprintf(w, `"%s",`, c.Name)
+	}
+	fmt.Fprint(w, `},
+		}, nil
+	}`)
 }
 
 func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {

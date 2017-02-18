@@ -149,7 +149,7 @@ func (i *CategoryIterator) Err() error {
 	return i.rows.Err()
 }
 
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
 func (i *CategoryIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
@@ -168,7 +168,7 @@ func (i *CategoryIterator) Ent() (interface{}, error) {
 
 func (i *CategoryIterator) Category() (*CategoryEntity, error) {
 	var ent CategoryEntity
-	cols, err := i.rows.Columns()
+	cols, err := i.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -625,7 +625,7 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 		return nil, err
 	}
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 	return entities, nil
 }
@@ -639,7 +639,10 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 	if err != nil {
 		return nil, err
 	}
-	return &CategoryIterator{rows: rows}, nil
+	return &CategoryIterator{
+		rows: rows,
+		cols: []string{"content", "created_at", "id", "name", "parent_id", "updated_at"},
+	}, nil
 }
 func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
 	find := NewComposer(6)
@@ -1243,7 +1246,7 @@ func (i *PackageIterator) Err() error {
 	return i.rows.Err()
 }
 
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
 func (i *PackageIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
@@ -1262,7 +1265,7 @@ func (i *PackageIterator) Ent() (interface{}, error) {
 
 func (i *PackageIterator) Package() (*PackageEntity, error) {
 	var ent PackageEntity
-	cols, err := i.rows.Columns()
+	cols, err := i.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -1708,7 +1711,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 		return nil, err
 	}
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 	return entities, nil
 }
@@ -1722,7 +1725,10 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 	if err != nil {
 		return nil, err
 	}
-	return &PackageIterator{rows: rows}, nil
+	return &PackageIterator{
+		rows: rows,
+		cols: []string{"break", "category_id", "created_at", "id", "updated_at"},
+	}, nil
 }
 func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
 	find := NewComposer(5)
@@ -2304,7 +2310,7 @@ func (i *NewsIterator) Err() error {
 	return i.rows.Err()
 }
 
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
 func (i *NewsIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
@@ -2323,7 +2329,7 @@ func (i *NewsIterator) Ent() (interface{}, error) {
 
 func (i *NewsIterator) News() (*NewsEntity, error) {
 	var ent NewsEntity
-	cols, err := i.rows.Columns()
+	cols, err := i.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -2956,7 +2962,7 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 		return nil, err
 	}
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 	return entities, nil
 }
@@ -2970,7 +2976,10 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 	if err != nil {
 		return nil, err
 	}
-	return &NewsIterator{rows: rows}, nil
+	return &NewsIterator{
+		rows: rows,
+		cols: []string{"content", "continue", "created_at", "id", "lead", "meta_data", "score", "title", "updated_at", "views_distribution"},
+	}, nil
 }
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
 	find := NewComposer(10)
@@ -4390,7 +4399,7 @@ func (i *CommentIterator) Err() error {
 	return i.rows.Err()
 }
 
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
 func (i *CommentIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
@@ -4409,7 +4418,7 @@ func (i *CommentIterator) Ent() (interface{}, error) {
 
 func (i *CommentIterator) Comment() (*CommentEntity, error) {
 	var ent CommentEntity
-	cols, err := i.rows.Columns()
+	cols, err := i.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -4694,10 +4703,28 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 		if comp.Dirty {
 			comp.WriteString(" AND ")
 		}
+		if _, err := comp.WriteString("multiply"); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("("); err != nil {
+			return err
+		}
 		if err := comp.WriteAlias(id); err != nil {
 			return err
 		}
-		if _, err := comp.WriteString(TableCommentColumnIDMultiply); err != nil {
+		if _, err := comp.WriteString(TableCommentColumnID); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(", "); err != nil {
+			return err
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableCommentColumnID); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(")"); err != nil {
 			return err
 		}
 		if _, err := comp.WriteString("="); err != nil {
@@ -4754,10 +4781,13 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 		if comp.Dirty {
 			comp.WriteString(" AND ")
 		}
-		if err := comp.WriteAlias(id); err != nil {
+		if _, err := comp.WriteString("now"); err != nil {
 			return err
 		}
-		if _, err := comp.WriteString(TableCommentColumnRightNow); err != nil {
+		if _, err := comp.WriteString("("); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(")"); err != nil {
 			return err
 		}
 		if _, err := comp.WriteString("="); err != nil {
@@ -4972,7 +5002,7 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 		return nil, err
 	}
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 	return entities, nil
 }
@@ -4986,7 +5016,10 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	if err != nil {
 		return nil, err
 	}
-	return &CommentIterator{rows: rows}, nil
+	return &CommentIterator{
+		rows: rows,
+		cols: []string{"content", "created_at", "id", "id_multiply", "news_id", "news_title", "right_now", "updated_at"},
+	}, nil
 }
 func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(16)
@@ -5565,7 +5598,7 @@ func (i *CompleteIterator) Err() error {
 	return i.rows.Err()
 }
 
-// Columns is wrapper around sql.Rows.Columns method, that also cache outpu inside iterator.
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
 func (i *CompleteIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
@@ -5584,7 +5617,7 @@ func (i *CompleteIterator) Ent() (interface{}, error) {
 
 func (i *CompleteIterator) Complete() (*CompleteEntity, error) {
 	var ent CompleteEntity
-	cols, err := i.rows.Columns()
+	cols, err := i.Columns()
 	if err != nil {
 		return nil, err
 	}
@@ -7219,7 +7252,7 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 		return nil, err
 	}
 	if r.Debug {
-		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "findselec query success", "query", query, "table", r.Table)
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
 	}
 	return entities, nil
 }
@@ -7233,7 +7266,10 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 	if err != nil {
 		return nil, err
 	}
-	return &CompleteIterator{rows: rows}, nil
+	return &CompleteIterator{
+		rows: rows,
+		cols: []string{"column_bool", "column_bytea", "column_character_0", "column_character_100", "column_decimal", "column_double_array_0", "column_double_array_100", "column_integer", "column_integer_array_0", "column_integer_array_100", "column_integer_big", "column_integer_big_array_0", "column_integer_big_array_100", "column_integer_small", "column_integer_small_array_0", "column_integer_small_array_100", "column_json", "column_json_nn", "column_json_nn_d", "column_jsonb", "column_jsonb_nn", "column_jsonb_nn_d", "column_numeric", "column_real", "column_serial", "column_serial_big", "column_serial_small", "column_text", "column_text_array_0", "column_text_array_100", "column_timestamp", "column_timestamptz", "column_uuid"},
+	}, nil
 }
 func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(66)
