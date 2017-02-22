@@ -1345,7 +1345,7 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 
 		for i := 0; i < len(oc); i++ {
 			if i > 0 {
-				fmt.Fprint(w, `AND `)
+				fmt.Fprint(w, ` AND `)
 			}
 			fmt.Fprintf(w, `t%d.%s=t%d.%s`, 0, oc[i].Name, nb+1, ic[i].Name)
 		}
