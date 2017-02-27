@@ -123,6 +123,12 @@ func (t *Table) addRelationship(r *Relationship, opts ...ColumnOption) *Table {
 	case RelationshipTypeOneToMany:
 		r.InversedTable = t
 	}
+
+	r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
+	if r.Bidirectional {
+		r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
+	}
+
 	pk, ok := r.InversedTable.PrimaryKey()
 	if !ok {
 		return t
@@ -134,11 +140,6 @@ func (t *Table) addRelationship(r *Relationship, opts ...ColumnOption) *Table {
 	}
 
 	nt := fkType(pk.Type)
-
-	r.OwnerTable.OwnedRelationships = append(r.OwnerTable.OwnedRelationships, r)
-	if r.Bidirectional {
-		r.InversedTable.InversedRelationships = append(r.InversedTable.InversedRelationships, r)
-	}
 
 	col := NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...)
 	r.OwnerTable.addColumn(col)

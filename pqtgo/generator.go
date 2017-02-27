@@ -1417,11 +1417,12 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 	if len(fe.%s) > 0 {
 		i:=0
-		comp.WriteString(" ORDER BY ")
-
 		for cn, asc := range fe.%s {
 			for _, tcn := range %s {
 				if cn == tcn {
+					if i == 0 {
+						comp.WriteString(" ORDER BY ")
+					}
 					if i > 0 {
 						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
@@ -1597,15 +1598,32 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 			if err != nil {
 				return nil, err
 			}
-			rows, err := r.%s.QueryContext(ctx, query, args...)
-			if err != nil {
-				return nil, err
+			rows, err := r.%s.QueryContext(ctx, query, args...)`,
+		g.Formatter.Identifier("find"),
+		g.Formatter.Identifier("db"),
+	)
+
+	fmt.Fprintf(w, `
+		if err != nil {
+			if r.%s {
+				r.%s.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.%s, "error", err.Error())
 			}
+			return nil, err
+		}
+		if r.%s {
+			r.%s.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.%s)
+		}`,
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+		g.Formatter.Identifier("debug"),
+		g.Formatter.Identifier("log"),
+		g.Formatter.Identifier("table"),
+	)
+	fmt.Fprintf(w, `
 			return &%sIterator{
 				rows: rows,
 				cols: []string{`,
-		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier("db"),
 		g.Formatter.Identifier(t.Name),
 	)
 	for _, c := range t.Columns {
