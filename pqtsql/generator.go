@@ -166,9 +166,6 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 	}
 
 	for i, c := range constraints {
-		if c.Type == pqt.ConstraintTypeIndex {
-			continue
-		}
 		buf.WriteString("	")
 		err := g.generateConstraint(buf, c)
 		if err != nil {
@@ -196,7 +193,6 @@ func (g *Generator) generateConstraint(buf *bytes.Buffer, c *pqt.Constraint) err
 	case pqt.ConstraintTypeCheck:
 		checkConstraintQuery(buf, c)
 	case pqt.ConstraintTypeIndex:
-		checkConstraintQuery(buf, c)
 	default:
 		return fmt.Errorf("unknown constraint type: %s", c.Type)
 	}
@@ -270,8 +266,18 @@ func tableConstraints(t *pqt.Table) []*pqt.Constraint {
 		if c.IsDynamic {
 			continue
 		}
-		constraints = append(constraints, c.Constraints()...)
+		for _, ct := range c.Constraints() {
+			if ct.Type == pqt.ConstraintTypeIndex {
+				continue
+			}
+			constraints = append(constraints, ct)
+		}
 	}
-
-	return append(constraints, t.Constraints...)
+	for _, ct := range t.Constraints {
+		if ct.Type == pqt.ConstraintTypeIndex {
+			continue
+		}
+		constraints = append(constraints, ct)
+	}
+	return constraints
 }

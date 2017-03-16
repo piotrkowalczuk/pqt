@@ -62,6 +62,8 @@ const (
 	TableCategoryConstraintPrimaryKey = "example.category_id_pkey"
 
 	TableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
+
+	TableCategoryConstraintNameIndex = "example.category_name_idx"
 )
 
 var (
