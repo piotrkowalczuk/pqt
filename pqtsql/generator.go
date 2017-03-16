@@ -56,6 +56,14 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 		if err := g.generateCreateTable(code, t); err != nil {
 			return nil, err
 		}
+		for _, c := range t.Columns {
+			for _, cnstr := range c.Constraints() {
+				if cnstr.Type == pqt.ConstraintTypeIndex {
+					indexConstraintQuery(code, cnstr)
+				}
+			}
+		}
+		fmt.Fprintln(code, "")
 	}
 
 	return code, nil
@@ -158,6 +166,9 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 	}
 
 	for i, c := range constraints {
+		if c.Type == pqt.ConstraintTypeIndex {
+			continue
+		}
 		buf.WriteString("	")
 		err := g.generateConstraint(buf, c)
 		if err != nil {
@@ -183,6 +194,8 @@ func (g *Generator) generateConstraint(buf *bytes.Buffer, c *pqt.Constraint) err
 	case pqt.ConstraintTypeForeignKey:
 		return foreignKeyConstraintQuery(buf, c)
 	case pqt.ConstraintTypeCheck:
+		checkConstraintQuery(buf, c)
+	case pqt.ConstraintTypeIndex:
 		checkConstraintQuery(buf, c)
 	default:
 		return fmt.Errorf("unknown constraint type: %s", c.Type)
@@ -243,6 +256,12 @@ func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
 
 func checkConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
 	fmt.Fprintf(buf, `CONSTRAINT "%s" CHECK (%s)`, c.Name(), c.Check)
+}
+
+func indexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
+	// TODO: change code so IF NOT EXISTS is optional
+	fmt.Fprintf(buf, `CREATE INDEX IF NOT EXISTS "%s" ON %s (%s);`, c.Name(), c.Table.FullName(), c.Columns.String())
+	fmt.Fprintln(buf, "")
 }
 
 func tableConstraints(t *pqt.Table) []*pqt.Constraint {

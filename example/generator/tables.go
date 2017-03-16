@@ -40,6 +40,7 @@ func schema(sn string) *pqt.Schema {
 			"news_title",
 			pqt.TypeText(),
 			pqt.WithNotNull(),
+			pqt.WithIndex(),
 			pqt.WithReference(title, pqt.WithBidirectional(), pqt.WithOwnerName("comments_by_news_title"), pqt.WithInversedName("news_by_title")),
 		)).
 		AddColumn(pqt.NewDynamicColumn("right_now", pqt.FunctionNow())).

@@ -19,7 +19,7 @@ type Event string
 type Column struct {
 	Name, ShortName, Collate, Check                                      string
 	Default                                                              map[Event]string
-	NotNull, Unique, PrimaryKey                                          bool
+	NotNull, Unique, PrimaryKey, Index                                   bool
 	Type                                                                 Type
 	Table                                                                *Table
 	Reference                                                            *Column
@@ -71,6 +71,12 @@ func (c *Column) Constraints() []*Constraint {
 	} else if c.Unique {
 		cs = append(cs, &Constraint{
 			Type:    ConstraintTypeUnique,
+			Columns: Columns{c},
+			Table:   c.Table,
+		})
+	} else if c.Index {
+		cs = append(cs, &Constraint{
+			Type:    ConstraintTypeIndex,
 			Columns: Columns{c},
 			Table:   c.Table,
 		})
@@ -214,6 +220,13 @@ func WithCheck(ch string) ColumnOption {
 func WithUnique() ColumnOption {
 	return func(c *Column) {
 		c.Unique = true
+	}
+}
+
+// WithIndex ...
+func WithIndex() ColumnOption {
+	return func(c *Column) {
+		c.Index = true
 	}
 }
 

@@ -4322,6 +4322,8 @@ const (
 	TableCommentColumnUpdatedAt            = "updated_at"
 	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
 
+	TableCommentConstraintNewsTitleIndex = "example.comment_news_title_idx"
+
 	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
 )
 
@@ -9161,6 +9163,7 @@ CREATE TABLE IF NOT EXISTS example.category (
 	CONSTRAINT "example.category_parent_id_fkey" FOREIGN KEY (parent_id) REFERENCES example.category (id)
 );
 
+
 CREATE TABLE IF NOT EXISTS example.package (
 	break TEXT,
 	category_id BIGINT,
@@ -9171,6 +9174,7 @@ CREATE TABLE IF NOT EXISTS example.package (
 	CONSTRAINT "example.package_category_id_fkey" FOREIGN KEY (category_id) REFERENCES example.category (id),
 	CONSTRAINT "example.package_id_pkey" PRIMARY KEY (id)
 );
+
 
 CREATE TABLE IF NOT EXISTS example.news (
 	content TEXT NOT NULL,
@@ -9189,6 +9193,7 @@ CREATE TABLE IF NOT EXISTS example.news (
 	CONSTRAINT "example.news_title_lead_key" UNIQUE (title, lead)
 );
 
+
 CREATE TABLE IF NOT EXISTS example.comment (
 	content TEXT NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
@@ -9200,6 +9205,8 @@ CREATE TABLE IF NOT EXISTS example.comment (
 	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id),
 	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title)
 );
+
+CREATE INDEX IF NOT EXISTS "example.comment_news_title_idx" ON example.comment (news_title);
 
 CREATE TABLE IF NOT EXISTS example.complete (
 	column_bool BOOL,
@@ -9236,5 +9243,6 @@ CREATE TABLE IF NOT EXISTS example.complete (
 	column_timestamptz TIMESTAMPTZ,
 	column_uuid UUID
 );
+
 
 `

@@ -238,6 +238,11 @@ func (t *Table) AddUnique(columns ...*Column) *Table {
 	return t.AddConstraint(Unique(t, columns...))
 }
 
+// AddIndex adds index to the table.
+func (t *Table) AddIndex(columns ...*Column) *Table {
+	return t.AddConstraint(Index(t, columns...))
+}
+
 // SetIfNotExists sets IfNotExists flag.
 func (t *Table) SetIfNotExists(ine bool) *Table {
 	t.IfNotExists = ine
