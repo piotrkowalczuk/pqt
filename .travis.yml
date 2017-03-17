@@ -10,7 +10,9 @@ before_install:
   - curl https://glide.sh/get | sh
 install:
   - go get github.com/aryann/difflib
-  - go get ./...
+  - go get .
+  - go get ./pqtgo
+  - go get ./pqtsql
   - cd ./example/ && glide install
   - cd ../
 script:
