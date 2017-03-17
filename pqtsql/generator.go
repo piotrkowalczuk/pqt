@@ -177,7 +177,7 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 		buf.WriteRune('\n')
 	}
 
-	buf.WriteString(");\n\n")
+	buf.WriteString(");\n")
 
 	return nil
 }
