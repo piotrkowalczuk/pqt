@@ -20,12 +20,13 @@ CREATE TEMPORARY TABLE schema.user (
 	password TEXT,
 	username TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS "schema.user_username_idx" ON schema.user (username);
 
 `,
 			given: func() *pqt.Table {
 				return pqt.NewTable("user", pqt.WithTemporary()).
 					SetSchema(pqt.NewSchema("schema")).
-					AddColumn(&pqt.Column{Name: "username", Type: pqt.TypeText(), NotNull: true}).
+					AddColumn(&pqt.Column{Name: "username", Type: pqt.TypeText(), NotNull: true, Index: true}).
 					AddColumn(&pqt.Column{Name: "password", Type: pqt.TypeText()}).
 					AddColumn(&pqt.Column{Name: "created_at", Type: pqt.TypeTimestampTZ()})
 			}(),
