@@ -108,3 +108,32 @@ func TestColumn_DefaultOn(t *testing.T) {
 		}
 	}
 }
+
+func TestWithIndex(t *testing.T) {
+	c := pqt.NewColumn("with_index", pqt.TypeText(), pqt.WithIndex())
+	if !c.Index {
+		t.Fatal("index expected to be true")
+	}
+}
+
+func TestWithDefault(t *testing.T) {
+	def := "0"
+	c := pqt.NewColumn("with_index", pqt.TypeText(), pqt.WithDefault(def, pqt.EventInsert, pqt.EventUpdate))
+	if len(c.Default) != 2 {
+		t.Fatal("expected default value for 2 events")
+	}
+	if d, ok := c.Default[pqt.EventInsert]; ok {
+		if d != def {
+			t.Errorf("insert event wrong value, expected %s but got %s", def, d)
+		}
+	} else {
+		t.Error("insert event expected")
+	}
+	if d, ok := c.Default[pqt.EventUpdate]; ok {
+		if d != def {
+			t.Errorf("update event wrong value, expected %s but got %s", def, d)
+		}
+	} else {
+		t.Error("update event expected")
+	}
+}
