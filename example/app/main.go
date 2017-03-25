@@ -46,25 +46,22 @@ func main() {
 		category model.CategoryRepositoryBase
 	}{
 		news: model.NewsRepositoryBase{
-			DB:      db,
-			Table:   model.TableNews,
-			Columns: model.TableNewsColumns,
-			Debug:   true,
-			Log:     log,
+			DB:    db,
+			Table: model.TableNews,
+			Debug: true,
+			Log:   log,
 		},
 		comment: model.CommentRepositoryBase{
-			DB:      db,
-			Table:   model.TableComment,
-			Columns: model.TableCommentColumns,
-			Debug:   true,
-			Log:     log,
+			DB:    db,
+			Table: model.TableComment,
+			Debug: true,
+			Log:   log,
 		},
 		category: model.CategoryRepositoryBase{
-			DB:      db,
-			Table:   model.TableCategory,
-			Columns: model.TableCategoryColumns,
-			Debug:   true,
-			Log:     log,
+			DB:    db,
+			Table: model.TableCategory,
+			Debug: true,
+			Log:   log,
 		},
 	}
 
@@ -114,6 +111,8 @@ func main() {
 	if err != nil {
 		sklog.Fatal(log, err)
 	}
+	defer iter.Close()
+
 	got := 0
 	for iter.Next() {
 		com, err := iter.Comment()

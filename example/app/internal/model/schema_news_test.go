@@ -62,7 +62,7 @@ func BenchmarkNewsRepositoryBase_InsertQuery(b *testing.B) {
 	for hint, given := range testNewsInsertData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.news.InsertQuery(&given.entity)
+				query, args, err := s.news.InsertQuery(&given.entity, true)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
@@ -79,7 +79,7 @@ func TestNewsRepositoryBase_InsertQuery(t *testing.T) {
 
 	for hint, given := range testNewsInsertData {
 		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.news.InsertQuery(&given.entity)
+			query, _, err := s.news.InsertQuery(&given.entity, true)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}

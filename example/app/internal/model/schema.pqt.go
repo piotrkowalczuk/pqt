@@ -251,7 +251,7 @@ type CategoryRepositoryBase struct {
 	Log     log.Logger
 }
 
-func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []interface{}, error) {
+func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity, read bool) (string, []interface{}, error) {
 	insert := NewComposer(6)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
@@ -358,23 +358,25 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity) (string, []inter
 		insert.Dirty = true
 	}
 
-	if columns.Len() > 0 {
-		buf.WriteString(" (")
-		buf.ReadFrom(columns)
-		buf.WriteString(") VALUES (")
-		buf.ReadFrom(insert)
-		buf.WriteString(") ")
-		buf.WriteString("RETURNING ")
-		if len(r.Columns) > 0 {
-			buf.WriteString(strings.Join(r.Columns, ", "))
-		} else {
-			buf.WriteString("content, created_at, id, name, parent_id, updated_at")
+	if read {
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")
+			buf.WriteString("RETURNING ")
+			if len(r.Columns) > 0 {
+				buf.WriteString(strings.Join(r.Columns, ", "))
+			} else {
+				buf.WriteString("content, created_at, id, name, parent_id, updated_at")
+			}
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
 func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
-	query, args, err := r.InsertQuery(e)
+	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
 		return nil, err
 	}
@@ -523,14 +525,10 @@ func (r *CategoryRepositoryBase) FindQuery(fe *CategoryFindExpr) (string, []inte
 		}
 	}
 	if comp.Dirty {
-		//fmt.Println("comp", comp.String())
-		//fmt.Println("buf", buf.String())
 		if _, err := buf.WriteString(" WHERE "); err != nil {
 			return "", nil, err
 		}
 		buf.ReadFrom(comp)
-		//fmt.Println("comp - after", comp.String())
-		//fmt.Println("buf - after", buf.String())
 	}
 
 	if len(fe.OrderBy) > 0 {
@@ -1168,15 +1166,15 @@ func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (i
 }
 
 const (
-	TablePackage                               = "example.package"
-	TablePackageColumnBreak                    = "break"
-	TablePackageColumnCategoryID               = "category_id"
-	TablePackageColumnCreatedAt                = "created_at"
-	TablePackageColumnID                       = "id"
-	TablePackageColumnUpdatedAt                = "updated_at"
-	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
-
+	TablePackage                     = "example.package"
+	TablePackageColumnBreak          = "break"
+	TablePackageColumnCategoryID     = "category_id"
+	TablePackageColumnCreatedAt      = "created_at"
+	TablePackageColumnID             = "id"
+	TablePackageColumnUpdatedAt      = "updated_at"
 	TablePackageConstraintPrimaryKey = "example.package_id_pkey"
+
+	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
 )
 
 var (
@@ -1355,7 +1353,7 @@ type PackageRepositoryBase struct {
 	Log     log.Logger
 }
 
-func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interface{}, error) {
+func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity, read bool) (string, []interface{}, error) {
 	insert := NewComposer(5)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
@@ -1445,23 +1443,25 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity) (string, []interfa
 		insert.Dirty = true
 	}
 
-	if columns.Len() > 0 {
-		buf.WriteString(" (")
-		buf.ReadFrom(columns)
-		buf.WriteString(") VALUES (")
-		buf.ReadFrom(insert)
-		buf.WriteString(") ")
-		buf.WriteString("RETURNING ")
-		if len(r.Columns) > 0 {
-			buf.WriteString(strings.Join(r.Columns, ", "))
-		} else {
-			buf.WriteString("break, category_id, created_at, id, updated_at")
+	if read {
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")
+			buf.WriteString("RETURNING ")
+			if len(r.Columns) > 0 {
+				buf.WriteString(strings.Join(r.Columns, ", "))
+			} else {
+				buf.WriteString("break, category_id, created_at, id, updated_at")
+			}
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
 func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
-	query, args, err := r.InsertQuery(e)
+	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
 		return nil, err
 	}
@@ -1608,14 +1608,10 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 		}
 	}
 	if comp.Dirty {
-		//fmt.Println("comp", comp.String())
-		//fmt.Println("buf", buf.String())
 		if _, err := buf.WriteString(" WHERE "); err != nil {
 			return "", nil, err
 		}
 		buf.ReadFrom(comp)
-		//fmt.Println("comp - after", comp.String())
-		//fmt.Println("buf - after", buf.String())
 	}
 
 	if len(fe.OrderBy) > 0 {
@@ -2438,7 +2434,7 @@ type NewsRepositoryBase struct {
 	Log     log.Logger
 }
 
-func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, error) {
+func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []interface{}, error) {
 	insert := NewComposer(10)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
@@ -2625,23 +2621,25 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity) (string, []interface{}, 
 		insert.Dirty = true
 	}
 
-	if columns.Len() > 0 {
-		buf.WriteString(" (")
-		buf.ReadFrom(columns)
-		buf.WriteString(") VALUES (")
-		buf.ReadFrom(insert)
-		buf.WriteString(") ")
-		buf.WriteString("RETURNING ")
-		if len(r.Columns) > 0 {
-			buf.WriteString(strings.Join(r.Columns, ", "))
-		} else {
-			buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+	if read {
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")
+			buf.WriteString("RETURNING ")
+			if len(r.Columns) > 0 {
+				buf.WriteString(strings.Join(r.Columns, ", "))
+			} else {
+				buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, views_distribution")
+			}
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
 func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
-	query, args, err := r.InsertQuery(e)
+	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2874,14 +2872,10 @@ func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{},
 		}
 	}
 	if comp.Dirty {
-		//fmt.Println("comp", comp.String())
-		//fmt.Println("buf", buf.String())
 		if _, err := buf.WriteString(" WHERE "); err != nil {
 			return "", nil, err
 		}
 		buf.ReadFrom(comp)
-		//fmt.Println("comp - after", comp.String())
-		//fmt.Println("buf - after", buf.String())
 	}
 
 	if len(fe.OrderBy) > 0 {
@@ -4313,20 +4307,20 @@ func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64
 }
 
 const (
-	TableComment                           = "example.comment"
-	TableCommentColumnContent              = "content"
-	TableCommentColumnCreatedAt            = "created_at"
-	TableCommentColumnID                   = "id"
-	TableCommentColumnIDMultiply           = "id_multiply"
-	TableCommentColumnNewsID               = "news_id"
-	TableCommentColumnNewsTitle            = "news_title"
-	TableCommentColumnRightNow             = "right_now"
-	TableCommentColumnUpdatedAt            = "updated_at"
-	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
+	TableComment                              = "example.comment"
+	TableCommentColumnContent                 = "content"
+	TableCommentColumnCreatedAt               = "created_at"
+	TableCommentColumnID                      = "id"
+	TableCommentColumnIDMultiply              = "id_multiply"
+	TableCommentColumnNewsID                  = "news_id"
+	TableCommentColumnNewsTitle               = "news_title"
+	TableCommentColumnRightNow                = "right_now"
+	TableCommentColumnUpdatedAt               = "updated_at"
+	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
 
 	TableCommentConstraintNewsTitleIndex = "example.comment_news_title_idx"
 
-	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
+	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
 )
 
 var (
@@ -4537,7 +4531,7 @@ type CommentRepositoryBase struct {
 	Log     log.Logger
 }
 
-func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interface{}, error) {
+func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity, read bool) (string, []interface{}, error) {
 	insert := NewComposer(8)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
@@ -4642,23 +4636,25 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity) (string, []interfa
 		insert.Dirty = true
 	}
 
-	if columns.Len() > 0 {
-		buf.WriteString(" (")
-		buf.ReadFrom(columns)
-		buf.WriteString(") VALUES (")
-		buf.ReadFrom(insert)
-		buf.WriteString(") ")
-		buf.WriteString("RETURNING ")
-		if len(r.Columns) > 0 {
-			buf.WriteString(strings.Join(r.Columns, ", "))
-		} else {
-			buf.WriteString("content, created_at, id, multiply(id, id) AS id_multiply, news_id, news_title, now() AS right_now, updated_at")
+	if read {
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")
+			buf.WriteString("RETURNING ")
+			if len(r.Columns) > 0 {
+				buf.WriteString(strings.Join(r.Columns, ", "))
+			} else {
+				buf.WriteString("content, created_at, id, multiply(id, id) AS id_multiply, news_id, news_title, now() AS right_now, updated_at")
+			}
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
 func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
-	query, args, err := r.InsertQuery(e)
+	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
 		return nil, err
 	}
@@ -4908,14 +4904,10 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 		}
 	}
 	if comp.Dirty {
-		//fmt.Println("comp", comp.String())
-		//fmt.Println("buf", buf.String())
 		if _, err := buf.WriteString(" WHERE "); err != nil {
 			return "", nil, err
 		}
 		buf.ReadFrom(comp)
-		//fmt.Println("comp - after", comp.String())
-		//fmt.Println("buf - after", buf.String())
 	}
 
 	if len(fe.OrderBy) > 0 {
@@ -5812,7 +5804,7 @@ type CompleteRepositoryBase struct {
 	Log     log.Logger
 }
 
-func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []interface{}, error) {
+func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity, read bool) (string, []interface{}, error) {
 	insert := NewComposer(33)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
@@ -6448,23 +6440,25 @@ func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity) (string, []inter
 		insert.Dirty = true
 	}
 
-	if columns.Len() > 0 {
-		buf.WriteString(" (")
-		buf.ReadFrom(columns)
-		buf.WriteString(") VALUES (")
-		buf.ReadFrom(insert)
-		buf.WriteString(") ")
-		buf.WriteString("RETURNING ")
-		if len(r.Columns) > 0 {
-			buf.WriteString(strings.Join(r.Columns, ", "))
-		} else {
-			buf.WriteString("column_bool, column_bytea, column_character_0, column_character_100, column_decimal, column_double_array_0, column_double_array_100, column_integer, column_integer_array_0, column_integer_array_100, column_integer_big, column_integer_big_array_0, column_integer_big_array_100, column_integer_small, column_integer_small_array_0, column_integer_small_array_100, column_json, column_json_nn, column_json_nn_d, column_jsonb, column_jsonb_nn, column_jsonb_nn_d, column_numeric, column_real, column_serial, column_serial_big, column_serial_small, column_text, column_text_array_0, column_text_array_100, column_timestamp, column_timestamptz, column_uuid")
+	if read {
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")
+			buf.WriteString("RETURNING ")
+			if len(r.Columns) > 0 {
+				buf.WriteString(strings.Join(r.Columns, ", "))
+			} else {
+				buf.WriteString("column_bool, column_bytea, column_character_0, column_character_100, column_decimal, column_double_array_0, column_double_array_100, column_integer, column_integer_array_0, column_integer_array_100, column_integer_big, column_integer_big_array_0, column_integer_big_array_100, column_integer_small, column_integer_small_array_0, column_integer_small_array_100, column_json, column_json_nn, column_json_nn_d, column_jsonb, column_jsonb_nn, column_jsonb_nn_d, column_numeric, column_real, column_serial, column_serial_big, column_serial_small, column_text, column_text_array_0, column_text_array_100, column_timestamp, column_timestamptz, column_uuid")
+			}
 		}
 	}
 	return buf.String(), insert.Args(), nil
 }
 func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
-	query, args, err := r.InsertQuery(e)
+	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
 		return nil, err
 	}
@@ -7180,14 +7174,10 @@ func (r *CompleteRepositoryBase) FindQuery(fe *CompleteFindExpr) (string, []inte
 		}
 	}
 	if comp.Dirty {
-		//fmt.Println("comp", comp.String())
-		//fmt.Println("buf", buf.String())
 		if _, err := buf.WriteString(" WHERE "); err != nil {
 			return "", nil, err
 		}
 		buf.ReadFrom(comp)
-		//fmt.Println("comp - after", comp.String())
-		//fmt.Println("buf - after", buf.String())
 	}
 
 	if len(fe.OrderBy) > 0 {
@@ -9162,9 +9152,8 @@ CREATE TABLE IF NOT EXISTS example.category (
 	updated_at TIMESTAMPTZ,
 
 	CONSTRAINT "example.category_id_pkey" PRIMARY KEY (id),
-	CONSTRAINT "example.category_parent_id_fkey" FOREIGN KEY (parent_id) REFERENCES example.category (id)
-);
-
+	CONSTRAINT "example.category_parent_id_fkey" FOREIGN KEY (parent_id) REFERENCES example.category (id));
+CREATE INDEX IF NOT EXISTS "example.category_name_idx" ON example.category (name);
 
 CREATE TABLE IF NOT EXISTS example.package (
 	break TEXT,
@@ -9173,10 +9162,8 @@ CREATE TABLE IF NOT EXISTS example.package (
 	id BIGSERIAL,
 	updated_at TIMESTAMPTZ,
 
-	CONSTRAINT "example.package_category_id_fkey" FOREIGN KEY (category_id) REFERENCES example.category (id),
-	CONSTRAINT "example.package_id_pkey" PRIMARY KEY (id)
-);
-
+	CONSTRAINT "example.package_id_pkey" PRIMARY KEY (id),
+	CONSTRAINT "example.package_category_id_fkey" FOREIGN KEY (category_id) REFERENCES example.category (id));
 
 CREATE TABLE IF NOT EXISTS example.news (
 	content TEXT NOT NULL,
@@ -9192,9 +9179,7 @@ CREATE TABLE IF NOT EXISTS example.news (
 
 	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id),
 	CONSTRAINT "example.news_title_key" UNIQUE (title),
-	CONSTRAINT "example.news_title_lead_key" UNIQUE (title, lead)
-);
-
+	CONSTRAINT "example.news_title_lead_key" UNIQUE (title, lead));
 
 CREATE TABLE IF NOT EXISTS example.comment (
 	content TEXT NOT NULL,
@@ -9204,10 +9189,8 @@ CREATE TABLE IF NOT EXISTS example.comment (
 	news_title TEXT NOT NULL,
 	updated_at TIMESTAMPTZ,
 
-	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id),
-	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title)
-);
-
+	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title),
+	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id));
 CREATE INDEX IF NOT EXISTS "example.comment_news_title_idx" ON example.comment (news_title);
 
 CREATE TABLE IF NOT EXISTS example.complete (
@@ -9245,6 +9228,5 @@ CREATE TABLE IF NOT EXISTS example.complete (
 	column_timestamptz TIMESTAMPTZ,
 	column_uuid UUID
 );
-
 
 `

@@ -59,7 +59,7 @@ func schema(sn string) *pqt.Schema {
 				pqt.WithOwnerName("parent_category"),
 				pqt.WithColumnName("parent_id"),
 			),
-		).AddConstraint(pqt.Index(nil, categoryName))
+		).AddConstraint(pqt.Index(pqt.SelfReference(), categoryName))
 
 	pkg := pqt.NewTable("package", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).

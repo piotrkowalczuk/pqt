@@ -477,7 +477,7 @@ func (g *Generator) generateConstantsColumns(w io.Writer, table *pqt.Table) {
 }
 
 func (g *Generator) generateConstantsConstraints(w io.Writer, table *pqt.Table) {
-	for _, c := range tableConstraints(table) {
+	for _, c := range table.Constraints {
 		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
@@ -509,7 +509,7 @@ func (g *Generator) generateRepositoryInsertQuery(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %sQuery(e *%sEntity) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("insert"), entityName)
+		func (r *%sRepositoryBase) %sQuery(e *%sEntity, read bool) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("insert"), entityName)
 	fmt.Fprintf(w, `
 		insert := NewComposer(%d)
 		columns := bytes.NewBuffer(nil)
@@ -524,12 +524,13 @@ func (g *Generator) generateRepositoryInsertQuery(w io.Writer, t *pqt.Table) {
 		g.generateRepositoryInsertClause(w, c, "insert")
 	}
 	fmt.Fprint(w, `
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")`)
+		if read {
+			if columns.Len() > 0 {
+				buf.WriteString(" (")
+				buf.ReadFrom(columns)
+				buf.WriteString(") VALUES (")
+				buf.ReadFrom(insert)
+				buf.WriteString(") ")`)
 	fmt.Fprintf(w, `
 			buf.WriteString("RETURNING ")
 			if len(r.%s) > 0 {
@@ -544,6 +545,7 @@ func (g *Generator) generateRepositoryInsertQuery(w io.Writer, t *pqt.Table) {
 	fmt.Fprint(w, `")
 	}`)
 	fmt.Fprint(w, `
+			}
 		}
 		return buf.String(), insert.Args(), nil
 	}`)
@@ -555,7 +557,7 @@ func (g *Generator) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("insert"), entityName, entityName)
 	fmt.Fprintf(w, `
-			query, args, err := r.%sQuery(e)
+			query, args, err := r.%sQuery(e, true)
 			if err != nil {
 				return nil, err
 			}
@@ -1403,14 +1405,10 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 
 	fmt.Fprint(w, `
 		if comp.Dirty {
-			//fmt.Println("comp", comp.String())
-			//fmt.Println("buf", buf.String())
 			if _, err := buf.WriteString(" WHERE "); err != nil {
 				return "", nil, err
 			}
 			buf.ReadFrom(comp)
-			//fmt.Println("comp - after", comp.String())
-			//fmt.Println("buf - after", buf.String())
 		}
 	`)
 
@@ -2539,7 +2537,7 @@ func (c *Composer) Args() []interface{} {
 
 func (g *Generator) uniqueConstraints(t *pqt.Table) []*pqt.Constraint {
 	var unique []*pqt.Constraint
-	for _, c := range tableConstraints(t) {
+	for _, c := range t.Constraints {
 		if c.Type == pqt.ConstraintTypeUnique {
 			unique = append(unique, c)
 		}
