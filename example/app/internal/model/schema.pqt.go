@@ -358,13 +358,13 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity, read bool) (stri
 		insert.Dirty = true
 	}
 
-	if read {
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if read {
 			buf.WriteString("RETURNING ")
 			if len(r.Columns) > 0 {
 				buf.WriteString(strings.Join(r.Columns, ", "))
@@ -1443,13 +1443,13 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity, read bool) (string
 		insert.Dirty = true
 	}
 
-	if read {
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if read {
 			buf.WriteString("RETURNING ")
 			if len(r.Columns) > 0 {
 				buf.WriteString(strings.Join(r.Columns, ", "))
@@ -2621,13 +2621,13 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []in
 		insert.Dirty = true
 	}
 
-	if read {
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if read {
 			buf.WriteString("RETURNING ")
 			if len(r.Columns) > 0 {
 				buf.WriteString(strings.Join(r.Columns, ", "))
@@ -4636,13 +4636,13 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity, read bool) (string
 		insert.Dirty = true
 	}
 
-	if read {
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if read {
 			buf.WriteString("RETURNING ")
 			if len(r.Columns) > 0 {
 				buf.WriteString(strings.Join(r.Columns, ", "))
@@ -6440,13 +6440,13 @@ func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity, read bool) (stri
 		insert.Dirty = true
 	}
 
-	if read {
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")
+	if columns.Len() > 0 {
+		buf.WriteString(" (")
+		buf.ReadFrom(columns)
+		buf.WriteString(") VALUES (")
+		buf.ReadFrom(insert)
+		buf.WriteString(") ")
+		if read {
 			buf.WriteString("RETURNING ")
 			if len(r.Columns) > 0 {
 				buf.WriteString(strings.Join(r.Columns, ", "))

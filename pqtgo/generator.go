@@ -524,18 +524,18 @@ func (g *Generator) generateRepositoryInsertQuery(w io.Writer, t *pqt.Table) {
 		g.generateRepositoryInsertClause(w, c, "insert")
 	}
 	fmt.Fprint(w, `
-		if read {
-			if columns.Len() > 0 {
-				buf.WriteString(" (")
-				buf.ReadFrom(columns)
-				buf.WriteString(") VALUES (")
-				buf.ReadFrom(insert)
-				buf.WriteString(") ")`)
+		if columns.Len() > 0 {
+			buf.WriteString(" (")
+			buf.ReadFrom(columns)
+			buf.WriteString(") VALUES (")
+			buf.ReadFrom(insert)
+			buf.WriteString(") ")`)
 	fmt.Fprintf(w, `
-			buf.WriteString("RETURNING ")
-			if len(r.%s) > 0 {
-				buf.WriteString(strings.Join(r.%s, ", "))
-			} else {`,
+			if read {
+				buf.WriteString("RETURNING ")
+				if len(r.%s) > 0 {
+					buf.WriteString(strings.Join(r.%s, ", "))
+				} else {`,
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("columns"),
 	)
