@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -8920,59 +8921,17 @@ func (a *JSONArrayString) Scan(src interface{}) error {
 		return nil
 	}
 
-	var srcs string
-
 	switch t := src.(type) {
 	case []byte:
-		srcs = string(t)
-	case string:
-		srcs = t
+		return json.Unmarshal(t, a)
 	default:
 		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
-
-	l := len(srcs)
-
-	if l < 2 {
-		return fmt.Errorf("expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
-	}
-
-	if string(srcs[0]) != jsonArrayBeginningChar || string(srcs[l-1]) != jsonArrayEndChar {
-		return fmt.Errorf("expected to get source argument in format '[text1,text2,...,textN]', but got %s", srcs)
-	}
-
-	*a = strings.Split(string(srcs[1:l-1]), jsonArraySeparator)
-
-	return nil
 }
 
 // Value satisfy driver.Valuer interface.
 func (a JSONArrayString) Value() (driver.Value, error) {
-	var (
-		buffer bytes.Buffer
-		err    error
-	)
-
-	if _, err = buffer.WriteString(jsonArrayBeginningChar); err != nil {
-		return nil, err
-	}
-
-	for i, v := range a {
-		if i > 0 {
-			if _, err := buffer.WriteString(jsonArraySeparator); err != nil {
-				return nil, err
-			}
-		}
-		if _, err = buffer.WriteString(v); err != nil {
-			return nil, err
-		}
-	}
-
-	if _, err = buffer.WriteString(jsonArrayEndChar); err != nil {
-		return nil, err
-	}
-
-	return buffer.Bytes(), nil
+	return json.Marshal(a)
 }
 
 // JSONArrayFloat64 is a slice of int64s that implements necessary interfaces.
