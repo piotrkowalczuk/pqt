@@ -2469,7 +2469,7 @@ var (
 // CompositionOpts is a container for modification that can be applied.
 type CompositionOpts struct {
 	Joint                         string
-	PlaceholderFunc, SelectorFunc string
+	PlaceholderFuncs, SelectorFuncs []string
 	Cast                          string
 	IsJSON                        bool
 	IsDynamic                     bool

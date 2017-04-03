@@ -532,11 +532,12 @@ func (r *CategoryRepositoryBase) FindQuery(fe *CategoryFindExpr) (string, []inte
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		comp.WriteString(" ORDER BY ")
-
 		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableCategoryColumns {
 				if cn == tcn {
+					if i == 0 {
+						comp.WriteString(" ORDER BY ")
+					}
 					if i > 0 {
 						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
@@ -637,7 +638,13 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
 	}
 	return &CategoryIterator{
 		rows: rows,
@@ -1610,11 +1617,12 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		comp.WriteString(" ORDER BY ")
-
 		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TablePackageColumns {
 				if cn == tcn {
+					if i == 0 {
+						comp.WriteString(" ORDER BY ")
+					}
 					if i > 0 {
 						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
@@ -1723,7 +1731,13 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
 	}
 	return &PackageIterator{
 		rows: rows,
@@ -2869,11 +2883,12 @@ func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{},
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		comp.WriteString(" ORDER BY ")
-
 		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableNewsColumns {
 				if cn == tcn {
+					if i == 0 {
+						comp.WriteString(" ORDER BY ")
+					}
 					if i > 0 {
 						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
@@ -2974,7 +2989,13 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
 	}
 	return &NewsIterator{
 		rows: rows,
@@ -4894,11 +4915,12 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		comp.WriteString(" ORDER BY ")
-
 		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableCommentColumns {
 				if cn == tcn {
+					if i == 0 {
+						comp.WriteString(" ORDER BY ")
+					}
 					if i > 0 {
 						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
@@ -5014,7 +5036,13 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
 	}
 	return &CommentIterator{
 		rows: rows,
@@ -7159,11 +7187,12 @@ func (r *CompleteRepositoryBase) FindQuery(fe *CompleteFindExpr) (string, []inte
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		comp.WriteString(" ORDER BY ")
-
 		for cn, asc := range fe.OrderBy {
 			for _, tcn := range TableCompleteColumns {
 				if cn == tcn {
+					if i == 0 {
+						comp.WriteString(" ORDER BY ")
+					}
 					if i > 0 {
 						if _, err := comp.WriteString(", "); err != nil {
 							return "", nil, err
@@ -7264,7 +7293,13 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if err != nil {
+		if r.Debug {
+			r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
+		}
 		return nil, err
+	}
+	if r.Debug {
+		r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
 	}
 	return &CompleteIterator{
 		rows: rows,
@@ -9043,11 +9078,11 @@ var (
 
 // CompositionOpts is a container for modification that can be applied.
 type CompositionOpts struct {
-	Joint                         string
-	PlaceholderFunc, SelectorFunc string
-	Cast                          string
-	IsJSON                        bool
-	IsDynamic                     bool
+	Joint                           string
+	PlaceholderFuncs, SelectorFuncs []string
+	Cast                            string
+	IsJSON                          bool
+	IsDynamic                       bool
 }
 
 // CompositionWriter is a simple wrapper for WriteComposition function.
