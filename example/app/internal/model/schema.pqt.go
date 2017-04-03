@@ -9080,7 +9080,7 @@ var (
 type CompositionOpts struct {
 	Joint                           string
 	PlaceholderFuncs, SelectorFuncs []string
-	Cast                            string
+	PlaceholderCast, SelectorCast   string
 	IsJSON                          bool
 	IsDynamic                       bool
 }
