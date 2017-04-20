@@ -3,4 +3,5 @@
 coverage.txt
 *cover*
 *.out
+.DS_Store
 vendor
