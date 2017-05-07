@@ -32,12 +32,16 @@ type Formatter struct {
 }
 
 func (f *Formatter) Identifier(args ...string) (r string) {
+	var vis Visibility
+	if f != nil {
+		vis = f.Visibility
+	}
 	switch len(args) {
 	case 0:
 	case 1:
-		r = f.identifier(args[0], f.Visibility)
+		r = f.identifier(args[0], vis)
 	default:
-		r = f.identifier(args[0], f.Visibility)
+		r = f.identifier(args[0], vis)
 		for _, s := range args[1:] {
 			r += f.identifier(s, Public)
 		}
@@ -60,7 +64,11 @@ func (f *Formatter) IdentifierPrivate(args ...string) (r string) {
 }
 
 func (f *Formatter) identifier(s string, v Visibility) string {
-	r := snake(s, v == Private, f.Acronyms)
+	var acr map[string]string
+	if f != nil {
+		acr = f.Acronyms
+	}
+	r := snake(s, v == Private, acr)
 	if a, ok := keywords[r]; ok {
 		return a
 	}

@@ -9,7 +9,7 @@ type Table struct {
 	IfNotExists, Temporary               bool
 	Schema                               *Schema
 	Columns                              Columns
-	Constraints                          []*Constraint
+	Constraints                          Constraints
 	OwnedRelationships                   []*Relationship
 	InversedRelationships                []*Relationship
 	ManyToManyRelationships              []*Relationship

@@ -7,27 +7,30 @@ import (
 
 const (
 	// ConstraintTypeUnknown ...
-	ConstraintTypeUnknown = "unknown"
+	ConstraintTypeUnknown ConstraintType = "unknown"
 	// ConstraintTypePrimaryKey ...
-	ConstraintTypePrimaryKey = "pkey"
+	ConstraintTypePrimaryKey ConstraintType = "pkey"
 	// ConstraintTypeCheck ...
-	ConstraintTypeCheck = "check"
+	ConstraintTypeCheck ConstraintType = "check"
 	// ConstraintTypeUnique ...
-	ConstraintTypeUnique = "key"
+	ConstraintTypeUnique ConstraintType = "key"
 	// ConstraintTypeIndex ...
-	ConstraintTypeIndex = "idx"
+	ConstraintTypeIndex ConstraintType = "idx"
 	// ConstraintTypeForeignKey ...
-	ConstraintTypeForeignKey = "fkey"
+	ConstraintTypeForeignKey ConstraintType = "fkey"
 	// ConstraintTypeExclusion ...
-	ConstraintTypeExclusion = "excl"
+	ConstraintTypeExclusion ConstraintType = "excl"
 )
+
+type ConstraintType string
 
 // ConstraintOption ...
 type ConstraintOption func(*Constraint)
 
 // Constraint ...
 type Constraint struct {
-	Type, Check                                                          string
+	Type                                                                 ConstraintType
+	Check                                                                string
 	Table, ReferenceTable                                                *Table
 	Columns, ReferenceColumns                                            Columns
 	Attribute                                                            []*Attribute
@@ -161,32 +164,32 @@ func (c *Constraint) String() string {
 
 // IsForeignKey returns true if string has suffix "_fkey".
 func IsForeignKey(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeForeignKey)
+	return strings.HasSuffix(c, string(ConstraintTypeForeignKey))
 }
 
 // IsUnique returns true if string has suffix "_key".
 func IsUnique(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeUnique)
+	return strings.HasSuffix(c, string(ConstraintTypeUnique))
 }
 
 // IsPrimaryKey returns true if string has suffix "_pkey".
 func IsPrimaryKey(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypePrimaryKey)
+	return strings.HasSuffix(c, string(ConstraintTypePrimaryKey))
 }
 
 // IsCheck returns true if string has suffix "_check".
 func IsCheck(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeCheck)
+	return strings.HasSuffix(c, string(ConstraintTypeCheck))
 }
 
 // IsExclusion returns true if string has suffix "_excl".
 func IsExclusion(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeExclusion)
+	return strings.HasSuffix(c, string(ConstraintTypeExclusion))
 }
 
 // IsIndex returns true if string has suffix "_idx".
 func IsIndex(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeIndex)
+	return strings.HasSuffix(c, string(ConstraintTypeIndex))
 }
 
 //
@@ -209,3 +212,24 @@ func IsIndex(c string) bool {
 //		constraint.ReferenceColumns = columns
 //	}
 //}
+
+type Constraints []*Constraint
+
+// CountOf returns number of constraints of given type.
+// If nothing is given return length of entire slice.
+func (c Constraints) CountOf(types ...ConstraintType) int {
+	if len(types) == 0 {
+		return len(c)
+	}
+	var count int
+OuterLoop:
+	for _, cc := range c {
+		for _, t := range types {
+			if cc.Type == t {
+				count++
+				continue OuterLoop
+			}
+		}
+	}
+	return count
+}

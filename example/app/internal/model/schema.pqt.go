@@ -9152,7 +9152,8 @@ CREATE TABLE IF NOT EXISTS example.category (
 	updated_at TIMESTAMPTZ,
 
 	CONSTRAINT "example.category_id_pkey" PRIMARY KEY (id),
-	CONSTRAINT "example.category_parent_id_fkey" FOREIGN KEY (parent_id) REFERENCES example.category (id));
+	CONSTRAINT "example.category_parent_id_fkey" FOREIGN KEY (parent_id) REFERENCES example.category (id)
+);
 CREATE INDEX IF NOT EXISTS "example.category_name_idx" ON example.category (name);
 
 CREATE TABLE IF NOT EXISTS example.package (
@@ -9163,7 +9164,8 @@ CREATE TABLE IF NOT EXISTS example.package (
 	updated_at TIMESTAMPTZ,
 
 	CONSTRAINT "example.package_id_pkey" PRIMARY KEY (id),
-	CONSTRAINT "example.package_category_id_fkey" FOREIGN KEY (category_id) REFERENCES example.category (id));
+	CONSTRAINT "example.package_category_id_fkey" FOREIGN KEY (category_id) REFERENCES example.category (id)
+);
 
 CREATE TABLE IF NOT EXISTS example.news (
 	content TEXT NOT NULL,
@@ -9179,7 +9181,8 @@ CREATE TABLE IF NOT EXISTS example.news (
 
 	CONSTRAINT "example.news_id_pkey" PRIMARY KEY (id),
 	CONSTRAINT "example.news_title_key" UNIQUE (title),
-	CONSTRAINT "example.news_title_lead_key" UNIQUE (title, lead));
+	CONSTRAINT "example.news_title_lead_key" UNIQUE (title, lead)
+);
 
 CREATE TABLE IF NOT EXISTS example.comment (
 	content TEXT NOT NULL,
@@ -9190,7 +9193,8 @@ CREATE TABLE IF NOT EXISTS example.comment (
 	updated_at TIMESTAMPTZ,
 
 	CONSTRAINT "example.comment_news_title_fkey" FOREIGN KEY (news_title) REFERENCES example.news (title),
-	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id));
+	CONSTRAINT "example.comment_news_id_fkey" FOREIGN KEY (news_id) REFERENCES example.news (id)
+);
 CREATE INDEX IF NOT EXISTS "example.comment_news_title_idx" ON example.comment (news_title);
 
 CREATE TABLE IF NOT EXISTS example.complete (

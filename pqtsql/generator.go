@@ -129,6 +129,14 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 		buf.WriteString(t.Name)
 	}
 	buf.WriteString(" (\n")
+
+	nbOfConstraints := t.Constraints.CountOf(
+		pqt.ConstraintTypePrimaryKey,
+		pqt.ConstraintTypeCheck,
+		pqt.ConstraintTypeUnique,
+		pqt.ConstraintTypeForeignKey,
+		pqt.ConstraintTypeExclusion,
+	)
 	for i, c := range t.Columns {
 		if c.IsDynamic {
 			continue
@@ -148,13 +156,14 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 		if c.NotNull {
 			buf.WriteString(" NOT NULL")
 		}
-		if i < len(t.Columns)-1 || len(t.Constraints) > 0 {
+
+		if i < len(t.Columns)-1 || nbOfConstraints > 0 {
 			buf.WriteRune(',')
 		}
 		buf.WriteRune('\n')
 	}
 
-	if len(t.Constraints) > 0 {
+	if nbOfConstraints > 0 {
 		buf.WriteRune('\n')
 	}
 
@@ -162,15 +171,15 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 		if c.Type == pqt.ConstraintTypeIndex {
 			continue
 		}
-		if i > 0 {
-			buf.WriteRune(',')
-			buf.WriteRune('\n')
-		}
 		buf.WriteString("	")
 		err := g.generateConstraint(buf, c)
 		if err != nil {
 			return err
 		}
+		if i < nbOfConstraints-1 {
+			buf.WriteRune(',')
+		}
+		buf.WriteRune('\n')
 	}
 
 	buf.WriteString(");\n")

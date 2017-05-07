@@ -168,7 +168,7 @@ type Attribute struct {
 
 // Constraint ...
 func (a *Attribute) Constraint() (*Constraint, bool) {
-	var kind string
+	var kind ConstraintType
 	switch {
 	case a.Unique && !a.PrimaryKey:
 		kind = ConstraintTypeUnique
