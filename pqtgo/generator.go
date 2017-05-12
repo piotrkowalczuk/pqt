@@ -1596,11 +1596,11 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 	)
 }
 
-func (g *Generator) generateRepository(w io.Writer, t *pqt.Table) {
+func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (I%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
