@@ -310,6 +310,14 @@ type %sIterator struct {
 	rows *sql.Rows
 	cols []string
 }
+type I%sIterator interface {
+	Next() bool
+	Close() error
+	Err() error
+	Columns() ([]string, error)
+	%s() (*%sEntity, error)
+}
+var _ I%sIterator = (*%sIterator)(nil)
 
 func (i *%sIterator) Next() bool {
 	return i.rows.Next()
@@ -1588,7 +1596,7 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 	)
 }
 
-func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
+func (g *Generator) generateRepository(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
