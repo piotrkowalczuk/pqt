@@ -137,3 +137,73 @@ func TestWithDefault(t *testing.T) {
 		t.Error("update event expected")
 	}
 }
+
+func TestColumns_String(t *testing.T) {
+	given := pqt.Columns{
+		&pqt.Column{Name: "1"},
+		&pqt.Column{Name: "2"},
+		&pqt.Column{Name: "3"},
+	}
+	exp := "1,2,3"
+	if given.String() != exp {
+		t.Errorf("wrong output, expected %s but got %s", exp, given.String())
+	}
+}
+
+func TestJoinColumns(t *testing.T) {
+	got := pqt.JoinColumns(pqt.Columns{
+		&pqt.Column{Name: "1"},
+		&pqt.Column{Name: "2"},
+		&pqt.Column{Name: "3"},
+	}, ".")
+	exp := "1.2.3"
+	if got != exp {
+		t.Errorf("wrong output, expected %s but got %s", exp, got)
+	}
+}
+
+func TestColumn_Constraints(t *testing.T) {
+	check := "column > 0"
+	col := pqt.NewColumn(
+		"column",
+		pqt.TypeSerial(),
+		pqt.WithPrimaryKey(),
+		pqt.WithUnique(),
+		pqt.WithCheck(check),
+		pqt.WithIndex(),
+	)
+	tbl := pqt.NewTable("table").AddColumn(col)
+	got := col.Constraints()
+
+	var nb int
+	for _, g := range got {
+		switch g.Type {
+		case pqt.ConstraintTypePrimaryKey:
+			nb++
+			if len(g.Columns) != 1 {
+				t.Errorf("wrong number of columns, expected 1 got %d", len(g.Columns))
+			}
+			if g.Table != tbl {
+				t.Error("wrong table")
+			}
+		case pqt.ConstraintTypeIndex, pqt.ConstraintTypeUnique:
+			t.Errorf("unexpected constraint type, if column has primary key index and unique should be ignored, got %s", g.Type)
+		case pqt.ConstraintTypeCheck:
+			nb++
+			if len(g.Columns) != 1 {
+				t.Errorf("pk: wrong number of columns, expected 1 got %d", len(g.Columns))
+			}
+			if g.Table != tbl {
+				t.Error("wrong table")
+			}
+			if g.Check != check {
+				t.Error("wrong check")
+			}
+		case pqt.ConstraintTypeForeignKey:
+			nb++
+		}
+	}
+	if nb != 2 {
+		t.Errorf("wrong number of constraints, expected 2 got %d", nb)
+	}
+}

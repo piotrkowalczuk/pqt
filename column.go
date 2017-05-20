@@ -190,13 +190,6 @@ func (a *Attribute) Constraint() (*Constraint, bool) {
 // ColumnOption configures how we set up the column.
 type ColumnOption func(*Column)
 
-// WithType ...
-func WithType(t Type) ColumnOption {
-	return func(c *Column) {
-		c.Type = t
-	}
-}
-
 // WithTypeMapping ...
 func WithTypeMapping(t Type) ColumnOption {
 	return func(c *Column) {
