@@ -285,3 +285,11 @@ func TestTable_AddRelationship_oneToMany(t *testing.T) {
 //		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToManySelfReferencing, user.Relationships[1].Type)
 //	}
 //}
+
+func TestTable_FullName(t *testing.T) {
+	tbl := pqt.NewTable("table")
+	pqt.NewSchema("schema").AddTable(tbl)
+	if tbl.FullName() != "schema.table" {
+		t.Errorf("wrong full name: %s", tbl.FullName())
+	}
+}
