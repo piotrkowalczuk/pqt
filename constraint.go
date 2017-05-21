@@ -30,7 +30,8 @@ type ConstraintOption func(*Constraint)
 // Constraint ...
 type Constraint struct {
 	Type                                                                 ConstraintType
-	Check                                                                string
+	Where, Check                                                         string
+	Exclude                                                              Exclude
 	Table, ReferenceTable                                                *Table
 	Columns, ReferenceColumns                                            Columns
 	Attribute                                                            []*Attribute
@@ -97,29 +98,26 @@ func Check(table *Table, check string, columns ...*Column) *Constraint {
 // Exclusion constraint ensure that if any two rows are compared on the specified columns
 // or expressions using the specified operators,
 // at least one of these operator comparisons will return false or null.
-func Exclusion(table *Table, columns ...*Column) *Constraint {
+func Exclusion(table *Table, exclude Exclude, columns ...*Column) *Constraint {
 	return &Constraint{
 		Type:    ConstraintTypeExclusion,
 		Table:   table,
+		Exclude: exclude,
 		Columns: columns,
 	}
 }
 
-// ForeignKey constraint specifies that the values in a column (or a group of columns)
-// must match the values appearing in some row of another table.
-// We say this maintains the referential integrity between two related tables.
-//func ForeignKey(column *Column, opts ...ConstraintOption) *Constraint {
-//	fk := &Constraint{
-//		Type:    ConstraintTypeForeignKey,
-//		Table:   column.Table,
-//		Columns: []*Column{column},
-//	}
-//	for _, o := range opts {
-//		o(fk)
-//	}
-//
-//	return fk
-//}
+// Exclude ...
+type Exclude struct {
+	Using    string
+	Elements []Elements
+}
+
+// Elements ...
+type Elements struct {
+	Selector string
+	Operator string
+}
 
 // Reference ...
 type Reference struct {

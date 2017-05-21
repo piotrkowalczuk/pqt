@@ -8,6 +8,25 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 )
 
+func TestExclusion(t *testing.T) {
+	col1 := pqt.NewColumn("a", pqt.TypeIntegerBig())
+	col2 := pqt.NewColumn("b", pqt.TypeIntegerBig())
+	tbl := pqt.NewTable("table").AddColumn(col1).AddColumn(col2)
+	got := pqt.Exclusion(tbl, pqt.Exclude{
+		Using: "gist",
+		Elements: []pqt.Elements{
+			{
+				Operator: "=",
+				Selector: "a",
+			},
+		},
+	}, col1, col2)
+
+	if len(got.Exclude.Elements) != 1 {
+		t.Error("expected one exlude element")
+	}
+}
+
 func TestConstraint_Name(t *testing.T) {
 	id := pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey())
 	success := map[string]*pqt.Constraint{
