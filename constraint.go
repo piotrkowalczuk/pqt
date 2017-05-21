@@ -31,7 +31,6 @@ type ConstraintOption func(*Constraint)
 type Constraint struct {
 	Type                                                                 ConstraintType
 	Where, Check                                                         string
-	Exclude                                                              Exclude
 	Table, ReferenceTable                                                *Table
 	Columns, ReferenceColumns                                            Columns
 	Attribute                                                            []*Attribute
@@ -95,29 +94,18 @@ func Check(table *Table, check string, columns ...*Column) *Constraint {
 	}
 }
 
-// Exclusion constraint ensure that if any two rows are compared on the specified columns
-// or expressions using the specified operators,
-// at least one of these operator comparisons will return false or null.
-func Exclusion(table *Table, exclude Exclude, columns ...*Column) *Constraint {
-	return &Constraint{
-		Type:    ConstraintTypeExclusion,
-		Table:   table,
-		Exclude: exclude,
-		Columns: columns,
-	}
-}
-
-// Exclude ...
-type Exclude struct {
-	Using    string
-	Elements []Elements
-}
-
-// Elements ...
-type Elements struct {
-	Selector string
-	Operator string
-}
+//
+//// Exclusion constraint ensure that if any two rows are compared on the specified columns
+//// or expressions using the specified operators,
+//// at least one of these operator comparisons will return false or null.
+//func Exclusion(table *Table, exclude Exclude, columns ...*Column) *Constraint {
+//	return &Constraint{
+//		Type:    ConstraintTypeExclusion,
+//		Table:   table,
+//		Exclude: exclude,
+//		Columns: columns,
+//	}
+//}
 
 // Reference ...
 type Reference struct {
@@ -190,10 +178,10 @@ func IsCheck(c string) bool {
 	return strings.HasSuffix(c, string(ConstraintTypeCheck))
 }
 
-// IsExclusion returns true if string has suffix "_excl".
-func IsExclusion(c string) bool {
-	return strings.HasSuffix(c, string(ConstraintTypeExclusion))
-}
+//// IsExclusion returns true if string has suffix "_excl".
+//func IsExclusion(c string) bool {
+//	return strings.HasSuffix(c, string(ConstraintTypeExclusion))
+//}
 
 // IsIndex returns true if string has suffix "_idx".
 func IsIndex(c string) bool {

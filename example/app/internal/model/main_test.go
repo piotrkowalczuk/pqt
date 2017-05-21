@@ -109,7 +109,7 @@ func populateNews(t testing.TB, r *model.NewsRepositoryBase, nb int) {
 			Content:  fmt.Sprintf("content-%d", i),
 			Lead:     sql.NullString{String: fmt.Sprintf("lead-%d", i), Valid: true},
 			Continue: true,
-			Score: 10.11,
+			Score:    10.11,
 		})
 		if err != nil {
 			t.Fatalf("unexpected error #%d: %s", i, err.Error())
