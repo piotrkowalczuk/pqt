@@ -9,6 +9,34 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func TestNewDynamicColumn(t *testing.T) {
+	c := pqt.NewDynamicColumn("dynamic", &pqt.Function{
+		Name:      "sum",
+		Type:      pqt.TypeIntegerBig(),
+		Body:      "select $1 + $2",
+		Behaviour: pqt.FunctionBehaviourStable,
+		Args: []*pqt.FunctionArg{
+			{
+				Name: "A",
+				Type: pqt.TypeIntegerBig(),
+			},
+			{
+				Name: "B",
+				Type: pqt.TypeIntegerBig(),
+			},
+		},
+	})
+	if !c.IsDynamic {
+		t.Error("column should be dynamic")
+	}
+	if c.Name != "dynamic" {
+		t.Errorf("wrong name: %s", c.Name)
+	}
+	if len(c.Func.Args) != 2 {
+		t.Errorf("wrong number of function arguments, expected %d got %d", 2, len(c.Func.Args))
+	}
+}
+
 func TestNewColumn(t *testing.T) {
 	collate := "UTF-7"
 	check := "username = 'random'"
@@ -138,6 +166,28 @@ func TestWithDefault(t *testing.T) {
 	}
 }
 
+func TestWithOnDelete(t *testing.T) {
+	c := pqt.NewColumn("on_delete", pqt.TypeBool(), pqt.WithOnDelete(pqt.Cascade))
+	if c.OnDelete != pqt.Cascade {
+		t.Errorf("wrong on delete event: %s", c.OnDelete)
+	}
+}
+
+func TestWithOnUpdate(t *testing.T) {
+	c := pqt.NewColumn("on_update", pqt.TypeBool(), pqt.WithOnUpdate(pqt.SetNull))
+	if c.OnUpdate != pqt.SetNull {
+		t.Errorf("wrong on update event: %s", c.OnUpdate)
+	}
+}
+
+func TestWithColumnShortName(t *testing.T) {
+	given := "short-name"
+	c := pqt.NewColumn("short_name", pqt.TypeBool(), pqt.WithColumnShortName(given))
+	if c.ShortName != given {
+		t.Errorf("wrong short name: %s", c.ShortName)
+	}
+}
+
 func TestColumns_String(t *testing.T) {
 	given := pqt.Columns{
 		&pqt.Column{Name: "1"},
@@ -205,5 +255,53 @@ func TestColumn_Constraints(t *testing.T) {
 	}
 	if nb != 2 {
 		t.Errorf("wrong number of constraints, expected 2 got %d", nb)
+	}
+
+	col = pqt.NewColumn(
+		"column",
+		pqt.TypeSerial(),
+		pqt.WithUnique(),
+		pqt.WithIndex(),
+	)
+	nb = 0
+	tbl = pqt.NewTable("table").AddColumn(col)
+
+	for _, g := range col.Constraints() {
+		switch g.Type {
+		case pqt.ConstraintTypeUnique:
+			nb++
+			if len(g.Columns) != 1 {
+				t.Errorf("wrong number of columns, expected 1 got %d", len(g.Columns))
+			}
+			if g.Table != tbl {
+				t.Error("wrong table")
+			}
+		case pqt.ConstraintTypeIndex:
+			t.Errorf("unexpected constraint type, if column has unique index regular index be ignored, got %s", g.Type)
+		}
+	}
+	if nb != 1 {
+		t.Errorf("wrong number of constraints, expected 1 got %d", nb)
+	}
+
+	col = pqt.NewColumn(
+		"column",
+		pqt.TypeSerial(),
+		pqt.WithIndex(),
+	)
+	nb = 0
+	tbl = pqt.NewTable("table").AddColumn(col)
+
+	for _, g := range col.Constraints() {
+		switch g.Type {
+		case pqt.ConstraintTypeIndex:
+			nb++
+			if len(g.Columns) != 1 {
+				t.Errorf("wrong number of columns, expected 1 got %d", len(g.Columns))
+			}
+			if g.Table != tbl {
+				t.Error("wrong table")
+			}
+		}
 	}
 }
