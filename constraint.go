@@ -127,9 +127,19 @@ type Reference struct {
 // ForeignKey constraint specifies that the values in a column (or a group of columns)
 // must match the values appearing in some row of another table.
 // We say this maintains the referential integrity between two related tables.
-func ForeignKey(table *Table, columns, references Columns, opts ...ConstraintOption) *Constraint {
+func ForeignKey(columns, references Columns, opts ...ConstraintOption) *Constraint {
 	if len(references) == 0 {
 		panic("foreign key expects at least one reference column")
+	}
+	for _, c := range columns {
+		if c.Table != columns[0].Table {
+			panic("column tables inconsistency")
+		}
+	}
+	for _, r := range references {
+		if r.Table != references[0].Table {
+			panic("reference column tables inconsistency")
+		}
 	}
 	fk := &Constraint{
 		Type:             ConstraintTypeForeignKey,

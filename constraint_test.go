@@ -23,7 +23,7 @@ func TestExclusion(t *testing.T) {
 	}, col1, col2)
 
 	if len(got.Exclude.Elements) != 1 {
-		t.Error("expected one exlude element")
+		t.Error("expected one exclude element")
 	}
 }
 
@@ -64,7 +64,7 @@ func TestForeignKey(t *testing.T) {
 	t2.AddColumn(c21)
 	t2.AddColumn(c22)
 
-	cstr := pqt.ForeignKey(t1, pqt.Columns{c11, c12}, pqt.Columns{c21, c22})
+	cstr := pqt.ForeignKey(pqt.Columns{c11, c12}, pqt.Columns{c21, c22})
 	if cstr.Type != pqt.ConstraintTypeForeignKey {
 		t.Errorf("wrong type, expected %s but got %s", pqt.ConstraintTypeForeignKey, cstr.Type)
 	}

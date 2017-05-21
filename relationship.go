@@ -95,7 +95,12 @@ func WithOwnerName(s string) RelationshipOption {
 // WithOwnerForeignKey ...
 func WithOwnerForeignKey(columns, references Columns, opts ...ConstraintOption) RelationshipOption {
 	return func(r *Relationship) {
-		r.OwnerForeignKey = ForeignKey(r.OwnerTable, columns, references, opts...)
+		for _, c := range columns {
+			if r.OwnerTable != c.Table {
+				panic("colum tables inconsistency")
+			}
+		}
+		r.OwnerForeignKey = ForeignKey(columns, references, opts...)
 		r.OwnerColumns = columns
 		r.InversedColumns = references
 		r.InversedTable = references[0].Table
@@ -112,7 +117,12 @@ func WithInversedName(s string) RelationshipOption {
 // WithInversedForeignKey ...
 func WithInversedForeignKey(columns, references Columns, opts ...ConstraintOption) RelationshipOption {
 	return func(r *Relationship) {
-		r.InversedForeignKey = ForeignKey(r.InversedTable, columns, references, opts...)
+		for _, c := range columns {
+			if c.Table != r.InversedTable {
+				panic("table columns inconsistency")
+			}
+		}
+		r.InversedForeignKey = ForeignKey(columns, references, opts...)
 		r.InversedColumns = columns
 		r.OwnerColumns = references
 		r.OwnerTable = references[0].Table
