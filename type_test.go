@@ -201,3 +201,11 @@ func TestTypeEnumerated(t *testing.T) {
 		t.Errorf("wrong fingerprint: %s", given.Fingerprint())
 	}
 }
+
+func TestTypeMappable(t *testing.T) {
+	given := pqt.TypeMappable(pqt.TypeInteger(), pqt.TypeText())
+	assertType(t, "INTEGER", given)
+	if given.Fingerprint() != "mappable: INTEGER" {
+		t.Errorf("wrong fingerprint: %s", given.Fingerprint())
+	}
+}

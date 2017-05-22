@@ -1,6 +1,7 @@
 package pqt_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/piotrkowalczuk/pqt"
@@ -19,6 +20,33 @@ func TestNewTable(t *testing.T) {
 
 	if tbl.TableSpace != "table_space" {
 		t.Errorf("table should have field table space set to table_space")
+	}
+}
+
+func TestWithTableShortName(t *testing.T) {
+	tbl := pqt.NewTable("table", pqt.WithTableShortName("tbl"))
+	if tbl.ShortName != "tbl" {
+		t.Errorf("wrong table short name: %s", tbl.ShortName)
+	}
+}
+
+func TestTable_SetIfNotExists(t *testing.T) {
+	tbl := pqt.NewTable("table").SetIfNotExists(true)
+	if !tbl.IfNotExists {
+		t.Error("if not exists expected to be true")
+	}
+}
+
+func TestTable_SetSchema(t *testing.T) {
+	sch1 := pqt.NewSchema("schema1")
+	sch2 := pqt.NewSchema("schema2")
+	tbl := pqt.NewTable("table").SetSchema(sch1)
+	if !reflect.DeepEqual(tbl.Schema, sch1) {
+		t.Error("wrong schema")
+	}
+	tbl.SetSchema(sch2)
+	if !reflect.DeepEqual(tbl.Schema, sch2) {
+		t.Error("wrong schema")
 	}
 }
 
@@ -52,6 +80,17 @@ func TestTable_AddColumn(t *testing.T) {
 		if c.Table == nil {
 			t.Errorf("column #%d table nil pointer", i)
 		}
+	}
+}
+
+func TestTable_AddConstraint(t *testing.T) {
+	tbl := pqt.Table{}
+	idx := pqt.Constraint{
+		Type: pqt.ConstraintTypeIndex,
+	}
+	got := tbl.AddConstraint(&idx).Constraints.CountOf(pqt.ConstraintTypeIndex)
+	if got != 1 {
+		t.Errorf("wrong number of indexes: %d", got)
 	}
 }
 
@@ -237,8 +276,57 @@ func TestTable_AddRelationship_manyToMany(t *testing.T) {
 
 func TestTable_FullName(t *testing.T) {
 	tbl := pqt.NewTable("table")
+	if tbl.FullName() != "table" {
+		t.Errorf("wrong full name: %s", tbl.FullName())
+	}
+
 	pqt.NewSchema("schema").AddTable(tbl)
 	if tbl.FullName() != "schema.table" {
 		t.Errorf("wrong full name: %s", tbl.FullName())
+	}
+}
+
+func TestTable_AddCheck(t *testing.T) {
+	a := pqt.NewColumn("a", pqt.TypeInteger())
+	b := pqt.NewColumn("b", pqt.TypeInteger())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(a).
+		AddColumn(b).
+		AddCheck("a > b", a, b)
+
+	got := tbl.Constraints.CountOf(pqt.ConstraintTypeCheck)
+	if got != 1 {
+		t.Errorf("wrong number of check constraints: %d", got)
+	}
+}
+
+func TestTable_AddUnique(t *testing.T) {
+	a := pqt.NewColumn("a", pqt.TypeInteger())
+	b := pqt.NewColumn("b", pqt.TypeInteger())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(a).
+		AddColumn(b).
+		AddUnique(a, b)
+
+	got := tbl.Constraints.CountOf(pqt.ConstraintTypeUnique)
+	if got != 1 {
+		t.Errorf("wrong number of unique constraints: %d", got)
+	}
+}
+
+func TestTable_AddIndex(t *testing.T) {
+	a := pqt.NewColumn("a", pqt.TypeInteger())
+	b := pqt.NewColumn("b", pqt.TypeInteger())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(a).
+		AddColumn(b).
+		AddIndex(a, b)
+
+	got := tbl.Constraints.CountOf(pqt.ConstraintTypeIndex)
+	if got != 1 {
+		t.Errorf("wrong number of index constraints: %d", got)
 	}
 }

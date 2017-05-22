@@ -97,7 +97,7 @@ func WithOwnerForeignKey(columns, references Columns, opts ...ConstraintOption) 
 	return func(r *Relationship) {
 		for _, c := range columns {
 			if r.OwnerTable != c.Table {
-				panic("colum tables inconsistency")
+				panic("table columns inconsistency")
 			}
 		}
 		r.OwnerForeignKey = ForeignKey(columns, references, opts...)

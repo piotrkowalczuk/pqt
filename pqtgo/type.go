@@ -120,12 +120,3 @@ func (ct CustomType) TypeOf(m int32) reflect.Type {
 		return nil
 	}
 }
-
-// TypeMapOfStrings ....
-func TypeMapOfStrings() CustomType {
-	return TypeCustom(
-		map[string]string{},
-		map[string]string{},
-		nil,
-	)
-}
