@@ -2,12 +2,11 @@ package model_test
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
-
-	"database/sql"
 
 	"github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"

@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 	"github.com/piotrkowalczuk/sklog"
 )
@@ -79,7 +78,7 @@ func main() {
 		Lead:    sql.NullString{String: "Neque porro quisquam est qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit...", Valid: true},
 	})
 	if err != nil {
-		switch pqt.ErrorConstraint(err) {
+		switch model.ErrorConstraint(err) {
 		case model.TableNewsConstraintTitleUnique:
 			sklog.Fatal(log, errors.New("news with such title already exists"))
 		default:
@@ -167,11 +166,11 @@ func main() {
 		Name:     "does not work",
 	})
 	if err != nil {
-		switch pqt.ErrorConstraint(err) {
+		switch model.ErrorConstraint(err) {
 		case model.TableCategoryConstraintParentIDForeignKey:
 			sklog.Info(log, "category parent id constraint properly catched, category with such id does not exists")
 		default:
-			sklog.Fatal(log, fmt.Errorf("category constraint not catched properly, expected %s but got %s", model.TableCategoryConstraintParentIDForeignKey, pqt.ErrorConstraint(err)))
+			sklog.Fatal(log, fmt.Errorf("category constraint not catched properly, expected %s but got %s", model.TableCategoryConstraintParentIDForeignKey, model.ErrorConstraint(err)))
 		}
 	}
 
