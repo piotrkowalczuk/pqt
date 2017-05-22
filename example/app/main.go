@@ -6,14 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
-	"github.com/piotrkowalczuk/sklog"
 )
 
 var (
@@ -28,15 +27,14 @@ func init() {
 
 func main() {
 	flag.Parse()
-	log := sklog.NewHumaneLogger(os.Stdout, sklog.DefaultHTTPFormatter)
 	db, err := sql.Open("postgres", address)
 	if err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
 
 	_, err = db.Exec(model.SQL)
 	if err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
 
 	repo := struct {
@@ -47,20 +45,14 @@ func main() {
 		news: model.NewsRepositoryBase{
 			DB:    db,
 			Table: model.TableNews,
-			Debug: true,
-			Log:   log,
 		},
 		comment: model.CommentRepositoryBase{
 			DB:    db,
 			Table: model.TableComment,
-			Debug: true,
-			Log:   log,
 		},
 		category: model.CategoryRepositoryBase{
 			DB:    db,
 			Table: model.TableCategory,
-			Debug: true,
-			Log:   log,
 		},
 	}
 
@@ -68,9 +60,9 @@ func main() {
 
 	count, err := repo.news.Count(ctx, &model.NewsCountExpr{})
 	if err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
-	sklog.Debug(log, "number of news fetched", "count", count)
+	log.Println("number of news fetched", "count", count)
 
 	news, err := repo.news.Insert(ctx, &model.NewsEntity{
 		Title:   fmt.Sprintf("Lorem Ipsum - %d - %d", time.Now().Unix(), rand.Int63()),
@@ -80,9 +72,9 @@ func main() {
 	if err != nil {
 		switch model.ErrorConstraint(err) {
 		case model.TableNewsConstraintTitleUnique:
-			sklog.Fatal(log, errors.New("news with such title already exists"))
+			log.Fatal(errors.New("news with such title already exists"))
 		default:
-			sklog.Fatal(log, err)
+			log.Fatal(err)
 		}
 	}
 
@@ -94,7 +86,7 @@ func main() {
 			Content:   "Etiam eget nunc vel tellus placerat accumsan. Quisque dictum commodo orci, a eleifend nulla viverra malesuada. Etiam dui purus, dapibus a risus sed, porta scelerisque lorem. Sed vehicula mauris tellus, at dapibus risus facilisis vitae. Sed at lacus mollis, cursus sapien eu, egestas ligula. Cras blandit, arcu quis aliquam dictum, nibh purus pulvinar turpis, in dapibus est nibh et enim. Donec ex arcu, iaculis eget euismod id, lobortis nec enim. Quisque sed massa vel dui convallis ultrices. Nulla rutrum sed lacus vel ornare. Aliquam vulputate condimentum elit at pellentesque. Curabitur vitae sem tincidunt, volutpat urna ut, consequat turpis. Pellentesque varius justo libero, a volutpat lacus vulputate at. Integer tristique pharetra urna vel pharetra. In porttitor tincidunt eros, vel eleifend quam elementum a.",
 		})
 		if err != nil {
-			sklog.Fatal(log, err)
+			log.Fatal(err)
 		}
 	}
 
@@ -108,7 +100,7 @@ func main() {
 		},
 	})
 	if err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
 	defer iter.Close()
 
@@ -116,25 +108,25 @@ func main() {
 	for iter.Next() {
 		com, err := iter.Comment()
 		if err != nil {
-			sklog.Fatal(log, err)
+			log.Fatal(err)
 		}
-		sklog.Debug(log, "comment fetched", "comment_id", com.ID)
+		log.Println("comment fetched", "comment_id", com.ID)
 		got++
 	}
 	if err = iter.Err(); err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
 	if nb != got {
-		sklog.Fatal(log, fmt.Errorf("wrong number of comments, expected %d but got %d", nb, got))
+		log.Fatal(fmt.Errorf("wrong number of comments, expected %d but got %d", nb, got))
 	} else {
-		sklog.Info(log, "proper number of comments")
+		log.Println("proper number of comments")
 	}
 
 	category, err := repo.category.Insert(ctx, &model.CategoryEntity{
 		Name: "parent",
 	})
 	if err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
 
 	for i := 0; i < nb; i++ {
@@ -143,7 +135,7 @@ func main() {
 			Name:     "child_category" + strconv.Itoa(i),
 		})
 		if err != nil {
-			sklog.Fatal(log, err)
+			log.Fatal(err)
 		}
 	}
 
@@ -153,12 +145,12 @@ func main() {
 		},
 	})
 	if err != nil {
-		sklog.Fatal(log, err)
+		log.Fatal(err)
 	}
 	if count != int64(nb) {
-		sklog.Fatal(log, fmt.Errorf("wrong number of categories, expected %d but got %d", nb, count))
+		log.Fatal(fmt.Errorf("wrong number of categories, expected %d but got %d", nb, count))
 	} else {
-		sklog.Info(log, "proper number of categories")
+		log.Println("proper number of categories")
 	}
 
 	_, err = repo.category.Insert(ctx, &model.CategoryEntity{
@@ -168,9 +160,9 @@ func main() {
 	if err != nil {
 		switch model.ErrorConstraint(err) {
 		case model.TableCategoryConstraintParentIDForeignKey:
-			sklog.Info(log, "category parent id constraint properly catched, category with such id does not exists")
+			log.Println("category parent id constraint properly catched, category with such id does not exists")
 		default:
-			sklog.Fatal(log, fmt.Errorf("category constraint not catched properly, expected %s but got %s", model.TableCategoryConstraintParentIDForeignKey, model.ErrorConstraint(err)))
+			log.Fatal(fmt.Errorf("category constraint not catched properly, expected %s but got %s", model.TableCategoryConstraintParentIDForeignKey, model.ErrorConstraint(err)))
 		}
 	}
 
@@ -180,8 +172,8 @@ func main() {
 	count, err = repo.news.Count(ctx, &model.NewsCountExpr{})
 	if err != nil {
 		if err != context.DeadlineExceeded {
-			sklog.Fatal(log, err)
+			log.Fatal(err)
 		}
-		sklog.Debug(log, "as expected, news count failed due to deadline")
+		log.Fatal("as expected, news count failed due to deadline")
 	}
 }

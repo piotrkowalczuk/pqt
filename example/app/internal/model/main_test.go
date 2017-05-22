@@ -78,22 +78,18 @@ func setup(t testing.TB) *suite {
 		news: &model.NewsRepositoryBase{
 			Table: model.TableNews,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 		comment: &model.CommentRepositoryBase{
 			Table: model.TableComment,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 		category: &model.CategoryRepositoryBase{
 			Table: model.TableCategory,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 		complete: &model.CompleteRepositoryBase{
 			Table: model.TableComplete,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 	}
 }

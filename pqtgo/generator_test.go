@@ -253,8 +253,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Table   string
     			Columns []string
     			Db      *sql.DB
-    			Debug   bool
-    			Log     log.Logger
+    			Log     func(err error, entity, function, query string, args ...interface{})
     		}
 
     		func (r *UserRepositoryBase) InsertQuery(e *UserEntity, read bool) (string, []interface{}, error) {
@@ -304,20 +303,17 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			if err := r.Db.QueryRowContext(ctx, query, args...).Scan(&e.Id,
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.Id,
     				&e.Name,
-    			); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			)
+    			if r.Log != nil {
+    				r.Log(err, "User", "insert", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return e, nil
     		}
-
     		func UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
     			if c.Id.Valid {
     				if comp.Dirty {
@@ -452,18 +448,13 @@ func TestGenerator_Generate(t *testing.T) {
     				return nil, err
     			}
     			rows, err := r.Db.QueryContext(ctx, query, args...)
+    			if r.Log != nil {
+    				r.Log(err, "User", "find", query, args...)
+    			}
     			if err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
     				return nil, err
     			}
     			defer rows.Close()
-
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
-    			}
-
     			var entities []*UserEntity
     			var props []interface{}
     			for rows.Next() {
@@ -478,32 +469,26 @@ func TestGenerator_Generate(t *testing.T) {
 
     				entities = append(entities, &ent)
     			}
-    			if err = rows.Err(); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			err = rows.Err()
+    			if r.Log != nil {
+    				r.Log(err, "User", "find", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return entities, nil
     		}
-
     		func (r *UserRepositoryBase) FindIter(ctx context.Context, fe *UserFindExpr) (*UserIterator, error) {
     			query, args, err := r.FindQuery(fe)
     			if err != nil {
     				return nil, err
     			}
     			rows, err := r.Db.QueryContext(ctx, query, args...)
-    			if err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			if r.Log != nil {
+    				r.Log(err, "User", "find iter", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return &UserIterator{
     				rows: rows,
@@ -533,17 +518,12 @@ func TestGenerator_Generate(t *testing.T) {
     				return nil, err
     			}
     			err = r.Db.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+    			if r.Log != nil {
+    				r.Log(err, "User", "find by primary key", find.String(), find.Args()...)
+    			}
     			if err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query failure", "query", find.String(), "table", r.Table, "error", err.Error())
-    				}
     				return nil, err
     			}
-
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find by primary key query success", "query", find.String(), "table", r.Table)
-    			}
-
     			return &ent, nil
     		}
     		func (r *UserRepositoryBase) FindOneByName(ctx context.Context, userName string) (*UserEntity, error) {
@@ -631,14 +611,12 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			if err = r.Db.QueryRowContext(ctx, query, args...).Scan(props...); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(props...)
+    			if r.Log != nil {
+    				r.Log(err, "User", "update by primary key", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "update by primary key query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return &ent, nil
     		}
@@ -696,17 +674,12 @@ func TestGenerator_Generate(t *testing.T) {
     				return nil, err
     			}
     			err = r.Db.QueryRowContext(ctx, query, args...).Scan(props...)
+    			if r.Log != nil {
+    				r.Log(err, "User", "update one by unique", query, args...)
+    			}
     			if err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
     				return nil, err
     			}
-
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
-    			}
-
     			return &ent, nil
     		}
     		func (r *UserRepositoryBase) UpsertQuery(e *UserEntity, p *UserPatch, inf ...string) (string, []interface{}, error) {
@@ -795,20 +768,17 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			if err := r.Db.QueryRowContext(ctx, query, args...).Scan(&e.Id,
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.Id,
     				&e.Name,
-    			); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			)
+    			if r.Log != nil {
+    				r.Log(err, "User", "upsert", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return e, nil
     		}
-
     		func (r *UserRepositoryBase) Count(ctx context.Context, c *UserCountExpr) (int64, error) {
     			query, args, err := r.FindQuery(&UserFindExpr{
     				Where:   c.Where,
@@ -818,17 +788,13 @@ func TestGenerator_Generate(t *testing.T) {
     				return 0, err
     			}
     			var count int64
-    			if err := r.Db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&count)
+    			if r.Log != nil {
+    				r.Log(err, "User", "count", query, args...)
+    			}
+    			if err != nil {
     				return 0, err
     			}
-
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
-    			}
-
     			return count, nil
     		}
     		func (r *UserRepositoryBase) DeleteOneById(ctx context.Context, pk int64) (int64, error) {
@@ -1001,8 +967,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Table   string
     			Columns []string
     			Db      *sql.DB
-    			Debug   bool
-    			Log     log.Logger
+    			Log     func(err error, entity, function, query string, args ...interface{})
     		}
 
     		func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity, read bool) (string, []interface{}, error) {
@@ -1054,18 +1019,15 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			if err := r.Db.QueryRowContext(ctx, query, args...).Scan(&e.UserId); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.UserId)
+    			if r.Log != nil {
+    				r.Log(err, "Comment", "insert", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return e, nil
     		}
-
     		func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
     			if c.UserId.Valid {
     				if comp.Dirty {
@@ -1218,18 +1180,13 @@ func TestGenerator_Generate(t *testing.T) {
     				return nil, err
     			}
     			rows, err := r.Db.QueryContext(ctx, query, args...)
+    			if r.Log != nil {
+    				r.Log(err, "Comment", "find", query, args...)
+    			}
     			if err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
     				return nil, err
     			}
     			defer rows.Close()
-
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
-    			}
-
     			var entities []*CommentEntity
     			var props []interface{}
     			for rows.Next() {
@@ -1259,32 +1216,26 @@ func TestGenerator_Generate(t *testing.T) {
 
     				entities = append(entities, &ent)
     			}
-    			if err = rows.Err(); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "insert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			err = rows.Err()
+    			if r.Log != nil {
+    				r.Log(err, "Comment", "find", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return entities, nil
     		}
-
     		func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
     			query, args, err := r.FindQuery(fe)
     			if err != nil {
     				return nil, err
     			}
     			rows, err := r.Db.QueryContext(ctx, query, args...)
-    			if err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			if r.Log != nil {
+    				r.Log(err, "Comment", "find iter", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "find iter query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return &CommentIterator{
     				rows: rows,
@@ -1379,18 +1330,15 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			if err := r.Db.QueryRowContext(ctx, query, args...).Scan(&e.UserId); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
-    				return nil, err
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.UserId)
+    			if r.Log != nil {
+    				r.Log(err, "Comment", "upsert", query, args...)
     			}
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "upsert query success", "query", query, "table", r.Table)
+    			if err != nil {
+    				return nil, err
     			}
     			return e, nil
     		}
-
     		func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCountExpr) (int64, error) {
     			query, args, err := r.FindQuery(&CommentFindExpr{
     				Where:   c.Where,
@@ -1403,17 +1351,13 @@ func TestGenerator_Generate(t *testing.T) {
     				return 0, err
     			}
     			var count int64
-    			if err := r.Db.QueryRowContext(ctx, query, args...).Scan(&count); err != nil {
-    				if r.Debug {
-    					r.Log.Log("level", "error", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query failure", "query", query, "table", r.Table, "error", err.Error())
-    				}
+    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&count)
+    			if r.Log != nil {
+    				r.Log(err, "Comment", "count", query, args...)
+    			}
+    			if err != nil {
     				return 0, err
     			}
-
-    			if r.Debug {
-    				r.Log.Log("level", "debug", "timestamp", time.Now().Format(time.RFC3339), "msg", "count query success", "query", query, "table", r.Table)
-    			}
-
     			return count, nil
     		}
 
