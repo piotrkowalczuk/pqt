@@ -76,13 +76,13 @@ Very welcome in general. Especially in fields like:
 
 ## TODO
 
-[ ] Postgres types better support.
-[x] Support for functions.
-[ ] Refactor `WithXXX` functions to be prefixed by the type they return for example `TableWithIfNotExists` or `ColumnWithNotNull`.
-[ ] Constraint.
-    [x] Index
-    [x] Unique
-    [x] Primary Key
-    [x] Foreign Key
-    [x] Check
-    [ ] Exclusion
+* [ ] Postgres types better support.
+* [x] Support for functions.
+* [ ] Refactor `WithXXX` functions to be prefixed by the type they return for example `TableWithIfNotExists` or `ColumnWithNotNull`.
+* [ ] Constraint.
+    * [x] Index
+    * [x] Unique
+    * [x] Primary Key
+    * [x] Foreign Key
+    * [x] Check
+    * [ ] Exclusion
