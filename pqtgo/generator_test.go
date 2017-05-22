@@ -100,7 +100,7 @@ func TestGenerator_Generate(t *testing.T) {
 
     		// LogFunc represents function that can be passed into repository to log query result.
 		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
-		
+
     		const (
     			TableUser                     = "example.user"
     			TableUserColumnId             = "id"

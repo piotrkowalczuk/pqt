@@ -1246,9 +1246,10 @@ func (g *Generator) generateRepositoryJoinClause(w io.Writer, s *pqt.Schema) {
 }
 
 func (g *Generator) generateLogFunc(w io.Writer, s *pqt.Schema) {
-	fmt.Fprint(w, `
-	// LogFunc represents function that can be passed into repository to log query result.
+	fmt.Fprintf(w, `
+	// %s represents function that can be passed into repository to log query result.
 	type LogFunc func(err error, ent, fnc, sql string, args ...interface{})`,
+		g.Formatter.Identifier("log", "func"),
 	)
 }
 
