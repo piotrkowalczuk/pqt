@@ -1978,8 +1978,8 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		for rows.Next() {
 			var ent %sEntity
-			err = rows.Scan(`,
-		entityName,
+			err = rows.Scan(
+			`, entityName,
 	)
 	for _, c := range t.Columns {
 		fmt.Fprintf(w, "&ent.%s,\n", g.Formatter.Identifier(c.Name))

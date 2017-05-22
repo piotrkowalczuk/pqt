@@ -232,7 +232,8 @@ func TestGenerator_Generate(t *testing.T) {
     		func ScanUserRows(rows *sql.Rows) (entities []*UserEntity, err error) {
     			for rows.Next() {
     				var ent UserEntity
-    				err = rows.Scan(&ent.Id,
+    				err = rows.Scan(
+    					&ent.Id,
     					&ent.Name,
     				)
     				if err != nil {
@@ -980,7 +981,9 @@ func TestGenerator_Generate(t *testing.T) {
     		func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
     			for rows.Next() {
     				var ent CommentEntity
-    				err = rows.Scan(&ent.UserId)
+    				err = rows.Scan(
+    					&ent.UserId,
+    				)
     				if err != nil {
     					return
     				}

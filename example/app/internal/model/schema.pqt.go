@@ -223,7 +223,8 @@ type CategoryPatch struct {
 func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
 	for rows.Next() {
 		var ent CategoryEntity
-		err = rows.Scan(&ent.Content,
+		err = rows.Scan(
+			&ent.Content,
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.Name,
@@ -1326,7 +1327,8 @@ type PackagePatch struct {
 func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
 	for rows.Next() {
 		var ent PackageEntity
-		err = rows.Scan(&ent.Break,
+		err = rows.Scan(
+			&ent.Break,
 			&ent.CategoryID,
 			&ent.CreatedAt,
 			&ent.ID,
@@ -2402,7 +2404,8 @@ type NewsPatch struct {
 func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
 	for rows.Next() {
 		var ent NewsEntity
-		err = rows.Scan(&ent.Content,
+		err = rows.Scan(
+			&ent.Content,
 			&ent.Continue,
 			&ent.CreatedAt,
 			&ent.ID,
@@ -4501,7 +4504,8 @@ type CommentPatch struct {
 func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
 	for rows.Next() {
 		var ent CommentEntity
-		err = rows.Scan(&ent.Content,
+		err = rows.Scan(
+			&ent.Content,
 			&ent.CreatedAt,
 			&ent.ID,
 			&ent.IDMultiply,
@@ -5749,7 +5753,8 @@ type CompletePatch struct {
 func ScanCompleteRows(rows *sql.Rows) (entities []*CompleteEntity, err error) {
 	for rows.Next() {
 		var ent CompleteEntity
-		err = rows.Scan(&ent.ColumnBool,
+		err = rows.Scan(
+			&ent.ColumnBool,
 			&ent.ColumnBytea,
 			&ent.ColumnCharacter0,
 			&ent.ColumnCharacter100,

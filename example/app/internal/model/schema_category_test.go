@@ -64,29 +64,61 @@ func TestCategoryRepositoryBase_Count(t *testing.T) {
 }
 
 func TestCategoryRepositoryBase_Find(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	max := 10
-	populateCategory(t, s.category, max)
-	got, err := s.category.Find(context.Background(), &model.CategoryFindExpr{
-		Where: &model.CategoryCriteria{
-			Content:  sql.NullString{String: "content-5-1", Valid: true},
-			Name:     sql.NullString{String: "name-5-1", Valid: true},
-			ParentID: sql.NullInt64{Int64: 5, Valid: true},
+	cases := map[string]struct {
+		max, exp int
+		expr     model.CategoryFindExpr
+	}{
+		"simple": {
+			max: 10,
+			exp: 1,
+			expr: model.CategoryFindExpr{
+				Where: &model.CategoryCriteria{
+					Content:  sql.NullString{String: "content-5-1", Valid: true},
+					Name:     sql.NullString{String: "name-5-1", Valid: true},
+					ParentID: sql.NullInt64{Int64: 5, Valid: true},
+				},
+				Limit:  10,
+				Offset: 0,
+				OrderBy: map[string]bool{
+					model.TableCategoryColumnID: true,
+				},
+			},
 		},
-		Limit:  10,
-		Offset: 0,
-		OrderBy: map[string]bool{
-			model.TableCategoryColumnID: true,
+		"full": {
+			max: 10,
+			exp: 0,
+			expr: model.CategoryFindExpr{
+				Where: &model.CategoryCriteria{
+					Content:   sql.NullString{String: "content-5-1", Valid: true},
+					Name:      sql.NullString{String: "name-5-1", Valid: true},
+					ParentID:  sql.NullInt64{Int64: 5, Valid: true},
+					CreatedAt: pq.NullTime{Time: time.Now().Add(5 * time.Minute), Valid: true},
+					UpdatedAt: pq.NullTime{Time: time.Now().Add(-5 * time.Minute), Valid: true},
+				},
+				Limit:  10,
+				Offset: 10,
+				OrderBy: map[string]bool{
+					model.TableCategoryColumnID: true,
+				},
+			},
 		},
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err.Error())
 	}
 
-	if len(got) != 1 {
-		t.Errorf("wrong output, expected %d but got %d", 1, len(got))
+	for hint, c := range cases {
+		t.Run(hint, func(t *testing.T) {
+			s := setup(t)
+			defer s.teardown(t)
+
+			populateCategory(t, s.category, c.max)
+			got, err := s.category.Find(context.Background(), &c.expr)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			if len(got) != c.exp {
+				t.Errorf("wrong output, expected %d but got %d", c.exp, len(got))
+			}
+		})
 	}
 }
 
