@@ -128,6 +128,7 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	g.generatePackage(b)
 	g.generateImports(b, s)
 	g.generateRepositoryJoinClause(b, s)
+	g.generateLogFunc(b, s)
 	for _, t := range s.Tables {
 		g.generateConstants(b, t)
 		g.generateColumns(b, t)
@@ -440,7 +441,7 @@ func (g *Generator) generateRepository(w io.Writer, table *pqt.Table) {
 			%s string
 			%s []string
 			%s *sql.DB
-			%s func(err error, entity, function, query string, args ...interface{})
+			%s LogFunc
 		}`,
 		g.Formatter.Identifier(table.Name),
 		g.Formatter.Identifier("table"),
@@ -1241,6 +1242,13 @@ func (g *Generator) generateRepositoryJoinClause(w io.Writer, s *pqt.Schema) {
 		}
 		return
 	}`,
+	)
+}
+
+func (g *Generator) generateLogFunc(w io.Writer, s *pqt.Schema) {
+	fmt.Fprint(w, `
+	// LogFunc represents function that can be passed into repository to log query result.
+	type LogFunc func(err error, ent, fnc, sql string, args ...interface{})`,
 	)
 }
 

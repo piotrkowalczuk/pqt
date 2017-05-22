@@ -50,6 +50,8 @@ func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
 	return
 }
 
+type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
+
 const (
 	TableCategory                     = "example.category"
 	TableCategoryColumnContent        = "content"
@@ -247,7 +249,7 @@ type CategoryRepositoryBase struct {
 	Table   string
 	Columns []string
 	DB      *sql.DB
-	Log     func(err error, entity, function, query string, args ...interface{})
+	Log     LogFunc
 }
 
 func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity, read bool) (string, []interface{}, error) {
@@ -1321,7 +1323,7 @@ type PackageRepositoryBase struct {
 	Table   string
 	Columns []string
 	DB      *sql.DB
-	Log     func(err error, entity, function, query string, args ...interface{})
+	Log     LogFunc
 }
 
 func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity, read bool) (string, []interface{}, error) {
@@ -2374,7 +2376,7 @@ type NewsRepositoryBase struct {
 	Table   string
 	Columns []string
 	DB      *sql.DB
-	Log     func(err error, entity, function, query string, args ...interface{})
+	Log     LogFunc
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []interface{}, error) {
@@ -4433,7 +4435,7 @@ type CommentRepositoryBase struct {
 	Table   string
 	Columns []string
 	DB      *sql.DB
-	Log     func(err error, entity, function, query string, args ...interface{})
+	Log     LogFunc
 }
 
 func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity, read bool) (string, []interface{}, error) {
@@ -5685,7 +5687,7 @@ type CompleteRepositoryBase struct {
 	Table   string
 	Columns []string
 	DB      *sql.DB
-	Log     func(err error, entity, function, query string, args ...interface{})
+	Log     LogFunc
 }
 
 func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity, read bool) (string, []interface{}, error) {

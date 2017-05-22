@@ -98,6 +98,9 @@ func TestGenerator_Generate(t *testing.T) {
     			return
     		}
 
+    		// LogFunc represents function that can be passed into repository to log query result.
+		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
+		
     		const (
     			TableUser                     = "example.user"
     			TableUserColumnId             = "id"
@@ -253,7 +256,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Table   string
     			Columns []string
     			Db      *sql.DB
-    			Log     func(err error, entity, function, query string, args ...interface{})
+    			Log     LogFunc
     		}
 
     		func (r *UserRepositoryBase) InsertQuery(e *UserEntity, read bool) (string, []interface{}, error) {
@@ -967,7 +970,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Table   string
     			Columns []string
     			Db      *sql.DB
-    			Log     func(err error, entity, function, query string, args ...interface{})
+    			Log     LogFunc
     		}
 
     		func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity, read bool) (string, []interface{}, error) {
