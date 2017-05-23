@@ -66,7 +66,7 @@ By default example is trying to connect to local `test` database on default port
 To run it simply call:
 
 ```bash
-$ make gen // not necessary, since generated w is already part of the repo
+$ make gen // not necessary, since generated code is already part of the repo
 $ make run
 ```
 
@@ -74,6 +74,15 @@ $ make run
 
 Very welcome in general. Especially in fields like:
 
-* postgres types better support
-* support for functions
+## TODO
 
+* [ ] Postgres types better support.
+* [x] Support for functions.
+* [ ] Refactor `WithXXX` functions to be prefixed by the type they return for example `TableWithIfNotExists` or `ColumnWithNotNull`.
+* [ ] Constraint.
+    * [x] Index
+    * [x] Unique
+    * [x] Primary Key
+    * [x] Foreign Key
+    * [x] Check
+    * [ ] Exclusion

@@ -1,6 +1,7 @@
 package pqt_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/piotrkowalczuk/pqt"
@@ -19,6 +20,33 @@ func TestNewTable(t *testing.T) {
 
 	if tbl.TableSpace != "table_space" {
 		t.Errorf("table should have field table space set to table_space")
+	}
+}
+
+func TestWithTableShortName(t *testing.T) {
+	tbl := pqt.NewTable("table", pqt.WithTableShortName("tbl"))
+	if tbl.ShortName != "tbl" {
+		t.Errorf("wrong table short name: %s", tbl.ShortName)
+	}
+}
+
+func TestTable_SetIfNotExists(t *testing.T) {
+	tbl := pqt.NewTable("table").SetIfNotExists(true)
+	if !tbl.IfNotExists {
+		t.Error("if not exists expected to be true")
+	}
+}
+
+func TestTable_SetSchema(t *testing.T) {
+	sch1 := pqt.NewSchema("schema1")
+	sch2 := pqt.NewSchema("schema2")
+	tbl := pqt.NewTable("table").SetSchema(sch1)
+	if !reflect.DeepEqual(tbl.Schema, sch1) {
+		t.Error("wrong schema")
+	}
+	tbl.SetSchema(sch2)
+	if !reflect.DeepEqual(tbl.Schema, sch2) {
+		t.Error("wrong schema")
 	}
 }
 
@@ -52,6 +80,17 @@ func TestTable_AddColumn(t *testing.T) {
 		if c.Table == nil {
 			t.Errorf("column #%d table nil pointer", i)
 		}
+	}
+}
+
+func TestTable_AddConstraint(t *testing.T) {
+	tbl := pqt.Table{}
+	idx := pqt.Constraint{
+		Type: pqt.ConstraintTypeIndex,
+	}
+	got := tbl.AddConstraint(&idx).Constraints.CountOf(pqt.ConstraintTypeIndex)
+	if got != 1 {
+		t.Errorf("wrong number of indexes: %d", got)
 	}
 }
 
@@ -203,85 +242,91 @@ func TestTable_AddRelationship_oneToMany(t *testing.T) {
 	}
 }
 
-//func TestTable_AddRelationship_manyToMany(t *testing.T) {
-//	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-//	group := pqt.NewTable("group").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-//	userGroups := pqt.NewTable("user_groups")
-//	user.AddRelationship(pqt.ManyToMany(
-//		group,
-//		userGroups,
-//		pqt.WithInversedName("users"),
-//		pqt.WithOwnerName("groups"),
-//	))
-//
-//	if len(user.Relationships) != 1 {
-//		t.Fatalf("user should have 1 relationship, but has %d", len(user.Relationships))
-//	}
-//
-//	if user.Relationships[0].OwnerName != "groups" {
-//		t.Errorf("user relationship to group should be mapped by groups")
-//	}
-//
-//	if user.Relationships[0].OwnerTable != group {
-//		t.Errorf("user relationship to group should be mapped by group table")
-//	}
-//
-//	if user.Relationships[0].Type != pqt.RelationshipTypeManyToMany {
-//		t.Errorf("user relationship to group should be many to many")
-//	}
-//
-//	if len(group.Relationships) != 1 {
-//		t.Fatalf("group should have 1 relationship, but has %d", len(group.Relationships))
-//	}
-//
-//	if group.Relationships[0].InversedName != "users" {
-//		t.Errorf("group relationship to user should be mapped by users")
-//	}
-//
-//	if group.Relationships[0].InversedTable != user {
-//		t.Errorf("group relationship to user should be mapped by user table")
-//	}
-//
-//	if group.Relationships[0].Type != pqt.RelationshipTypeManyToMany {
-//		t.Errorf("group relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToMany, group.Relationships[0].Type)
-//	}
-//}
-//
-//func TestTable_AddRelationship_manyToManySelfReferencing(t *testing.T) {
-//	friendship := pqt.NewTable("friendship")
-//	user := pqt.NewTable("user").
-//		AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey())).
-//		AddRelationship(pqt.ManyToManySelfReferencing(
-//		friendship,
-//		pqt.WithInversedName("friends_with_me"),
-//		pqt.WithOwnerName("my_friends"),
-//	))
-//
-//	if len(user.Relationships) != 2 {
-//		t.Fatalf("user should have 2 relationships, but has %d", len(user.Relationships))
-//	}
-//
-//	if user.Relationships[0].OwnerName != "my_friends" {
-//		t.Errorf("user relationship to user should be mapped by my_friends")
-//	}
-//
-//	if user.Relationships[0].OwnerTable != user {
-//		t.Errorf("user relationship to group should be mapped by group table")
-//	}
-//
-//	if user.Relationships[0].Type != pqt.RelationshipTypeManyToManySelfReferencing {
-//		t.Errorf("user relationship to group should be many to many")
-//	}
-//
-//	if user.Relationships[1].InversedName != "friends_with_me" {
-//		t.Errorf("user relationship to user should be mapped by friends_with_me")
-//	}
-//
-//	if user.Relationships[1].InversedTable != user {
-//		t.Errorf("user relationship to user should be mapped by user table")
-//	}
-//
-//	if user.Relationships[1].Type != pqt.RelationshipTypeManyToManySelfReferencing {
-//		t.Errorf("user relationship to user should be %d, but is %d", pqt.RelationshipTypeManyToManySelfReferencing, user.Relationships[1].Type)
-//	}
-//}
+func TestTable_AddRelationship_manyToMany(t *testing.T) {
+	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
+	group := pqt.NewTable("group").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
+	userGroups := pqt.NewTable("user_groups")
+	user.AddRelationship(pqt.ManyToMany(
+		group,
+		userGroups,
+		pqt.WithInversedName("users"),
+		pqt.WithOwnerName("groups"),
+	))
+
+	if len(user.OwnedRelationships) != 1 {
+		t.Fatalf("user should have 1 relationship, but has %d", len(user.OwnedRelationships))
+	}
+
+	if user.OwnedRelationships[0].OwnerName != "groups" {
+		t.Errorf("user relationship to group should be mapped by groups")
+	}
+
+	if user.OwnedRelationships[0].OwnerTable != group {
+		t.Errorf("user relationship to group should be mapped by group table")
+	}
+
+	if user.OwnedRelationships[0].Type != pqt.RelationshipTypeManyToMany {
+		t.Errorf("user relationship to group should be many to many")
+	}
+
+	if len(group.InversedRelationships) != 0 {
+		t.Fatalf("group should have 0 relationship, but has %d", len(group.InversedRelationships))
+	}
+}
+
+func TestTable_FullName(t *testing.T) {
+	tbl := pqt.NewTable("table")
+	if tbl.FullName() != "table" {
+		t.Errorf("wrong full name: %s", tbl.FullName())
+	}
+
+	pqt.NewSchema("schema").AddTable(tbl)
+	if tbl.FullName() != "schema.table" {
+		t.Errorf("wrong full name: %s", tbl.FullName())
+	}
+}
+
+func TestTable_AddCheck(t *testing.T) {
+	a := pqt.NewColumn("a", pqt.TypeInteger())
+	b := pqt.NewColumn("b", pqt.TypeInteger())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(a).
+		AddColumn(b).
+		AddCheck("a > b", a, b)
+
+	got := tbl.Constraints.CountOf(pqt.ConstraintTypeCheck)
+	if got != 1 {
+		t.Errorf("wrong number of check constraints: %d", got)
+	}
+}
+
+func TestTable_AddUnique(t *testing.T) {
+	a := pqt.NewColumn("a", pqt.TypeInteger())
+	b := pqt.NewColumn("b", pqt.TypeInteger())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(a).
+		AddColumn(b).
+		AddUnique(a, b)
+
+	got := tbl.Constraints.CountOf(pqt.ConstraintTypeUnique)
+	if got != 1 {
+		t.Errorf("wrong number of unique constraints: %d", got)
+	}
+}
+
+func TestTable_AddIndex(t *testing.T) {
+	a := pqt.NewColumn("a", pqt.TypeInteger())
+	b := pqt.NewColumn("b", pqt.TypeInteger())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(a).
+		AddColumn(b).
+		AddIndex(a, b)
+
+	got := tbl.Constraints.CountOf(pqt.ConstraintTypeIndex)
+	if got != 1 {
+		t.Errorf("wrong number of index constraints: %d", got)
+	}
+}

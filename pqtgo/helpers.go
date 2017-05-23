@@ -207,15 +207,6 @@ func chooseType(tm, to, tc string, mode int32) string {
 	}
 }
 
-func tableConstraints(t *pqt.Table) []*pqt.Constraint {
-	var constraints []*pqt.Constraint
-	for _, c := range t.Columns {
-		constraints = append(constraints, c.Constraints()...)
-	}
-
-	return append(constraints, t.Constraints...)
-}
-
 func generateCustomType(t CustomType, m int32) string {
 	goType := func(tp reflect.Type) string {
 		if tp == nil {

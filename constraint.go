@@ -7,27 +7,30 @@ import (
 
 const (
 	// ConstraintTypeUnknown ...
-	ConstraintTypeUnknown = "unknown"
+	ConstraintTypeUnknown ConstraintType = "unknown"
 	// ConstraintTypePrimaryKey ...
-	ConstraintTypePrimaryKey = "pkey"
+	ConstraintTypePrimaryKey ConstraintType = "pkey"
 	// ConstraintTypeCheck ...
-	ConstraintTypeCheck = "check"
+	ConstraintTypeCheck ConstraintType = "check"
 	// ConstraintTypeUnique ...
-	ConstraintTypeUnique = "key"
+	ConstraintTypeUnique ConstraintType = "key"
 	// ConstraintTypeIndex ...
-	ConstraintTypeIndex = "idx"
+	ConstraintTypeIndex ConstraintType = "idx"
 	// ConstraintTypeForeignKey ...
-	ConstraintTypeForeignKey = "fkey"
+	ConstraintTypeForeignKey ConstraintType = "fkey"
 	// ConstraintTypeExclusion ...
-	ConstraintTypeExclusion = "excl"
+	ConstraintTypeExclusion ConstraintType = "excl"
 )
+
+type ConstraintType string
 
 // ConstraintOption ...
 type ConstraintOption func(*Constraint)
 
 // Constraint ...
 type Constraint struct {
-	Type, Check                                                          string
+	Type                                                                 ConstraintType
+	Where, Check                                                         string
 	Table, ReferenceTable                                                *Table
 	Columns, ReferenceColumns                                            Columns
 	Attribute                                                            []*Attribute
@@ -91,31 +94,17 @@ func Check(table *Table, check string, columns ...*Column) *Constraint {
 	}
 }
 
-// Exclusion constraint ensure that if any two rows are compared on the specified columns
-// or expressions using the specified operators,
-// at least one of these operator comparisons will return false or null.
-func Exclusion(table *Table, columns ...*Column) *Constraint {
-	return &Constraint{
-		Type:    ConstraintTypeExclusion,
-		Table:   table,
-		Columns: columns,
-	}
-}
-
-// ForeignKey constraint specifies that the values in a column (or a group of columns)
-// must match the values appearing in some row of another table.
-// We say this maintains the referential integrity between two related tables.
-//func ForeignKey(column *Column, opts ...ConstraintOption) *Constraint {
-//	fk := &Constraint{
-//		Type:    ConstraintTypeForeignKey,
-//		Table:   column.Table,
-//		Columns: []*Column{column},
-//	}
-//	for _, o := range opts {
-//		o(fk)
-//	}
 //
-//	return fk
+//// Exclusion constraint ensure that if any two rows are compared on the specified columns
+//// or expressions using the specified operators,
+//// at least one of these operator comparisons will return false or null.
+//func Exclusion(table *Table, exclude Exclude, columns ...*Column) *Constraint {
+//	return &Constraint{
+//		Type:    ConstraintTypeExclusion,
+//		Table:   table,
+//		Exclude: exclude,
+//		Columns: columns,
+//	}
 //}
 
 // Reference ...
@@ -126,9 +115,19 @@ type Reference struct {
 // ForeignKey constraint specifies that the values in a column (or a group of columns)
 // must match the values appearing in some row of another table.
 // We say this maintains the referential integrity between two related tables.
-func ForeignKey(table *Table, columns, references Columns, opts ...ConstraintOption) *Constraint {
+func ForeignKey(columns, references Columns, opts ...ConstraintOption) *Constraint {
 	if len(references) == 0 {
 		panic("foreign key expects at least one reference column")
+	}
+	for _, c := range columns {
+		if c.Table != columns[0].Table {
+			panic("column tables inconsistency")
+		}
+	}
+	for _, r := range references {
+		if r.Table != references[0].Table {
+			panic("reference column tables inconsistency")
+		}
 	}
 	fk := &Constraint{
 		Type:             ConstraintTypeForeignKey,
@@ -161,32 +160,32 @@ func (c *Constraint) String() string {
 
 // IsForeignKey returns true if string has suffix "_fkey".
 func IsForeignKey(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeForeignKey)
+	return strings.HasSuffix(c, string(ConstraintTypeForeignKey))
 }
 
 // IsUnique returns true if string has suffix "_key".
 func IsUnique(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeUnique)
+	return strings.HasSuffix(c, string(ConstraintTypeUnique))
 }
 
 // IsPrimaryKey returns true if string has suffix "_pkey".
 func IsPrimaryKey(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypePrimaryKey)
+	return strings.HasSuffix(c, string(ConstraintTypePrimaryKey))
 }
 
 // IsCheck returns true if string has suffix "_check".
 func IsCheck(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeCheck)
+	return strings.HasSuffix(c, string(ConstraintTypeCheck))
 }
 
-// IsExclusion returns true if string has suffix "_excl".
-func IsExclusion(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeExclusion)
-}
+//// IsExclusion returns true if string has suffix "_excl".
+//func IsExclusion(c string) bool {
+//	return strings.HasSuffix(c, string(ConstraintTypeExclusion))
+//}
 
 // IsIndex returns true if string has suffix "_idx".
 func IsIndex(c string) bool {
-	return strings.HasSuffix(c, ConstraintTypeIndex)
+	return strings.HasSuffix(c, string(ConstraintTypeIndex))
 }
 
 //
@@ -209,3 +208,24 @@ func IsIndex(c string) bool {
 //		constraint.ReferenceColumns = columns
 //	}
 //}
+
+type Constraints []*Constraint
+
+// CountOf returns number of constraints of given type.
+// If nothing is given return length of entire slice.
+func (c Constraints) CountOf(types ...ConstraintType) int {
+	if len(types) == 0 {
+		return len(c)
+	}
+	var count int
+OuterLoop:
+	for _, cc := range c {
+		for _, t := range types {
+			if cc.Type == t {
+				count++
+				continue OuterLoop
+			}
+		}
+	}
+	return count
+}

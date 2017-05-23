@@ -6,5 +6,5 @@ run:
 	@go run app/main.go
 
 test:
-	@go test ./...
+	@go test ./app/... -v -cover
 

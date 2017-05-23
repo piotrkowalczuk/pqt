@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/lib/pq"
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
 
@@ -76,22 +78,18 @@ func setup(t testing.TB) *suite {
 		news: &model.NewsRepositoryBase{
 			Table: model.TableNews,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 		comment: &model.CommentRepositoryBase{
 			Table: model.TableComment,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 		category: &model.CategoryRepositoryBase{
 			Table: model.TableCategory,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 		complete: &model.CompleteRepositoryBase{
 			Table: model.TableComplete,
 			DB:    db,
-			Debug: testPostgresDebug,
 		},
 	}
 }
@@ -109,9 +107,36 @@ func populateNews(t testing.TB, r *model.NewsRepositoryBase, nb int) {
 			Content:  fmt.Sprintf("content-%d", i),
 			Lead:     sql.NullString{String: fmt.Sprintf("lead-%d", i), Valid: true},
 			Continue: true,
+			Score:    10.11,
 		})
 		if err != nil {
 			t.Fatalf("unexpected error #%d: %s", i, err.Error())
+		}
+	}
+}
+
+func populateCategory(t testing.TB, r *model.CategoryRepositoryBase, nb int) {
+	for i := 1; i <= nb; i++ {
+		_, err := r.Insert(context.Background(), &model.CategoryEntity{
+			Name:      fmt.Sprintf("name-%d", i),
+			Content:   fmt.Sprintf("content-%d", i),
+			CreatedAt: time.Now(),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error #%d: %s", i, err.Error())
+		}
+
+		for j := 1; j <= nb; j++ {
+			_, err := r.Insert(context.Background(), &model.CategoryEntity{
+				ParentID:  sql.NullInt64{Int64: int64(i), Valid: true},
+				Name:      fmt.Sprintf("name-%d-%d", i, j),
+				Content:   fmt.Sprintf("content-%d-%d", i, j),
+				CreatedAt: time.Now(),
+				UpdatedAt: pq.NullTime{Time: time.Now(), Valid: true},
+			})
+			if err != nil {
+				t.Fatalf("unexpected error #%d: %s", i, err.Error())
+			}
 		}
 	}
 }
