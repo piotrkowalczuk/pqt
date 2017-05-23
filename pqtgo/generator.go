@@ -314,26 +314,34 @@ func (g *Generator) generateIterator(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 	fmt.Fprintf(w, `
 
-// %sIterator is not thread safe.
-type %sIterator struct {
+// %sRows is not thread safe.
+type %sRows struct {
 	rows *sql.Rows
 	cols []string
 }
+type %sIterator interface {
+ 	Next() bool
+ 	Close() error
+ 	Err() error
+ 	Columns() ([]string, error)
+ 	%s() (*%sEntity, error)
+}
+var _ %sIterator = (*%sRows)(nil)
 
-func (i *%sIterator) Next() bool {
+func (i *%sRows) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *%sIterator) Close() error {
+func (i *%sRows) Close() error {
 	return i.rows.Close()
 }
 
-func (i *%sIterator) Err() error {
+func (i *%sRows) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *%sIterator) Columns() ([]string, error) {
+func (i *%sRows) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -345,11 +353,11 @@ func (i *%sIterator) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around %s method that makes iterator more generic.
-func (i *%sIterator) Ent() (interface{}, error) {
+func (i *%sRows) Ent() (interface{}, error) {
 	return i.%s()
 }
 
-func (i *%sIterator) %s() (*%sEntity, error) {
+func (i *%sRows) %s() (*%sEntity, error) {
 	var ent %sEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -366,6 +374,11 @@ func (i *%sIterator) %s() (*%sEntity, error) {
 	return &ent, nil
 }
 `, entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
 		entityName,
 		entityName,
 		entityName,
@@ -1565,7 +1578,7 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
@@ -1588,7 +1601,7 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 		entityName,
 	)
 	fmt.Fprintf(w, `
-			return &%sIterator{
+			return &%sRows{
 				rows: rows,
 				cols: []string{`,
 		g.Formatter.Identifier(t.Name),
