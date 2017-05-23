@@ -17,7 +17,7 @@ In comparison to other currently available libraries instead of pushing struct t
 	- `<table-name>Entity` - struct that reflects single row within the database
 	- `<table-name>Criteria` - object that can be passed to the `Find` method, it allows to create complex queries
 	- `<table-name>Patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
-	- `<table-name>Iterator` - structure used by `FindIter` methods as a result, it wraps `sql.Rows`
+	- `<table-name>Iterator` - interface used by `FindIter` methods as a result, implementation is `<table-name>Rows` - it wraps `sql.Rows`
 	- `constants`:
 		- `complete names`
 		- `column names`
