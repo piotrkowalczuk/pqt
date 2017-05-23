@@ -45,7 +45,7 @@ func TestForeignKey(t *testing.T) {
 	t2.AddColumn(c21)
 	t2.AddColumn(c22)
 
-	cstr := pqt.ForeignKey(t1, pqt.Columns{c11, c12}, pqt.Columns{c21, c22})
+	cstr := pqt.ForeignKey(pqt.Columns{c11, c12}, pqt.Columns{c21, c22})
 	if cstr.Type != pqt.ConstraintTypeForeignKey {
 		t.Errorf("wrong type, expected %s but got %s", pqt.ConstraintTypeForeignKey, cstr.Type)
 	}
@@ -60,5 +60,40 @@ func TestForeignKey(t *testing.T) {
 	}
 	if !reflect.DeepEqual(cstr.ReferenceTable, t2) {
 		t.Errorf("reference table does not match, expected %v but got %v", t2, cstr.ReferenceTable)
+	}
+}
+
+func TestConstraints_CountOf(t *testing.T) {
+	idx := pqt.NewColumn("index", pqt.TypeIntegerBig())
+	unq := pqt.NewColumn("unique", pqt.TypeIntegerBig())
+	chk := pqt.NewColumn("check", pqt.TypeIntegerBig())
+
+	tbl := pqt.NewTable("table").
+		AddColumn(idx).
+		AddColumn(unq).
+		AddColumn(chk)
+
+	given := pqt.Constraints{
+		pqt.Index(tbl, idx),
+		pqt.Unique(tbl, unq),
+		pqt.Check(tbl, "check > 0", unq),
+	}
+	if given.CountOf() != len(given) {
+		t.Errorf("expected %d but got %d", len(given), given.CountOf())
+	}
+	if given.CountOf(pqt.ConstraintTypeForeignKey) != 0 {
+		t.Errorf("foreign key does not exists")
+	}
+	got := given.CountOf(pqt.ConstraintTypeIndex, pqt.ConstraintTypePrimaryKey)
+	if got != 1 {
+		t.Errorf("expected %d but got %d", 1, got)
+	}
+	got = given.CountOf(pqt.ConstraintTypeIndex, pqt.ConstraintTypeUnique)
+	if got != 2 {
+		t.Errorf("expected %d but got %d", 2, got)
+	}
+	got = given.CountOf(pqt.ConstraintTypeIndex, pqt.ConstraintTypeUnique, pqt.ConstraintTypeCheck)
+	if got != 3 {
+		t.Errorf("expected %d but got %d", 3, got)
 	}
 }

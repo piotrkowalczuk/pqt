@@ -40,14 +40,16 @@ func schema(sn string) *pqt.Schema {
 			"news_title",
 			pqt.TypeText(),
 			pqt.WithNotNull(),
+			pqt.WithIndex(),
 			pqt.WithReference(title, pqt.WithBidirectional(), pqt.WithOwnerName("comments_by_news_title"), pqt.WithInversedName("news_by_title")),
 		)).
 		AddColumn(pqt.NewDynamicColumn("right_now", pqt.FunctionNow())).
 		AddColumn(pqt.NewDynamicColumn("id_multiply", multiply, commentID, commentID))
 
+	categoryName := pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull())
 	category := pqt.NewTable("category", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
-		AddColumn(pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull())).
+		AddColumn(categoryName).
 		AddColumn(pqt.NewColumn("content", pqt.TypeText(), pqt.WithNotNull())).
 		AddRelationship(
 			pqt.OneToMany(
@@ -57,7 +59,7 @@ func schema(sn string) *pqt.Schema {
 				pqt.WithOwnerName("parent_category"),
 				pqt.WithColumnName("parent_id"),
 			),
-		)
+		).AddConstraint(pqt.Index(pqt.SelfReference(), categoryName))
 
 	pkg := pqt.NewTable("package", pqt.WithTableIfNotExists()).
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).

@@ -9,6 +9,8 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtsql"
 )
 
+const version = 9.5
+
 var (
 	acronyms = map[string]string{
 		"id":   "ID",
@@ -37,24 +39,27 @@ func main() {
         // source: cmd/appg/main.go
         // DO NOT EDIT!
     `)
-	gen := pqtgo.Generator{
+	goGen := pqtgo.Generator{
 		Formatter: &pqtgo.Formatter{
 			Visibility: pqtgo.Public,
 			Acronyms:   acronyms,
 		},
 		Pkg:     "model",
-		Version: 9.5,
+		Version: version,
 		Plugins: []pqtgo.Plugin{
 			&generator{},
 		},
 	}
-	err = gen.GenerateTo(file, sch)
+	sqlGen := &pqtsql.Generator{Version: version}
+
+	err = goGen.GenerateTo(file, sch)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Fprint(file, "/// SQL ...\n")
 	fmt.Fprint(file, "const SQL = `\n")
-	if err := pqtsql.NewGenerator().GenerateTo(sch, file); err != nil {
+
+	if err := sqlGen.GenerateTo(sch, file); err != nil {
 		log.Fatal(err)
 	}
 	fmt.Fprint(file, "`")

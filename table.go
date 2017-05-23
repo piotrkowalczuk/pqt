@@ -9,7 +9,7 @@ type Table struct {
 	IfNotExists, Temporary               bool
 	Schema                               *Schema
 	Columns                              Columns
-	Constraints                          []*Constraint
+	Constraints                          Constraints
 	OwnedRelationships                   []*Relationship
 	InversedRelationships                []*Relationship
 	ManyToManyRelationships              []*Relationship
@@ -94,6 +94,7 @@ func (t *Table) addColumn(c *Column) *Table {
 	}
 	t.Columns = append(t.Columns, c)
 
+	t.Constraints = append(t.Constraints, c.Constraints()...)
 	sort.Sort(&t.Columns)
 	return t
 }
@@ -217,7 +218,7 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 		t.Constraints = make([]*Constraint, 0, 1)
 	}
 
-	if c.Table == nil {
+	if c.Table == nil || c.Table.self {
 		c.Table = t
 	} else {
 		*c.Table = *t
@@ -238,7 +239,7 @@ func (t *Table) AddUnique(columns ...*Column) *Table {
 	return t.AddConstraint(Unique(t, columns...))
 }
 
-// AddIndex adds unique constraint to the table.
+// AddIndex adds index to the table.
 func (t *Table) AddIndex(columns ...*Column) *Table {
 	return t.AddConstraint(Index(t, columns...))
 }

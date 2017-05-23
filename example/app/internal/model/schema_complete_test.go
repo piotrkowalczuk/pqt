@@ -159,7 +159,7 @@ func BenchmarkCompleteRepositoryBase_InsertQuery(b *testing.B) {
 	for hint, given := range testCompleteInsertData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.complete.InsertQuery(&given.entity)
+				query, args, err := s.complete.InsertQuery(&given.entity, true)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
@@ -176,7 +176,7 @@ func TestCompleteRepositoryBase_InsertQuery(t *testing.T) {
 
 	for hint, given := range testCompleteInsertData {
 		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.complete.InsertQuery(&given.entity)
+			query, _, err := s.complete.InsertQuery(&given.entity, true)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
