@@ -486,7 +486,7 @@ func (g *Generator) generateConstantsColumns(w io.Writer, table *pqt.Table) {
 
 func (g *Generator) generateConstantsConstraints(w io.Writer, table *pqt.Table) {
 	for _, c := range table.Constraints {
-		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.PrimaryColumns, "_"))
+		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.Columns, "_"))
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
 			fmt.Fprintf(w, `
@@ -839,7 +839,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 		method := []string{"updateOneBy"}
 		arguments := ""
 
-		for i, c := range u.PrimaryColumns {
+		for i, c := range u.Columns {
 			if i != 0 {
 				method = append(method, "And")
 				arguments += ", "
@@ -860,7 +860,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 		fmt.Fprintf(w, `
 			buf := bytes.NewBufferString("UPDATE ")
 			buf.WriteString(r.%s)
-			update := NewComposer(%d)`, g.Formatter.Identifier("table"), len(u.PrimaryColumns))
+			update := NewComposer(%d)`, g.Formatter.Identifier("table"), len(u.Columns))
 
 		for _, c := range table.Columns {
 			g.generateRepositorySetClause(w, c, "update")
@@ -874,7 +874,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 			buf.WriteString(" SET ")
 			buf.ReadFrom(update)
 			buf.WriteString(" WHERE ")`)
-		for i, c := range u.PrimaryColumns {
+		for i, c := range u.Columns {
 			if i != 0 {
 				fmt.Fprint(w, `
 					update.WriteString(" AND ")`)
@@ -916,7 +916,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t
 		arguments := ""
 		arguments2 := ""
 
-		for i, c := range u.PrimaryColumns {
+		for i, c := range u.Columns {
 			if i != 0 {
 				method = append(method, "And")
 				arguments += ", "
@@ -1735,7 +1735,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 		method := []string{"FindOneBy"}
 		arguments := ""
 
-		for i, c := range u.PrimaryColumns {
+		for i, c := range u.Columns {
 			if i != 0 {
 				method = append(method, "And")
 				arguments += ", "
@@ -1769,7 +1769,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 			find.WriteString(" WHERE ")`,
 			g.Formatter.Identifier("table", table.Name),
 		)
-		for i, c := range u.PrimaryColumns {
+		for i, c := range u.Columns {
 			if i != 0 {
 				fmt.Fprint(w, `find.WriteString(" AND ")`)
 			}
@@ -1958,6 +1958,37 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 
 		return
 	}`)
+}
+
+func selectList(w io.Writer, t *pqt.Table, nb int) {
+	for i, c := range t.Columns {
+		if i != 0 {
+			fmt.Fprint(w, ", ")
+		}
+		if c.IsDynamic {
+			fmt.Fprintf(w, "%s(", c.Func.Name)
+			for i, arg := range c.Func.Args {
+				if arg.Type != c.Columns[i].Type {
+					fmt.Printf("wrong function (%s) argument type, expected %v but got %v\n", c.Func.Name, arg.Type, c.Columns[i].Type)
+				}
+				if i != 0 {
+					fmt.Fprint(w, ", ")
+				}
+				if nb > -1 {
+					fmt.Fprintf(w, "t%d.%s", nb, c.Columns[i].Name)
+				} else {
+					fmt.Fprintf(w, "%s", c.Columns[i].Name)
+				}
+			}
+			fmt.Fprintf(w, ") AS %s", c.Name)
+		} else {
+			if nb > -1 {
+				fmt.Fprintf(w, "t%d.%s", nb, c.Name)
+			} else {
+				fmt.Fprintf(w, "%s", c.Name)
+			}
+		}
+	}
 }
 
 func (g *Generator) isArray(c *pqt.Column, m int32) bool {

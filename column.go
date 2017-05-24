@@ -64,38 +64,38 @@ func (c *Column) Constraints() []*Constraint {
 
 	if c.PrimaryKey {
 		cs = append(cs, &Constraint{
-			Type:           ConstraintTypePrimaryKey,
-			PrimaryColumns: Columns{c},
-			PrimaryTable:   c.Table,
+			Type:    ConstraintTypePrimaryKey,
+			Columns: Columns{c},
+			Table:   c.Table,
 		})
 	} else if c.Unique {
 		cs = append(cs, &Constraint{
-			Type:           ConstraintTypeUnique,
-			PrimaryColumns: Columns{c},
-			PrimaryTable:   c.Table,
+			Type:    ConstraintTypeUnique,
+			Columns: Columns{c},
+			Table:   c.Table,
 		})
 	} else if c.Index {
 		cs = append(cs, &Constraint{
-			Type:           ConstraintTypeIndex,
-			PrimaryColumns: Columns{c},
-			PrimaryTable:   c.Table,
+			Type:    ConstraintTypeIndex,
+			Columns: Columns{c},
+			Table:   c.Table,
 		})
 	}
 	if c.Check != "" {
 		cs = append(cs, &Constraint{
-			Type:           ConstraintTypeCheck,
-			Check:          c.Check,
-			PrimaryColumns: Columns{c},
-			PrimaryTable:   c.Table,
+			Type:    ConstraintTypeCheck,
+			Check:   c.Check,
+			Columns: Columns{c},
+			Table:   c.Table,
 		})
 	}
 	if c.Reference != nil {
 		cs = append(cs, &Constraint{
 			Type:           ConstraintTypeForeignKey,
-			PrimaryColumns: Columns{c},
-			Columns:        Columns{c.Reference},
-			Table:          c.Reference.Table,
-			PrimaryTable:   c.Table,
+			PrimaryColumns: Columns{c.Reference},
+			PrimaryTable:   c.Reference.Table,
+			Columns:        Columns{c},
+			Table:          c.Table,
 		})
 	}
 

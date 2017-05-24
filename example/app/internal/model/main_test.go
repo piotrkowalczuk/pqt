@@ -73,23 +73,34 @@ func setup(t testing.TB) *suite {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 
+	log := func(err error, ent, fnc, sql string, args ...interface{}) {
+		if err != nil {
+			t.Error("query failure: [%s] [%s] [%s]", ent, fnc, sql)
+		} else {
+			t.Log("query success: [%s] [%s] [%s]", ent, fnc, sql)
+		}
+	}
 	return &suite{
 		db: db,
 		news: &model.NewsRepositoryBase{
 			Table: model.TableNews,
 			DB:    db,
+			Log:   log,
 		},
 		comment: &model.CommentRepositoryBase{
 			Table: model.TableComment,
 			DB:    db,
+			Log:   log,
 		},
 		category: &model.CategoryRepositoryBase{
 			Table: model.TableCategory,
 			DB:    db,
+			Log:   log,
 		},
 		complete: &model.CompleteRepositoryBase{
 			Table: model.TableComplete,
 			DB:    db,
+			Log:   log,
 		},
 	}
 }

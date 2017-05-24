@@ -67,10 +67,10 @@ func (t *Table) AddColumn(c *Column) *Table {
 
 		t.AddConstraint(&Constraint{
 			Type:           ConstraintTypeForeignKey,
-			PrimaryTable:   t,
-			PrimaryColumns: Columns{c},
-			Table:          c.Reference.Table,
-			Columns:        Columns{c.Reference},
+			PrimaryTable:   r.InversedTable,
+			PrimaryColumns: r.InversedColumns,
+			Table:          r.OwnerTable,
+			Columns:        r.OwnerColumns,
 			OnDelete:       c.OnDelete,
 			OnUpdate:       c.OnUpdate,
 			Match:          c.Match,
@@ -157,18 +157,16 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	r.ThroughTable = t
 	r.ThroughTable.OwnedRelationships = append(r.ThroughTable.OwnedRelationships, r)
 
-	fmt.Println("INV ADD REL 0", r.InversedTable.Name)
 	if r.Bidirectional {
 		r.OwnerTable.ManyToManyRelationships = append(r.OwnerTable.ManyToManyRelationships, r)
 		r.InversedTable.ManyToManyRelationships = append(r.InversedTable.ManyToManyRelationships, r)
 	}
-	fmt.Println("INV ADD REL 1", r.InversedTable.Name)
 
 	ownerColumns := make(Columns, 0)
 	inversedColumns := make(Columns, 0)
 
 	if r.OwnerForeignKey != nil {
-		r.InversedForeignKey.Table = r.ThroughTable
+		r.OwnerForeignKey.Table = r.ThroughTable
 
 		r.ThroughTable.AddConstraint(r.OwnerForeignKey)
 		for _, oc := range r.OwnerForeignKey.Columns {
@@ -176,48 +174,44 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 			ownerColumns = append(ownerColumns, oc)
 		}
 	} else {
-		pk1, ok := r.OwnerTable.PrimaryKey()
+		pk, ok := r.OwnerTable.PrimaryKey()
 		if !ok {
 			panic(fmt.Sprintf("missing owner table (%s) primary key for many to many relationship", r.OwnerTable.Name))
 		}
 
-		name1 := r.ColumnName
-		if name1 == "" {
-			name1 = r.OwnerTable.Name + "_" + pk1.Name
+		name := r.ColumnName
+		if name == "" {
+			name = r.OwnerTable.Name + "_" + pk.Name
 		}
 
-		nt1 := fkType(pk1.Type)
+		nt1 := fkType(pk.Type)
 
-		oc := NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...)
+		oc := NewColumn(name, nt1, append([]ColumnOption{WithReference(pk)}, opts...)...)
 		r.ThroughTable.AddColumn(oc)
 		ownerColumns = append(ownerColumns, oc)
 	}
-	fmt.Println("INV ADD REL 1.1", r.InversedTable.Name)
+
 	if r.InversedForeignKey != nil {
 		r.InversedForeignKey.Table = r.ThroughTable
 		r.ThroughTable.AddConstraint(r.InversedForeignKey)
-		fmt.Println("INV ADD REL 1.2", r.InversedTable.Name)
 		for _, ic := range r.InversedForeignKey.Columns {
 			r.ThroughTable.AddColumn(ic)
 			ownerColumns = append(ownerColumns, ic)
 		}
-		fmt.Println("INV ADD REL 1.3", r.InversedTable.Name)
 	} else {
-		//panic(r.InversedTable.Name)
-		pk2, ok := r.InversedTable.PrimaryKey()
+		pk, ok := r.InversedTable.PrimaryKey()
 		if !ok {
 			panic(fmt.Sprintf("missing inversed table (%s) primary key for many to many relationship", r.InversedTable.Name))
 		}
-		name2 := r.ColumnName
-		if name2 == "" {
-			name2 = r.InversedTable.Name + "_" + pk2.Name
+		name := r.ColumnName
+		if name == "" {
+			name = r.InversedTable.Name + "_" + pk.Name
 		}
-		nt2 := fkType(pk2.Type)
-		ic := NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...)
+		nt := fkType(pk.Type)
+		ic := NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...)
 		r.ThroughTable.AddColumn(ic)
 		inversedColumns = append(inversedColumns, ic)
 	}
-	fmt.Println("INV ADD REL 2", r.InversedTable.Name)
 	r.ThroughTable.AddUnique(append(ownerColumns, inversedColumns...)...)
 	return t
 }
@@ -228,7 +222,7 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 		t.Constraints = make([]*Constraint, 0, 1)
 	}
 
-	c.PrimaryTable = t
+	c.Table = t
 
 	t.Constraints = append(t.Constraints, c)
 

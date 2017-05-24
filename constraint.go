@@ -43,19 +43,19 @@ func (c *Constraint) Name() string {
 	var schema string
 
 	switch {
-	case c.PrimaryTable == nil:
+	case c.Table == nil:
 		return "<missing table>"
-	case c.PrimaryTable.Schema == nil || c.PrimaryTable.Schema.Name == "":
+	case c.Table.Schema == nil || c.Table.Schema.Name == "":
 		schema = "public"
 	default:
-		schema = c.PrimaryTable.Schema.Name
+		schema = c.Table.Schema.Name
 	}
 
-	if len(c.PrimaryColumns) == 0 {
-		return fmt.Sprintf("%s.%s_%s", schema, c.PrimaryTable.ShortName, c.Type)
+	if len(c.Columns) == 0 {
+		return fmt.Sprintf("%s.%s_%s", schema, c.Table.ShortName, c.Type)
 	}
-	tmp := make([]string, 0, len(c.PrimaryColumns))
-	for _, col := range c.PrimaryColumns {
+	tmp := make([]string, 0, len(c.Columns))
+	for _, col := range c.Columns {
 		if col.ShortName != "" {
 			tmp = append(tmp, col.ShortName)
 			continue
@@ -63,34 +63,34 @@ func (c *Constraint) Name() string {
 		tmp = append(tmp, col.Name)
 	}
 
-	return fmt.Sprintf("%s.%s_%s_%s", schema, c.PrimaryTable.ShortName, strings.Join(tmp, "_"), c.Type)
+	return fmt.Sprintf("%s.%s_%s_%s", schema, c.Table.ShortName, strings.Join(tmp, "_"), c.Type)
 }
 
 // Unique constraint ensure that the data contained in a column or a group of columns is unique with respect to all the rows in the table.
 func Unique(table *Table, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:           ConstraintTypeUnique,
-		PrimaryTable:   table,
-		PrimaryColumns: columns,
+		Type:    ConstraintTypeUnique,
+		Table:   table,
+		Columns: columns,
 	}
 }
 
 // PrimaryKey constraint is simply a combination of a unique constraint and a not-null constraint.
 func PrimaryKey(table *Table, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:           ConstraintTypePrimaryKey,
-		PrimaryTable:   table,
-		PrimaryColumns: columns,
+		Type:    ConstraintTypePrimaryKey,
+		Table:   table,
+		Columns: columns,
 	}
 }
 
 // Check ...
 func Check(table *Table, check string, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:           ConstraintTypeCheck,
-		PrimaryTable:   table,
-		PrimaryColumns: columns,
-		Check:          check,
+		Type:    ConstraintTypeCheck,
+		Table:   table,
+		Columns: columns,
+		Check:   check,
 	}
 }
 
@@ -147,9 +147,9 @@ func ForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOpti
 // Index ...
 func Index(table *Table, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:           ConstraintTypeIndex,
-		PrimaryTable:   table,
-		PrimaryColumns: columns,
+		Type:    ConstraintTypeIndex,
+		Table:   table,
+		Columns: columns,
 	}
 }
 

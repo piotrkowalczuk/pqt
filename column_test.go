@@ -230,20 +230,20 @@ func TestColumn_Constraints(t *testing.T) {
 		switch g.Type {
 		case pqt.ConstraintTypePrimaryKey:
 			nb++
-			if len(g.PrimaryColumns) != 1 {
-				t.Errorf("wrong number of columns, expected 1 got %d", len(g.PrimaryColumns))
+			if len(g.Columns) != 1 {
+				t.Errorf("wrong number of columns, expected 1 got %d", len(g.Columns))
 			}
-			if g.PrimaryTable != tbl {
+			if g.Table != tbl {
 				t.Error("wrong table")
 			}
 		case pqt.ConstraintTypeIndex, pqt.ConstraintTypeUnique:
 			t.Errorf("unexpected constraint type, if column has primary key index and unique should be ignored, got %s", g.Type)
 		case pqt.ConstraintTypeCheck:
 			nb++
-			if len(g.PrimaryColumns) != 1 {
-				t.Errorf("pk: wrong number of columns, expected 1 got %d", len(g.PrimaryColumns))
+			if len(g.Columns) != 1 {
+				t.Errorf("pk: wrong number of columns, expected 1 got %d", len(g.Columns))
 			}
-			if g.PrimaryTable != tbl {
+			if g.Table != tbl {
 				t.Error("wrong table")
 			}
 			if g.Check != check {
@@ -270,10 +270,10 @@ func TestColumn_Constraints(t *testing.T) {
 		switch g.Type {
 		case pqt.ConstraintTypeUnique:
 			nb++
-			if len(g.PrimaryColumns) != 1 {
-				t.Errorf("wrong number of columns, expected 1 got %d", len(g.PrimaryColumns))
+			if len(g.Columns) != 1 {
+				t.Errorf("wrong number of columns, expected 1 got %d", len(g.Columns))
 			}
-			if g.PrimaryTable != tbl {
+			if g.Table != tbl {
 				t.Error("wrong table")
 			}
 		case pqt.ConstraintTypeIndex:
@@ -296,10 +296,10 @@ func TestColumn_Constraints(t *testing.T) {
 		switch g.Type {
 		case pqt.ConstraintTypeIndex:
 			nb++
-			if len(g.PrimaryColumns) != 1 {
-				t.Errorf("wrong number of columns, expected 1 got %d", len(g.PrimaryColumns))
+			if len(g.Columns) != 1 {
+				t.Errorf("wrong number of columns, expected 1 got %d", len(g.Columns))
 			}
-			if g.PrimaryTable != tbl {
+			if g.Table != tbl {
 				t.Error("wrong table")
 			}
 		}
