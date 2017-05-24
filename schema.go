@@ -28,11 +28,7 @@ func (s *Schema) AddTable(t *Table) *Schema {
 		s.Tables = make([]*Table, 0, 1)
 	}
 
-	if t.Schema == nil {
-		t.Schema = s
-	} else {
-		*t.Schema = *s
-	}
+	t.Schema = s
 	s.Tables = append(s.Tables, t)
 	return s
 }

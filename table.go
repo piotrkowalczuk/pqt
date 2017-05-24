@@ -90,11 +90,7 @@ func (t *Table) addColumn(c *Column) *Table {
 		t.Columns = make(Columns, 0, 1)
 	}
 
-	if c.Table == nil {
-		c.Table = t
-	} else {
-		*c.Table = *t
-	}
+	c.Table = t
 	t.Columns = append(t.Columns, c)
 
 	t.Constraints = append(t.Constraints, c.Constraints()...)
@@ -252,11 +248,7 @@ func (t *Table) SetIfNotExists(ine bool) *Table {
 
 // SetSchema sets schema name table belongs to.
 func (t *Table) SetSchema(s *Schema) *Table {
-	if t.Schema == nil {
-		t.Schema = s
-	} else {
-		*t.Schema = *s
-	}
+	t.Schema = s
 
 	return t
 }
