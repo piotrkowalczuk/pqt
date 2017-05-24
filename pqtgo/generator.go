@@ -1960,37 +1960,6 @@ func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	}`)
 }
 
-func selectList(w io.Writer, t *pqt.Table, nb int) {
-	for i, c := range t.Columns {
-		if i != 0 {
-			fmt.Fprint(w, ", ")
-		}
-		if c.IsDynamic {
-			fmt.Fprintf(w, "%s(", c.Func.Name)
-			for i, arg := range c.Func.Args {
-				if arg.Type != c.Columns[i].Type {
-					fmt.Printf("wrong function (%s) argument type, expected %v but got %v\n", c.Func.Name, arg.Type, c.Columns[i].Type)
-				}
-				if i != 0 {
-					fmt.Fprint(w, ", ")
-				}
-				if nb > -1 {
-					fmt.Fprintf(w, "t%d.%s", nb, c.Columns[i].Name)
-				} else {
-					fmt.Fprintf(w, "%s", c.Columns[i].Name)
-				}
-			}
-			fmt.Fprintf(w, ") AS %s", c.Name)
-		} else {
-			if nb > -1 {
-				fmt.Fprintf(w, "t%d.%s", nb, c.Name)
-			} else {
-				fmt.Fprintf(w, "%s", c.Name)
-			}
-		}
-	}
-}
-
 func (g *Generator) isArray(c *pqt.Column, m int32) bool {
 	if strings.HasPrefix(g.columnType(c, m), "[]") {
 		return true
