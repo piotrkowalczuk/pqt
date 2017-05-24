@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 	"time"
@@ -52,6 +53,17 @@ func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
 
 // LogFunc represents function that can be passed into repository to log query result.
 type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
+
+// Rows ...
+type Rows interface {
+	io.Closer
+	ColumnTypes() ([]*sql.ColumnType, error)
+	Columns() ([]string, error)
+	Err() error
+	Next() bool
+	NextResultSet() bool
+	Scan(dest ...interface{}) error
+}
 
 const (
 	TableCategory                     = "example.category"
@@ -136,35 +148,26 @@ func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
-// CategoryRows is not thread safe.
-type CategoryRows struct {
-	rows *sql.Rows
+// CategoryIterator is not thread safe.
+type CategoryIterator struct {
+	rows Rows
 	cols []string
 }
-type CategoryIterator interface {
-	Next() bool
-	Close() error
-	Err() error
-	Columns() ([]string, error)
-	Category() (*CategoryEntity, error)
-}
 
-var _ CategoryIterator = (*CategoryRows)(nil)
-
-func (i *CategoryRows) Next() bool {
+func (i *CategoryIterator) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *CategoryRows) Close() error {
+func (i *CategoryIterator) Close() error {
 	return i.rows.Close()
 }
 
-func (i *CategoryRows) Err() error {
+func (i *CategoryIterator) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *CategoryRows) Columns() ([]string, error) {
+func (i *CategoryIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -176,11 +179,11 @@ func (i *CategoryRows) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around Category method that makes iterator more generic.
-func (i *CategoryRows) Ent() (interface{}, error) {
+func (i *CategoryIterator) Ent() (interface{}, error) {
 	return i.Category()
 }
 
-func (i *CategoryRows) Category() (*CategoryEntity, error) {
+func (i *CategoryIterator) Category() (*CategoryEntity, error) {
 	var ent CategoryEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -231,7 +234,7 @@ type CategoryPatch struct {
 	UpdatedAt pq.NullTime
 }
 
-func ScanCategoryRows(rows *sql.Rows) (entities []*CategoryEntity, err error) {
+func ScanCategoryRows(rows Rows) (entities []*CategoryEntity, err error) {
 	for rows.Next() {
 		var ent CategoryEntity
 		err = rows.Scan(
@@ -632,7 +635,7 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 	}
 	return entities, nil
 }
-func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindExpr) (CategoryIterator, error) {
+func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindExpr) (*CategoryIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
@@ -644,7 +647,7 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 	if err != nil {
 		return nil, err
 	}
-	return &CategoryRows{
+	return &CategoryIterator{
 		rows: rows,
 		cols: []string{"content", "created_at", "id", "name", "parent_id", "updated_at"},
 	}, nil
@@ -1219,35 +1222,26 @@ func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
-// PackageRows is not thread safe.
-type PackageRows struct {
-	rows *sql.Rows
+// PackageIterator is not thread safe.
+type PackageIterator struct {
+	rows Rows
 	cols []string
 }
-type PackageIterator interface {
-	Next() bool
-	Close() error
-	Err() error
-	Columns() ([]string, error)
-	Package() (*PackageEntity, error)
-}
 
-var _ PackageIterator = (*PackageRows)(nil)
-
-func (i *PackageRows) Next() bool {
+func (i *PackageIterator) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *PackageRows) Close() error {
+func (i *PackageIterator) Close() error {
 	return i.rows.Close()
 }
 
-func (i *PackageRows) Err() error {
+func (i *PackageIterator) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *PackageRows) Columns() ([]string, error) {
+func (i *PackageIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -1259,11 +1253,11 @@ func (i *PackageRows) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around Package method that makes iterator more generic.
-func (i *PackageRows) Ent() (interface{}, error) {
+func (i *PackageIterator) Ent() (interface{}, error) {
 	return i.Package()
 }
 
-func (i *PackageRows) Package() (*PackageEntity, error) {
+func (i *PackageIterator) Package() (*PackageEntity, error) {
 	var ent PackageEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -1315,7 +1309,7 @@ type PackagePatch struct {
 	UpdatedAt  pq.NullTime
 }
 
-func ScanPackageRows(rows *sql.Rows) (entities []*PackageEntity, err error) {
+func ScanPackageRows(rows Rows) (entities []*PackageEntity, err error) {
 	for rows.Next() {
 		var ent PackageEntity
 		err = rows.Scan(
@@ -1704,7 +1698,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 	}
 	return entities, nil
 }
-func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExpr) (PackageIterator, error) {
+func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExpr) (*PackageIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
@@ -1716,7 +1710,7 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 	if err != nil {
 		return nil, err
 	}
-	return &PackageRows{
+	return &PackageIterator{
 		rows: rows,
 		cols: []string{"break", "category_id", "created_at", "id", "updated_at"},
 	}, nil
@@ -2269,35 +2263,26 @@ func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
-// NewsRows is not thread safe.
-type NewsRows struct {
-	rows *sql.Rows
+// NewsIterator is not thread safe.
+type NewsIterator struct {
+	rows Rows
 	cols []string
 }
-type NewsIterator interface {
-	Next() bool
-	Close() error
-	Err() error
-	Columns() ([]string, error)
-	News() (*NewsEntity, error)
-}
 
-var _ NewsIterator = (*NewsRows)(nil)
-
-func (i *NewsRows) Next() bool {
+func (i *NewsIterator) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *NewsRows) Close() error {
+func (i *NewsIterator) Close() error {
 	return i.rows.Close()
 }
 
-func (i *NewsRows) Err() error {
+func (i *NewsIterator) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *NewsRows) Columns() ([]string, error) {
+func (i *NewsIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -2309,11 +2294,11 @@ func (i *NewsRows) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around News method that makes iterator more generic.
-func (i *NewsRows) Ent() (interface{}, error) {
+func (i *NewsIterator) Ent() (interface{}, error) {
 	return i.News()
 }
 
-func (i *NewsRows) News() (*NewsEntity, error) {
+func (i *NewsIterator) News() (*NewsEntity, error) {
 	var ent NewsEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -2372,7 +2357,7 @@ type NewsPatch struct {
 	ViewsDistribution NullFloat64Array
 }
 
-func ScanNewsRows(rows *sql.Rows) (entities []*NewsEntity, err error) {
+func ScanNewsRows(rows Rows) (entities []*NewsEntity, err error) {
 	for rows.Next() {
 		var ent NewsEntity
 		err = rows.Scan(
@@ -2941,7 +2926,7 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 	}
 	return entities, nil
 }
-func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (NewsIterator, error) {
+func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*NewsIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
@@ -2953,7 +2938,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (Ne
 	if err != nil {
 		return nil, err
 	}
-	return &NewsRows{
+	return &NewsIterator{
 		rows: rows,
 		cols: []string{"content", "continue", "created_at", "id", "lead", "meta_data", "score", "title", "updated_at", "views_distribution"},
 	}, nil
@@ -4336,35 +4321,26 @@ func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
-// CommentRows is not thread safe.
-type CommentRows struct {
-	rows *sql.Rows
+// CommentIterator is not thread safe.
+type CommentIterator struct {
+	rows Rows
 	cols []string
 }
-type CommentIterator interface {
-	Next() bool
-	Close() error
-	Err() error
-	Columns() ([]string, error)
-	Comment() (*CommentEntity, error)
-}
 
-var _ CommentIterator = (*CommentRows)(nil)
-
-func (i *CommentRows) Next() bool {
+func (i *CommentIterator) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *CommentRows) Close() error {
+func (i *CommentIterator) Close() error {
 	return i.rows.Close()
 }
 
-func (i *CommentRows) Err() error {
+func (i *CommentIterator) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *CommentRows) Columns() ([]string, error) {
+func (i *CommentIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -4376,11 +4352,11 @@ func (i *CommentRows) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around Comment method that makes iterator more generic.
-func (i *CommentRows) Ent() (interface{}, error) {
+func (i *CommentIterator) Ent() (interface{}, error) {
 	return i.Comment()
 }
 
-func (i *CommentRows) Comment() (*CommentEntity, error) {
+func (i *CommentIterator) Comment() (*CommentEntity, error) {
 	var ent CommentEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -4442,7 +4418,7 @@ type CommentPatch struct {
 	UpdatedAt  pq.NullTime
 }
 
-func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
+func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
 	for rows.Next() {
 		var ent CommentEntity
 		err = rows.Scan(
@@ -4959,7 +4935,7 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 	}
 	return entities, nil
 }
-func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (CommentIterator, error) {
+func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
@@ -4971,7 +4947,7 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	if err != nil {
 		return nil, err
 	}
-	return &CommentRows{
+	return &CommentIterator{
 		rows: rows,
 		cols: []string{"content", "created_at", "id", "id_multiply", "news_id", "news_title", "right_now", "updated_at"},
 	}, nil
@@ -5528,35 +5504,26 @@ func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
-// CompleteRows is not thread safe.
-type CompleteRows struct {
-	rows *sql.Rows
+// CompleteIterator is not thread safe.
+type CompleteIterator struct {
+	rows Rows
 	cols []string
 }
-type CompleteIterator interface {
-	Next() bool
-	Close() error
-	Err() error
-	Columns() ([]string, error)
-	Complete() (*CompleteEntity, error)
-}
 
-var _ CompleteIterator = (*CompleteRows)(nil)
-
-func (i *CompleteRows) Next() bool {
+func (i *CompleteIterator) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *CompleteRows) Close() error {
+func (i *CompleteIterator) Close() error {
 	return i.rows.Close()
 }
 
-func (i *CompleteRows) Err() error {
+func (i *CompleteIterator) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *CompleteRows) Columns() ([]string, error) {
+func (i *CompleteIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -5568,11 +5535,11 @@ func (i *CompleteRows) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around Complete method that makes iterator more generic.
-func (i *CompleteRows) Ent() (interface{}, error) {
+func (i *CompleteIterator) Ent() (interface{}, error) {
 	return i.Complete()
 }
 
-func (i *CompleteRows) Complete() (*CompleteEntity, error) {
+func (i *CompleteIterator) Complete() (*CompleteEntity, error) {
 	var ent CompleteEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -5678,7 +5645,7 @@ type CompletePatch struct {
 	ColumnUUID                 sql.NullString
 }
 
-func ScanCompleteRows(rows *sql.Rows) (entities []*CompleteEntity, err error) {
+func ScanCompleteRows(rows Rows) (entities []*CompleteEntity, err error) {
 	for rows.Next() {
 		var ent CompleteEntity
 		err = rows.Scan(
@@ -7202,7 +7169,7 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 	}
 	return entities, nil
 }
-func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindExpr) (CompleteIterator, error) {
+func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindExpr) (*CompleteIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
@@ -7214,7 +7181,7 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 	if err != nil {
 		return nil, err
 	}
-	return &CompleteRows{
+	return &CompleteIterator{
 		rows: rows,
 		cols: []string{"column_bool", "column_bytea", "column_character_0", "column_character_100", "column_decimal", "column_double_array_0", "column_double_array_100", "column_integer", "column_integer_array_0", "column_integer_array_100", "column_integer_big", "column_integer_big_array_0", "column_integer_big_array_100", "column_integer_small", "column_integer_small_array_0", "column_integer_small_array_100", "column_json", "column_json_nn", "column_json_nn_d", "column_jsonb", "column_jsonb_nn", "column_jsonb_nn_d", "column_numeric", "column_real", "column_serial", "column_serial_big", "column_serial_small", "column_text", "column_text_array_0", "column_text_array_100", "column_timestamp", "column_timestamptz", "column_uuid"},
 	}, nil

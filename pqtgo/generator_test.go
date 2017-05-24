@@ -101,6 +101,17 @@ func TestGenerator_Generate(t *testing.T) {
     		// LogFunc represents function that can be passed into repository to log query result.
 		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
 
+    		// Rows ...
+    		type Rows interface {
+    			io.Closer
+    			ColumnTypes() ([]*sql.ColumnType, error)
+    			Columns() ([]string, error)
+    			Err() error
+    			Next() bool
+    			NextResultSet() bool
+    			Scan(dest ...interface{}) error
+    		}
+
     		const (
     			TableUser                     = "example.user"
     			TableUserColumnId             = "id"
@@ -154,35 +165,26 @@ func TestGenerator_Generate(t *testing.T) {
     			return res, nil
     		}
 
-    		// UserRows is not thread safe.
-    		type UserRows struct {
-    			rows *sql.Rows
+    		// UserIterator is not thread safe.
+    		type UserIterator struct {
+    			rows Rows
     			cols []string
     		}
-    		type UserIterator interface {
-    			Next() bool
-    			Close() error
-    			Err() error
-    			Columns() ([]string, error)
-    			User() (*UserEntity, error)
-    		}
 
-    		var _ UserIterator = (*UserRows)(nil)
-
-    		func (i *UserRows) Next() bool {
+    		func (i *UserIterator) Next() bool {
     			return i.rows.Next()
     		}
 
-    		func (i *UserRows) Close() error {
+    		func (i *UserIterator) Close() error {
     			return i.rows.Close()
     		}
 
-    		func (i *UserRows) Err() error {
+    		func (i *UserIterator) Err() error {
     			return i.rows.Err()
     		}
 
     		// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-    		func (i *UserRows) Columns() ([]string, error) {
+    		func (i *UserIterator) Columns() ([]string, error) {
     			if i.cols == nil {
     				cols, err := i.rows.Columns()
     				if err != nil {
@@ -194,11 +196,11 @@ func TestGenerator_Generate(t *testing.T) {
     		}
 
     		// Ent is wrapper around User method that makes iterator more generic.
-    		func (i *UserRows) Ent() (interface{}, error) {
+    		func (i *UserIterator) Ent() (interface{}, error) {
     			return i.User()
     		}
 
-    		func (i *UserRows) User() (*UserEntity, error) {
+    		func (i *UserIterator) User() (*UserEntity, error) {
     			var ent UserEntity
     			cols, err := i.Columns()
     			if err != nil {
@@ -241,7 +243,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Name sql.NullString
     		}
 
-    		func ScanUserRows(rows *sql.Rows) (entities []*UserEntity, err error) {
+    		func ScanUserRows(rows Rows) (entities []*UserEntity, err error) {
     			for rows.Next() {
     				var ent UserEntity
     				err = rows.Scan(
@@ -490,7 +492,7 @@ func TestGenerator_Generate(t *testing.T) {
     			}
     			return entities, nil
     		}
-    		func (r *UserRepositoryBase) FindIter(ctx context.Context, fe *UserFindExpr) (UserIterator, error) {
+    		func (r *UserRepositoryBase) FindIter(ctx context.Context, fe *UserFindExpr) (*UserIterator, error) {
     			query, args, err := r.FindQuery(fe)
     			if err != nil {
     				return nil, err
@@ -502,7 +504,7 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			return &UserRows{
+    			return &UserIterator{
     				rows: rows,
     				cols: []string{"id", "name"},
     			}, nil
@@ -873,35 +875,26 @@ func TestGenerator_Generate(t *testing.T) {
     			return res, nil
     		}
 
-    		// CommentRows is not thread safe.
-    		type CommentRows struct {
-    			rows *sql.Rows
+    		// CommentIterator is not thread safe.
+    		type CommentIterator struct {
+    			rows Rows
     			cols []string
     		}
-    		type CommentIterator interface {
-    			Next() bool
-    			Close() error
-    			Err() error
-    			Columns() ([]string, error)
-    			Comment() (*CommentEntity, error)
-    		}
 
-    		var _ CommentIterator = (*CommentRows)(nil)
-
-    		func (i *CommentRows) Next() bool {
+    		func (i *CommentIterator) Next() bool {
     			return i.rows.Next()
     		}
 
-    		func (i *CommentRows) Close() error {
+    		func (i *CommentIterator) Close() error {
     			return i.rows.Close()
     		}
 
-    		func (i *CommentRows) Err() error {
+    		func (i *CommentIterator) Err() error {
     			return i.rows.Err()
     		}
 
     		// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-    		func (i *CommentRows) Columns() ([]string, error) {
+    		func (i *CommentIterator) Columns() ([]string, error) {
     			if i.cols == nil {
     				cols, err := i.rows.Columns()
     				if err != nil {
@@ -913,11 +906,11 @@ func TestGenerator_Generate(t *testing.T) {
     		}
 
     		// Ent is wrapper around Comment method that makes iterator more generic.
-    		func (i *CommentRows) Ent() (interface{}, error) {
+    		func (i *CommentIterator) Ent() (interface{}, error) {
     			return i.Comment()
     		}
 
-    		func (i *CommentRows) Comment() (*CommentEntity, error) {
+    		func (i *CommentIterator) Comment() (*CommentEntity, error) {
     			var ent CommentEntity
     			cols, err := i.Columns()
     			if err != nil {
@@ -965,7 +958,7 @@ func TestGenerator_Generate(t *testing.T) {
     			UserId sql.NullInt64
     		}
 
-    		func ScanCommentRows(rows *sql.Rows) (entities []*CommentEntity, err error) {
+    		func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
     			for rows.Next() {
     				var ent CommentEntity
     				err = rows.Scan(
@@ -1246,7 +1239,7 @@ func TestGenerator_Generate(t *testing.T) {
     			}
     			return entities, nil
     		}
-    		func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (CommentIterator, error) {
+    		func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
     			query, args, err := r.FindQuery(fe)
     			if err != nil {
     				return nil, err
@@ -1258,7 +1251,7 @@ func TestGenerator_Generate(t *testing.T) {
     			if err != nil {
     				return nil, err
     			}
-    			return &CommentRows{
+    			return &CommentIterator{
     				rows: rows,
     				cols: []string{"user_id"},
     			}, nil

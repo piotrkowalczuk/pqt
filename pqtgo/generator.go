@@ -129,6 +129,7 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	g.generateImports(b, s)
 	g.generateRepositoryJoinClause(b, s)
 	g.generateLogFunc(b, s)
+	g.generateInterfaces(b, s)
 	for _, t := range s.Tables {
 		g.generateConstants(b, t)
 		g.generateColumns(b, t)
@@ -314,34 +315,26 @@ func (g *Generator) generateIterator(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 	fmt.Fprintf(w, `
 
-// %sRows is not thread safe.
-type %sRows struct {
-	rows *sql.Rows
+// %sIterator is not thread safe.
+type %sIterator struct {
+	rows Rows
 	cols []string
 }
-type %sIterator interface {
- 	Next() bool
- 	Close() error
- 	Err() error
- 	Columns() ([]string, error)
- 	%s() (*%sEntity, error)
-}
-var _ %sIterator = (*%sRows)(nil)
 
-func (i *%sRows) Next() bool {
+func (i *%sIterator) Next() bool {
 	return i.rows.Next()
 }
 
-func (i *%sRows) Close() error {
+func (i *%sIterator) Close() error {
 	return i.rows.Close()
 }
 
-func (i *%sRows) Err() error {
+func (i *%sIterator) Err() error {
 	return i.rows.Err()
 }
 
 // Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *%sRows) Columns() ([]string, error) {
+func (i *%sIterator) Columns() ([]string, error) {
 	if i.cols == nil {
 		cols, err := i.rows.Columns()
 		if err != nil {
@@ -353,11 +346,11 @@ func (i *%sRows) Columns() ([]string, error) {
 }
 
 // Ent is wrapper around %s method that makes iterator more generic.
-func (i *%sRows) Ent() (interface{}, error) {
+func (i *%sIterator) Ent() (interface{}, error) {
 	return i.%s()
 }
 
-func (i *%sRows) %s() (*%sEntity, error) {
+func (i *%sIterator) %s() (*%sEntity, error) {
 	var ent %sEntity
 	cols, err := i.Columns()
 	if err != nil {
@@ -374,11 +367,6 @@ func (i *%sRows) %s() (*%sEntity, error) {
 	return &ent, nil
 }
 `, entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
 		entityName,
 		entityName,
 		entityName,
@@ -1266,6 +1254,20 @@ func (g *Generator) generateLogFunc(w io.Writer, s *pqt.Schema) {
 	)
 }
 
+func (g *Generator) generateInterfaces(w io.Writer, s *pqt.Schema) {
+	fmt.Fprint(w, `
+	// Rows ...
+	type Rows interface {
+		io.Closer
+		ColumnTypes() ([]*sql.ColumnType, error)
+		Columns() ([]string, error)
+		Err() error
+		Next() bool
+		NextResultSet() bool
+		Scan(dest ...interface{}) error
+	}`)
+}
+
 func selectList(w io.Writer, t *pqt.Table, nb int) {
 	for i, c := range t.Columns {
 		if i != 0 {
@@ -1578,7 +1580,7 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
 	fmt.Fprintf(w, `
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
@@ -1601,7 +1603,7 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 		entityName,
 	)
 	fmt.Fprintf(w, `
-			return &%sRows{
+			return &%sIterator{
 				rows: rows,
 				cols: []string{`,
 		g.Formatter.Identifier(t.Name),
@@ -1933,7 +1935,7 @@ func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
 func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 	fmt.Fprintf(w, `
-		func %s(rows *sql.Rows) (entities []*%sEntity, err error) {`, g.Formatter.Identifier("scan", t.Name, "rows"), entityName)
+		func %s(rows Rows) (entities []*%sEntity, err error) {`, g.Formatter.Identifier("scan", t.Name, "rows"), entityName)
 	fmt.Fprintf(w, `
 		for rows.Next() {
 			var ent %sEntity
