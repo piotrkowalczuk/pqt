@@ -1,5 +1,7 @@
 package pqt
 
+import "fmt"
+
 const (
 	// RelationshipTypeOneToOne is a relationship that each row in one database table is linked to 1 and only 1 other row in another table.
 	// In a one-to-one relationship between Table A and Table B, each row in Table A is linked to another row in Table B.
@@ -85,25 +87,38 @@ func ManyToMany(t1 *Table, t2 *Table, opts ...RelationshipOption) *Relationship 
 // RelationshipOption configures how we set up the relationship.
 type RelationshipOption func(*Relationship)
 
-// WithOwnerName ...
-func WithOwnerName(s string) RelationshipOption {
+// WithOwnerForeignKey ...
+func WithOwnerForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) RelationshipOption {
 	return func(r *Relationship) {
-		r.OwnerName = s
+		if r.Type != RelationshipTypeManyToMany {
+			panic("function WithOwnerForeignKey can be used only with M2M relationships")
+		}
+
+		for _, c := range primaryColumns {
+			if c.Table != r.OwnerTable {
+				panic(fmt.Sprintf("owner table primary columns inconsistency: column[%v] -> table[%v]", c.Table, r.OwnerTable))
+			}
+		}
+
+		r.OwnerForeignKey = ForeignKey(primaryColumns, referenceColumns, opts...)
+		r.OwnerColumns = primaryColumns
 	}
 }
 
-// WithOwnerForeignKey ...
-func WithOwnerForeignKey(columns, references Columns, opts ...ConstraintOption) RelationshipOption {
+// WithInversedForeignKey ...
+func WithInversedForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) RelationshipOption {
 	return func(r *Relationship) {
-		for _, c := range columns {
-			if r.OwnerTable != c.Table {
-				panic("table columns inconsistency")
+		if r.Type != RelationshipTypeManyToMany {
+			panic("function WithInversedForeignKey can be used only with M2M relationships")
+		}
+
+		for _, c := range primaryColumns {
+			if c.Table != r.InversedTable {
+				panic(fmt.Sprintf("inversed table primary columns inconsistency: column[%v] -> table[%v]", c.Table, r.InversedTable))
 			}
 		}
-		r.OwnerForeignKey = ForeignKey(columns, references, opts...)
-		r.OwnerColumns = columns
-		r.InversedColumns = references
-		r.InversedTable = references[0].Table
+		r.InversedForeignKey = ForeignKey(primaryColumns, referenceColumns, opts...)
+		r.InversedColumns = primaryColumns
 	}
 }
 
@@ -111,21 +126,6 @@ func WithOwnerForeignKey(columns, references Columns, opts ...ConstraintOption) 
 func WithInversedName(s string) RelationshipOption {
 	return func(r *Relationship) {
 		r.InversedName = s
-	}
-}
-
-// WithInversedForeignKey ...
-func WithInversedForeignKey(columns, references Columns, opts ...ConstraintOption) RelationshipOption {
-	return func(r *Relationship) {
-		for _, c := range columns {
-			if c.Table != r.InversedTable {
-				panic("table columns inconsistency")
-			}
-		}
-		r.InversedForeignKey = ForeignKey(columns, references, opts...)
-		r.InversedColumns = columns
-		r.OwnerColumns = references
-		r.OwnerTable = references[0].Table
 	}
 }
 
@@ -140,5 +140,12 @@ func WithColumnName(n string) RelationshipOption {
 func WithBidirectional() RelationshipOption {
 	return func(r *Relationship) {
 		r.Bidirectional = true
+	}
+}
+
+// WithOwnerName ...
+func WithOwnerName(s string) RelationshipOption {
+	return func(r *Relationship) {
+		r.OwnerName = s
 	}
 }

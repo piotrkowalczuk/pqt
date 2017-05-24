@@ -1,6 +1,9 @@
 package pqt
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Table is partially implemented postgres table synopsis.
 type Table struct {
@@ -63,14 +66,14 @@ func (t *Table) AddColumn(c *Column) *Table {
 		}
 
 		t.AddConstraint(&Constraint{
-			Type:             ConstraintTypeForeignKey,
-			Table:            t,
-			Columns:          Columns{c},
-			ReferenceTable:   c.Reference.Table,
-			ReferenceColumns: Columns{c.Reference},
-			OnDelete:         c.OnDelete,
-			OnUpdate:         c.OnUpdate,
-			Match:            c.Match,
+			Type:           ConstraintTypeForeignKey,
+			PrimaryTable:   t,
+			PrimaryColumns: Columns{c},
+			Table:          c.Reference.Table,
+			Columns:        Columns{c.Reference},
+			OnDelete:       c.OnDelete,
+			OnUpdate:       c.OnUpdate,
+			Match:          c.Match,
 		})
 		// When constraint is created, redundant data from column needs to be removed.
 		c.Reference = nil
@@ -154,60 +157,67 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	r.ThroughTable = t
 	r.ThroughTable.OwnedRelationships = append(r.ThroughTable.OwnedRelationships, r)
 
+	fmt.Println("INV ADD REL 0", r.InversedTable.Name)
 	if r.Bidirectional {
-		r.InversedTable.ManyToManyRelationships = append(r.InversedTable.ManyToManyRelationships, r)
 		r.OwnerTable.ManyToManyRelationships = append(r.OwnerTable.ManyToManyRelationships, r)
+		r.InversedTable.ManyToManyRelationships = append(r.InversedTable.ManyToManyRelationships, r)
 	}
-
-	pk1, ok := r.OwnerTable.PrimaryKey()
-	if !ok {
-		return t
-	}
-	pk2, ok := r.InversedTable.PrimaryKey()
-	if !ok {
-		return t
-	}
-
-	name1 := r.ColumnName
-	if name1 == "" {
-		name1 = r.OwnerTable.Name + "_" + pk1.Name
-	}
-
-	name2 := r.ColumnName
-	if name2 == "" {
-		name2 = r.InversedTable.Name + "_" + pk2.Name
-	}
-
-	nt1 := fkType(pk1.Type)
-	nt2 := fkType(pk2.Type)
+	fmt.Println("INV ADD REL 1", r.InversedTable.Name)
 
 	ownerColumns := make(Columns, 0)
 	inversedColumns := make(Columns, 0)
 
 	if r.OwnerForeignKey != nil {
+		r.InversedForeignKey.Table = r.ThroughTable
+
 		r.ThroughTable.AddConstraint(r.OwnerForeignKey)
 		for _, oc := range r.OwnerForeignKey.Columns {
 			r.ThroughTable.AddColumn(oc)
 			ownerColumns = append(ownerColumns, oc)
 		}
 	} else {
+		pk1, ok := r.OwnerTable.PrimaryKey()
+		if !ok {
+			panic(fmt.Sprintf("missing owner table (%s) primary key for many to many relationship", r.OwnerTable.Name))
+		}
+
+		name1 := r.ColumnName
+		if name1 == "" {
+			name1 = r.OwnerTable.Name + "_" + pk1.Name
+		}
+
+		nt1 := fkType(pk1.Type)
+
 		oc := NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...)
 		r.ThroughTable.AddColumn(oc)
 		ownerColumns = append(ownerColumns, oc)
 	}
-
+	fmt.Println("INV ADD REL 1.1", r.InversedTable.Name)
 	if r.InversedForeignKey != nil {
+		r.InversedForeignKey.Table = r.ThroughTable
 		r.ThroughTable.AddConstraint(r.InversedForeignKey)
+		fmt.Println("INV ADD REL 1.2", r.InversedTable.Name)
 		for _, ic := range r.InversedForeignKey.Columns {
 			r.ThroughTable.AddColumn(ic)
 			ownerColumns = append(ownerColumns, ic)
 		}
+		fmt.Println("INV ADD REL 1.3", r.InversedTable.Name)
 	} else {
+		//panic(r.InversedTable.Name)
+		pk2, ok := r.InversedTable.PrimaryKey()
+		if !ok {
+			panic(fmt.Sprintf("missing inversed table (%s) primary key for many to many relationship", r.InversedTable.Name))
+		}
+		name2 := r.ColumnName
+		if name2 == "" {
+			name2 = r.InversedTable.Name + "_" + pk2.Name
+		}
+		nt2 := fkType(pk2.Type)
 		ic := NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...)
 		r.ThroughTable.AddColumn(ic)
 		inversedColumns = append(inversedColumns, ic)
 	}
-
+	fmt.Println("INV ADD REL 2", r.InversedTable.Name)
 	r.ThroughTable.AddUnique(append(ownerColumns, inversedColumns...)...)
 	return t
 }
@@ -218,11 +228,7 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 		t.Constraints = make([]*Constraint, 0, 1)
 	}
 
-	if c.Table == nil || c.Table.self {
-		c.Table = t
-	} else {
-		*c.Table = *t
-	}
+	c.PrimaryTable = t
 
 	t.Constraints = append(t.Constraints, c)
 

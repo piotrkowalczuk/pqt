@@ -206,28 +206,28 @@ func (g *Generator) generateConstraint(buf *bytes.Buffer, c *pqt.Constraint) err
 }
 
 func uniqueConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
-	fmt.Fprintf(buf, `CONSTRAINT "%s" UNIQUE (%s)`, c.Name(), pqt.JoinColumns(c.Columns, ", "))
+	fmt.Fprintf(buf, `CONSTRAINT "%s" UNIQUE (%s)`, c.Name(), pqt.JoinColumns(c.PrimaryColumns, ", "))
 }
 
 func primaryKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
-	fmt.Fprintf(buf, `CONSTRAINT "%s" PRIMARY KEY (%s)`, c.Name(), pqt.JoinColumns(c.Columns, ", "))
+	fmt.Fprintf(buf, `CONSTRAINT "%s" PRIMARY KEY (%s)`, c.Name(), pqt.JoinColumns(c.PrimaryColumns, ", "))
 }
 
 func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
 	switch {
-	case len(c.Columns) == 0:
+	case len(c.PrimaryColumns) == 0:
 		return errors.New("foreign key constraint require at least one column")
-	case len(c.ReferenceColumns) == 0:
+	case len(c.Columns) == 0:
 		return errors.New("foreign key constraint require at least one reference column")
-	case c.ReferenceTable == nil:
+	case c.Table == nil:
 		return errors.New("foreiqn key constraint missing reference table")
 	}
 
 	fmt.Fprintf(buf, `CONSTRAINT "%s" FOREIGN KEY (%s) REFERENCES %s (%s)`,
 		c.Name(),
+		pqt.JoinColumns(c.PrimaryColumns, ", "),
+		c.Table.FullName(),
 		pqt.JoinColumns(c.Columns, ", "),
-		c.ReferenceTable.FullName(),
-		pqt.JoinColumns(c.ReferenceColumns, ", "),
 	)
 
 	switch c.OnDelete {
@@ -262,9 +262,9 @@ func checkConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
 func indexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint, ver float64) {
 	// TODO: change code so IF NOT EXISTS is optional
 	if ver >= 9.5 {
-		fmt.Fprintf(buf, `CREATE INDEX IF NOT EXISTS "%s" ON %s (%s);`, c.Name(), c.Table.FullName(), c.Columns.String())
+		fmt.Fprintf(buf, `CREATE INDEX IF NOT EXISTS "%s" ON %s (%s);`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
 	} else {
-		fmt.Fprintf(buf, `CREATE INDEX "%s" ON %s (%s);`, c.Name(), c.Table.FullName(), c.Columns.String())
+		fmt.Fprintf(buf, `CREATE INDEX "%s" ON %s (%s);`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
 	}
 	fmt.Fprintln(buf, "")
 }

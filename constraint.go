@@ -31,8 +31,8 @@ type ConstraintOption func(*Constraint)
 type Constraint struct {
 	Type                                                                 ConstraintType
 	Where, Check                                                         string
-	Table, ReferenceTable                                                *Table
-	Columns, ReferenceColumns                                            Columns
+	PrimaryTable, Table                                                  *Table
+	PrimaryColumns, Columns                                              Columns
 	Attribute                                                            []*Attribute
 	Match, OnDelete, OnUpdate                                            int32
 	NoInherit, DeferrableInitiallyDeferred, DeferrableInitiallyImmediate bool
@@ -43,19 +43,19 @@ func (c *Constraint) Name() string {
 	var schema string
 
 	switch {
-	case c.Table == nil:
+	case c.PrimaryTable == nil:
 		return "<missing table>"
-	case c.Table.Schema == nil || c.Table.Schema.Name == "":
+	case c.PrimaryTable.Schema == nil || c.PrimaryTable.Schema.Name == "":
 		schema = "public"
 	default:
-		schema = c.Table.Schema.Name
+		schema = c.PrimaryTable.Schema.Name
 	}
 
-	if len(c.Columns) == 0 {
-		return fmt.Sprintf("%s.%s_%s", schema, c.Table.ShortName, c.Type)
+	if len(c.PrimaryColumns) == 0 {
+		return fmt.Sprintf("%s.%s_%s", schema, c.PrimaryTable.ShortName, c.Type)
 	}
-	tmp := make([]string, 0, len(c.Columns))
-	for _, col := range c.Columns {
+	tmp := make([]string, 0, len(c.PrimaryColumns))
+	for _, col := range c.PrimaryColumns {
 		if col.ShortName != "" {
 			tmp = append(tmp, col.ShortName)
 			continue
@@ -63,34 +63,34 @@ func (c *Constraint) Name() string {
 		tmp = append(tmp, col.Name)
 	}
 
-	return fmt.Sprintf("%s.%s_%s_%s", schema, c.Table.ShortName, strings.Join(tmp, "_"), c.Type)
+	return fmt.Sprintf("%s.%s_%s_%s", schema, c.PrimaryTable.ShortName, strings.Join(tmp, "_"), c.Type)
 }
 
 // Unique constraint ensure that the data contained in a column or a group of columns is unique with respect to all the rows in the table.
 func Unique(table *Table, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:    ConstraintTypeUnique,
-		Table:   table,
-		Columns: columns,
+		Type:           ConstraintTypeUnique,
+		PrimaryTable:   table,
+		PrimaryColumns: columns,
 	}
 }
 
 // PrimaryKey constraint is simply a combination of a unique constraint and a not-null constraint.
 func PrimaryKey(table *Table, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:    ConstraintTypePrimaryKey,
-		Table:   table,
-		Columns: columns,
+		Type:           ConstraintTypePrimaryKey,
+		PrimaryTable:   table,
+		PrimaryColumns: columns,
 	}
 }
 
 // Check ...
 func Check(table *Table, check string, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:    ConstraintTypeCheck,
-		Table:   table,
-		Columns: columns,
-		Check:   check,
+		Type:           ConstraintTypeCheck,
+		PrimaryTable:   table,
+		PrimaryColumns: columns,
+		Check:          check,
 	}
 }
 
@@ -115,26 +115,26 @@ type Reference struct {
 // ForeignKey constraint specifies that the values in a column (or a group of columns)
 // must match the values appearing in some row of another table.
 // We say this maintains the referential integrity between two related tables.
-func ForeignKey(columns, references Columns, opts ...ConstraintOption) *Constraint {
-	if len(references) == 0 {
+func ForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) *Constraint {
+	if len(referenceColumns) == 0 {
 		panic("foreign key expects at least one reference column")
 	}
-	for _, c := range columns {
-		if c.Table != columns[0].Table {
+	for _, c := range primaryColumns {
+		if c.Table != primaryColumns[0].Table {
 			panic("column tables inconsistency")
 		}
 	}
-	for _, r := range references {
-		if r.Table != references[0].Table {
+	for _, r := range referenceColumns {
+		if r.Table != referenceColumns[0].Table {
 			panic("reference column tables inconsistency")
 		}
 	}
 	fk := &Constraint{
-		Type:             ConstraintTypeForeignKey,
-		Columns:          columns,
-		Table:            columns[0].Table,
-		ReferenceColumns: references,
-		ReferenceTable:   references[0].Table,
+		Type:           ConstraintTypeForeignKey,
+		PrimaryTable:   primaryColumns[0].Table,
+		PrimaryColumns: primaryColumns,
+		Table:          referenceColumns[0].Table,
+		Columns:        referenceColumns,
 	}
 
 	for _, o := range opts {
@@ -147,9 +147,9 @@ func ForeignKey(columns, references Columns, opts ...ConstraintOption) *Constrai
 // Index ...
 func Index(table *Table, columns ...*Column) *Constraint {
 	return &Constraint{
-		Type:    ConstraintTypeIndex,
-		Table:   table,
-		Columns: columns,
+		Type:           ConstraintTypeIndex,
+		PrimaryTable:   table,
+		PrimaryColumns: columns,
 	}
 }
 
