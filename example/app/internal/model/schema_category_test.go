@@ -110,8 +110,7 @@ func TestCategoryRepositoryBase_Find(t *testing.T) {
 				Limit:  10,
 				Offset: 0,
 				OrderBy: map[string]bool{
-					model.TableCategoryColumnID:   true,
-					model.TableCategoryColumnName: false,
+					model.TableCategoryColumnID: true,
 				},
 			},
 		},
@@ -129,8 +128,7 @@ func TestCategoryRepositoryBase_Find(t *testing.T) {
 				Limit:  10,
 				Offset: 10,
 				OrderBy: map[string]bool{
-					model.TableCategoryColumnID:   true,
-					model.TableCategoryColumnName: false,
+					model.TableCategoryColumnID: true,
 				},
 			},
 		},
