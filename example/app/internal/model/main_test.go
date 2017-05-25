@@ -75,9 +75,9 @@ func setup(t testing.TB) *suite {
 
 	log := func(err error, ent, fnc, sql string, args ...interface{}) {
 		if err != nil {
-			t.Error("query failure: [%s] [%s] [%s]", ent, fnc, sql)
+			t.Errorf("query failure: [%s] [%s] [%s]", ent, fnc, sql)
 		} else {
-			t.Log("query success: [%s] [%s] [%s]", ent, fnc, sql)
+			t.Logf("query success: [%s] [%s] [%s]", ent, fnc, sql)
 		}
 	}
 	return &suite{
@@ -128,7 +128,7 @@ func populateNews(t testing.TB, r *model.NewsRepositoryBase, nb int) {
 
 func populateCategory(t testing.TB, r *model.CategoryRepositoryBase, nb int) {
 	for i := 1; i <= nb; i++ {
-		_, err := r.Insert(context.Background(), &model.CategoryEntity{
+		ent, err := r.Insert(context.Background(), &model.CategoryEntity{
 			Name:      fmt.Sprintf("name-%d", i),
 			Content:   fmt.Sprintf("content-%d", i),
 			CreatedAt: time.Now(),
@@ -139,7 +139,7 @@ func populateCategory(t testing.TB, r *model.CategoryRepositoryBase, nb int) {
 
 		for j := 1; j <= nb; j++ {
 			_, err := r.Insert(context.Background(), &model.CategoryEntity{
-				ParentID:  sql.NullInt64{Int64: int64(i), Valid: true},
+				ParentID:  sql.NullInt64{Int64: ent.ID, Valid: true},
 				Name:      fmt.Sprintf("name-%d-%d", i, j),
 				Content:   fmt.Sprintf("content-%d-%d", i, j),
 				CreatedAt: time.Now(),
