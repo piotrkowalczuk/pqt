@@ -163,7 +163,6 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 
 	if r.OwnerForeignKey != nil {
 		r.OwnerForeignKey.Table = r.ThroughTable
-
 		r.ThroughTable.AddConstraint(r.OwnerForeignKey)
 		for _, oc := range r.OwnerForeignKey.Columns {
 			r.ThroughTable.AddColumn(oc)
@@ -180,9 +179,9 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 			name = r.OwnerTable.Name + "_" + pk.Name
 		}
 
-		nt1 := fkType(pk.Type)
+		nt := fkType(pk.Type)
 
-		oc := NewColumn(name, nt1, append([]ColumnOption{WithReference(pk)}, opts...)...)
+		oc := NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...)
 		r.ThroughTable.AddColumn(oc)
 		ownerColumns = append(ownerColumns, oc)
 	}
@@ -208,6 +207,7 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 		r.ThroughTable.AddColumn(ic)
 		inversedColumns = append(inversedColumns, ic)
 	}
+
 	r.ThroughTable.AddUnique(append(ownerColumns, inversedColumns...)...)
 	return t
 }
