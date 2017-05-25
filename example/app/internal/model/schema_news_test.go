@@ -139,37 +139,44 @@ var testNewsFindData = map[string]struct {
 		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.title=$2",
 	},
 	"full": {
-		expr: model.NewsFindExpr{Where: &model.NewsCriteria{
-			ID: sql.NullInt64{
-				Int64: 1,
-				Valid: true,
+		expr: model.NewsFindExpr{
+			Where: &model.NewsCriteria{
+				ID: sql.NullInt64{
+					Int64: 1,
+					Valid: true,
+				},
+				Score: sql.NullFloat64{
+					Valid:   true,
+					Float64: 10.11,
+				},
+				Title: sql.NullString{String: "title - full", Valid: true},
+				Lead: sql.NullString{
+					Valid:  true,
+					String: "lead - full",
+				},
+				MetaData: []byte(`{"something": 1}`),
+				Content:  sql.NullString{String: "content - full", Valid: true},
+				ViewsDistribution: model.NullFloat64Array{
+					Valid:        true,
+					Float64Array: []float64{1.1, 1.2, 1.3},
+				},
+				Continue: sql.NullBool{Bool: true, Valid: true},
+				CreatedAt: pq.NullTime{
+					Valid: true,
+					Time:  time.Now(),
+				},
+				UpdatedAt: pq.NullTime{
+					Valid: true,
+					Time:  time.Now(),
+				},
 			},
-			Score: sql.NullFloat64{
-				Valid:   true,
-				Float64: 10.11,
+			Limit:  10,
+			Offset: 100,
+			OrderBy: map[string]bool{
+				model.TableNewsColumnTitle: true,
 			},
-			Title: sql.NullString{String: "title - full", Valid: true},
-			Lead: sql.NullString{
-				Valid:  true,
-				String: "lead - full",
-			},
-			MetaData: []byte(`{"something": 1}`),
-			Content:  sql.NullString{String: "content - full", Valid: true},
-			ViewsDistribution: model.NullFloat64Array{
-				Valid:        true,
-				Float64Array: []float64{1.1, 1.2, 1.3},
-			},
-			Continue: sql.NullBool{Bool: true, Valid: true},
-			CreatedAt: pq.NullTime{
-				Valid: true,
-				Time:  time.Now(),
-			},
-			UpdatedAt: pq.NullTime{
-				Valid: true,
-				Time:  time.Now(),
-			},
-		}},
-		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.continue=$2 AND t0.created_at=$3 AND t0.lead=$4 AND t0.meta_data=$5 AND t0.score=$6 AND t0.title=$7 AND t0.updated_at=$8 AND t0.views_distribution=$9",
+		},
+		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.continue=$2 AND t0.created_at=$3 AND t0.lead=$4 AND t0.meta_data=$5 AND t0.score=$6 AND t0.title=$7 AND t0.updated_at=$8 AND t0.views_distribution=$9 ORDER BY title OFFSET $10  LIMIT $11 ",
 	},
 }
 
@@ -206,6 +213,23 @@ func TestNewsRepositoryBase_FindQuery(t *testing.T) {
 				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
 			}
 		})
+	}
+}
+
+func TestNewsRepositoryBase_DeleteOneByID(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	nb := 10
+	populateNews(t, s.news, nb)
+	for i := 1; i <= nb; i++ {
+		got, err := s.news.DeleteOneByID(context.Background(), int64(i))
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got != 1 {
+			t.Errorf("wrong output, expected %d but got %d", 1, got)
+		}
 	}
 }
 

@@ -215,19 +215,19 @@ func primaryKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
 
 func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
 	switch {
-	case len(c.Columns) == 0:
+	case len(c.PrimaryColumns) == 0:
 		return errors.New("foreign key constraint require at least one column")
-	case len(c.ReferenceColumns) == 0:
+	case len(c.Columns) == 0:
 		return errors.New("foreign key constraint require at least one reference column")
-	case c.ReferenceTable == nil:
+	case c.Table == nil:
 		return errors.New("foreiqn key constraint missing reference table")
 	}
 
 	fmt.Fprintf(buf, `CONSTRAINT "%s" FOREIGN KEY (%s) REFERENCES %s (%s)`,
 		c.Name(),
 		pqt.JoinColumns(c.Columns, ", "),
-		c.ReferenceTable.FullName(),
-		pqt.JoinColumns(c.ReferenceColumns, ", "),
+		c.PrimaryTable.FullName(),
+		pqt.JoinColumns(c.PrimaryColumns, ", "),
 	)
 
 	switch c.OnDelete {

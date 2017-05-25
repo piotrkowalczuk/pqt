@@ -31,8 +31,8 @@ type ConstraintOption func(*Constraint)
 type Constraint struct {
 	Type                                                                 ConstraintType
 	Where, Check                                                         string
-	Table, ReferenceTable                                                *Table
-	Columns, ReferenceColumns                                            Columns
+	PrimaryTable, Table                                                  *Table
+	PrimaryColumns, Columns                                              Columns
 	Attribute                                                            []*Attribute
 	Match, OnDelete, OnUpdate                                            int32
 	NoInherit, DeferrableInitiallyDeferred, DeferrableInitiallyImmediate bool
@@ -115,26 +115,26 @@ type Reference struct {
 // ForeignKey constraint specifies that the values in a column (or a group of columns)
 // must match the values appearing in some row of another table.
 // We say this maintains the referential integrity between two related tables.
-func ForeignKey(columns, references Columns, opts ...ConstraintOption) *Constraint {
-	if len(references) == 0 {
+func ForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) *Constraint {
+	if len(referenceColumns) == 0 {
 		panic("foreign key expects at least one reference column")
 	}
-	for _, c := range columns {
-		if c.Table != columns[0].Table {
+	for _, c := range primaryColumns {
+		if c.Table != primaryColumns[0].Table {
 			panic("column tables inconsistency")
 		}
 	}
-	for _, r := range references {
-		if r.Table != references[0].Table {
+	for _, r := range referenceColumns {
+		if r.Table != referenceColumns[0].Table {
 			panic("reference column tables inconsistency")
 		}
 	}
 	fk := &Constraint{
-		Type:             ConstraintTypeForeignKey,
-		Columns:          columns,
-		Table:            columns[0].Table,
-		ReferenceColumns: references,
-		ReferenceTable:   references[0].Table,
+		Type:           ConstraintTypeForeignKey,
+		PrimaryTable:   primaryColumns[0].Table,
+		PrimaryColumns: primaryColumns,
+		Table:          referenceColumns[0].Table,
+		Columns:        referenceColumns,
 	}
 
 	for _, o := range opts {

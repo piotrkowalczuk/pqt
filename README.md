@@ -76,8 +76,10 @@ Very welcome in general. Especially in fields like:
 
 ## TODO
 
+* [ ] Change `<entity-name>FindExpr.OrderBy` to slice.
 * [ ] Postgres types better support.
 * [x] Support for functions.
+* [ ] Selective go/sql generation.
 * [ ] Refactor `WithXXX` functions to be prefixed by the type they return for example `TableWithIfNotExists` or `ColumnWithNotNull`.
 * [ ] Constraint.
     * [x] Index

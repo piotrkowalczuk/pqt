@@ -245,32 +245,40 @@ func TestTable_AddRelationship_oneToMany(t *testing.T) {
 func TestTable_AddRelationship_manyToMany(t *testing.T) {
 	user := pqt.NewTable("user").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
 	group := pqt.NewTable("group").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
-	userGroups := pqt.NewTable("user_groups")
-	user.AddRelationship(pqt.ManyToMany(
+	userGroups := pqt.NewTable("user_groups").AddRelationship(pqt.ManyToMany(
+		user,
 		group,
-		userGroups,
 		pqt.WithInversedName("users"),
 		pqt.WithOwnerName("groups"),
+		pqt.WithBidirectional(),
 	))
 
-	if len(user.OwnedRelationships) != 1 {
-		t.Fatalf("user should have 1 relationship, but has %d", len(user.OwnedRelationships))
+	if len(userGroups.OwnedRelationships) != 3 {
+		t.Fatalf("user groups should have 2 relationship, but has %d", len(userGroups.OwnedRelationships))
 	}
-
-	if user.OwnedRelationships[0].OwnerName != "groups" {
+	if len(user.ManyToManyRelationships) != 1 {
+		t.Fatalf("user should have 1 m2m relationship, but has %d", len(user.ManyToManyRelationships))
+	}
+	if len(group.ManyToManyRelationships) != 1 {
+		t.Fatalf("group should have 1 m2m relationship, but has %d", len(group.ManyToManyRelationships))
+	}
+	if userGroups.OwnedRelationships[0].OwnerName != "groups" {
 		t.Errorf("user relationship to group should be mapped by groups")
 	}
-
-	if user.OwnedRelationships[0].OwnerTable != group {
-		t.Errorf("user relationship to group should be mapped by group table")
+	if user.ManyToManyRelationships[0].ThroughTable != userGroups {
+		t.Errorf("user relationship to group should be mapped by user groups table")
 	}
-
-	if user.OwnedRelationships[0].Type != pqt.RelationshipTypeManyToMany {
+	if user.ManyToManyRelationships[0].InversedTable != group {
+		t.Errorf("user should have relationship to group table")
+	}
+	if group.ManyToManyRelationships[0].ThroughTable != userGroups {
+		t.Errorf("group relationship to user should be mapped by user groups table")
+	}
+	if group.ManyToManyRelationships[0].OwnerTable != user {
+		t.Errorf("group should have relationship to user table")
+	}
+	if userGroups.OwnedRelationships[0].Type != pqt.RelationshipTypeManyToMany {
 		t.Errorf("user relationship to group should be many to many")
-	}
-
-	if len(group.InversedRelationships) != 0 {
-		t.Fatalf("group should have 0 relationship, but has %d", len(group.InversedRelationships))
 	}
 }
 

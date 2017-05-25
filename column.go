@@ -91,11 +91,11 @@ func (c *Column) Constraints() []*Constraint {
 	}
 	if c.Reference != nil {
 		cs = append(cs, &Constraint{
-			Type:             ConstraintTypeForeignKey,
-			Columns:          Columns{c},
-			ReferenceColumns: Columns{c.Reference},
-			ReferenceTable:   c.Reference.Table,
-			Table:            c.Table,
+			Type:           ConstraintTypeForeignKey,
+			PrimaryColumns: Columns{c.Reference},
+			PrimaryTable:   c.Reference.Table,
+			Columns:        Columns{c},
+			Table:          c.Table,
 		})
 	}
 

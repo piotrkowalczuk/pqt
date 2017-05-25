@@ -1,6 +1,9 @@
 package pqt
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Table is partially implemented postgres table synopsis.
 type Table struct {
@@ -63,14 +66,14 @@ func (t *Table) AddColumn(c *Column) *Table {
 		}
 
 		t.AddConstraint(&Constraint{
-			Type:             ConstraintTypeForeignKey,
-			Table:            t,
-			Columns:          Columns{c},
-			ReferenceTable:   c.Reference.Table,
-			ReferenceColumns: Columns{c.Reference},
-			OnDelete:         c.OnDelete,
-			OnUpdate:         c.OnUpdate,
-			Match:            c.Match,
+			Type:           ConstraintTypeForeignKey,
+			PrimaryTable:   r.InversedTable,
+			PrimaryColumns: r.InversedColumns,
+			Table:          r.OwnerTable,
+			Columns:        r.OwnerColumns,
+			OnDelete:       c.OnDelete,
+			OnUpdate:       c.OnUpdate,
+			Match:          c.Match,
 		})
 		// When constraint is created, redundant data from column needs to be removed.
 		c.Reference = nil
@@ -87,11 +90,7 @@ func (t *Table) addColumn(c *Column) *Table {
 		t.Columns = make(Columns, 0, 1)
 	}
 
-	if c.Table == nil {
-		c.Table = t
-	} else {
-		*c.Table = *t
-	}
+	c.Table = t
 	t.Columns = append(t.Columns, c)
 
 	t.Constraints = append(t.Constraints, c.Constraints()...)
@@ -155,55 +154,56 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	r.ThroughTable.OwnedRelationships = append(r.ThroughTable.OwnedRelationships, r)
 
 	if r.Bidirectional {
-		r.InversedTable.ManyToManyRelationships = append(r.InversedTable.ManyToManyRelationships, r)
 		r.OwnerTable.ManyToManyRelationships = append(r.OwnerTable.ManyToManyRelationships, r)
+		r.InversedTable.ManyToManyRelationships = append(r.InversedTable.ManyToManyRelationships, r)
 	}
-
-	pk1, ok := r.OwnerTable.PrimaryKey()
-	if !ok {
-		return t
-	}
-	pk2, ok := r.InversedTable.PrimaryKey()
-	if !ok {
-		return t
-	}
-
-	name1 := r.ColumnName
-	if name1 == "" {
-		name1 = r.OwnerTable.Name + "_" + pk1.Name
-	}
-
-	name2 := r.ColumnName
-	if name2 == "" {
-		name2 = r.InversedTable.Name + "_" + pk2.Name
-	}
-
-	nt1 := fkType(pk1.Type)
-	nt2 := fkType(pk2.Type)
 
 	ownerColumns := make(Columns, 0)
 	inversedColumns := make(Columns, 0)
 
 	if r.OwnerForeignKey != nil {
+		r.OwnerForeignKey.Table = r.ThroughTable
 		r.ThroughTable.AddConstraint(r.OwnerForeignKey)
 		for _, oc := range r.OwnerForeignKey.Columns {
 			r.ThroughTable.AddColumn(oc)
 			ownerColumns = append(ownerColumns, oc)
 		}
 	} else {
-		oc := NewColumn(name1, nt1, append([]ColumnOption{WithReference(pk1)}, opts...)...)
+		pk, ok := r.OwnerTable.PrimaryKey()
+		if !ok {
+			panic(fmt.Sprintf("missing owner table (%s) primary key for many to many relationship", r.OwnerTable.Name))
+		}
+
+		name := r.ColumnName
+		if name == "" {
+			name = r.OwnerTable.Name + "_" + pk.Name
+		}
+
+		nt := fkType(pk.Type)
+
+		oc := NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...)
 		r.ThroughTable.AddColumn(oc)
 		ownerColumns = append(ownerColumns, oc)
 	}
 
 	if r.InversedForeignKey != nil {
+		r.InversedForeignKey.Table = r.ThroughTable
 		r.ThroughTable.AddConstraint(r.InversedForeignKey)
 		for _, ic := range r.InversedForeignKey.Columns {
 			r.ThroughTable.AddColumn(ic)
 			ownerColumns = append(ownerColumns, ic)
 		}
 	} else {
-		ic := NewColumn(name2, nt2, append([]ColumnOption{WithReference(pk2)}, opts...)...)
+		pk, ok := r.InversedTable.PrimaryKey()
+		if !ok {
+			panic(fmt.Sprintf("missing inversed table (%s) primary key for many to many relationship", r.InversedTable.Name))
+		}
+		name := r.ColumnName
+		if name == "" {
+			name = r.InversedTable.Name + "_" + pk.Name
+		}
+		nt := fkType(pk.Type)
+		ic := NewColumn(name, nt, append([]ColumnOption{WithReference(pk)}, opts...)...)
 		r.ThroughTable.AddColumn(ic)
 		inversedColumns = append(inversedColumns, ic)
 	}
@@ -218,11 +218,7 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 		t.Constraints = make([]*Constraint, 0, 1)
 	}
 
-	if c.Table == nil || c.Table.self {
-		c.Table = t
-	} else {
-		*c.Table = *t
-	}
+	c.Table = t
 
 	t.Constraints = append(t.Constraints, c)
 
@@ -252,11 +248,7 @@ func (t *Table) SetIfNotExists(ine bool) *Table {
 
 // SetSchema sets schema name table belongs to.
 func (t *Table) SetSchema(s *Schema) *Table {
-	if t.Schema == nil {
-		t.Schema = s
-	} else {
-		*t.Schema = *s
-	}
+	t.Schema = s
 
 	return t
 }

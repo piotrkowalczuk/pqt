@@ -169,14 +169,14 @@ func TestWithDefault(t *testing.T) {
 func TestWithOnDelete(t *testing.T) {
 	c := pqt.NewColumn("on_delete", pqt.TypeBool(), pqt.WithOnDelete(pqt.Cascade))
 	if c.OnDelete != pqt.Cascade {
-		t.Errorf("wrong on delete event: %s", c.OnDelete)
+		t.Errorf("wrong on delete event: %d", c.OnDelete)
 	}
 }
 
 func TestWithOnUpdate(t *testing.T) {
 	c := pqt.NewColumn("on_update", pqt.TypeBool(), pqt.WithOnUpdate(pqt.SetNull))
 	if c.OnUpdate != pqt.SetNull {
-		t.Errorf("wrong on update event: %s", c.OnUpdate)
+		t.Errorf("wrong on update event: %d", c.OnUpdate)
 	}
 }
 

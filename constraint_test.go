@@ -49,17 +49,17 @@ func TestForeignKey(t *testing.T) {
 	if cstr.Type != pqt.ConstraintTypeForeignKey {
 		t.Errorf("wrong type, expected %s but got %s", pqt.ConstraintTypeForeignKey, cstr.Type)
 	}
+	if len(cstr.PrimaryColumns) != 2 {
+		t.Errorf("wrong number of columns, expected %d but got %d", 2, len(cstr.PrimaryColumns))
+	}
 	if len(cstr.Columns) != 2 {
 		t.Errorf("wrong number of columns, expected %d but got %d", 2, len(cstr.Columns))
 	}
-	if len(cstr.ReferenceColumns) != 2 {
-		t.Errorf("wrong number of columns, expected %d but got %d", 2, len(cstr.ReferenceColumns))
+	if !reflect.DeepEqual(cstr.PrimaryTable, t1) {
+		t.Errorf("table does not match, expected %v but got %v", t1, cstr.PrimaryTable)
 	}
-	if !reflect.DeepEqual(cstr.Table, t1) {
-		t.Errorf("table does not match, expected %v but got %v", t1, cstr.Table)
-	}
-	if !reflect.DeepEqual(cstr.ReferenceTable, t2) {
-		t.Errorf("reference table does not match, expected %v but got %v", t2, cstr.ReferenceTable)
+	if !reflect.DeepEqual(cstr.Table, t2) {
+		t.Errorf("reference table does not match, expected %v but got %v", t2, cstr.Table)
 	}
 }
 
