@@ -122,6 +122,23 @@ func WithInversedForeignKey(primaryColumns, referenceColumns Columns, opts ...Co
 	}
 }
 
+// WithForeignKey ...
+func WithForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) RelationshipOption {
+	return func(r *Relationship) {
+		if r.Type == RelationshipTypeManyToMany {
+			panic("function WithForeignKey cannot be used with M2M relationships")
+		}
+		for _, c := range primaryColumns {
+			if c.Table != r.InversedTable {
+				panic(fmt.Sprintf("inversed table primary columns inconsistency: column[%v] -> table[%v]", c.Table, r.InversedTable))
+			}
+		}
+		r.InversedForeignKey = ForeignKey(primaryColumns, referenceColumns, opts...)
+		r.InversedColumns = primaryColumns
+		r.OwnerColumns = referenceColumns
+	}
+}
+
 // WithInversedName ...
 func WithInversedName(s string) RelationshipOption {
 	return func(r *Relationship) {
