@@ -112,13 +112,13 @@ func WithInversedForeignKey(primaryColumns, referenceColumns Columns, opts ...Co
 			panic("function WithInversedForeignKey can be used only with M2M relationships")
 		}
 
-		for _, c := range primaryColumns {
+		for _, c := range referenceColumns {
 			if c.Table != r.InversedTable {
 				panic(fmt.Sprintf("inversed table primary columns inconsistency: column[%v] -> table[%v]", c.Table, r.InversedTable))
 			}
 		}
 		r.InversedForeignKey = ForeignKey(primaryColumns, referenceColumns, opts...)
-		r.InversedColumns = primaryColumns
+		r.InversedColumns = referenceColumns
 	}
 }
 
@@ -128,14 +128,14 @@ func WithForeignKey(primaryColumns, referenceColumns Columns, opts ...Constraint
 		if r.Type == RelationshipTypeManyToMany {
 			panic("function WithForeignKey cannot be used with M2M relationships")
 		}
-		for _, c := range primaryColumns {
+		for _, c := range referenceColumns {
 			if c.Table != r.InversedTable {
 				panic(fmt.Sprintf("inversed table primary columns inconsistency: column[%v] -> table[%v]", c.Table, r.InversedTable))
 			}
 		}
-		r.InversedForeignKey = ForeignKey(primaryColumns, referenceColumns, opts...)
-		r.InversedColumns = primaryColumns
-		r.OwnerColumns = referenceColumns
+		r.OwnerForeignKey = ForeignKey(primaryColumns, referenceColumns, opts...)
+		r.OwnerColumns = primaryColumns
+		r.InversedColumns = referenceColumns
 	}
 }
 

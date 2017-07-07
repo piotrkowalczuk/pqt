@@ -67,10 +67,10 @@ func (t *Table) AddColumn(c *Column) *Table {
 
 		t.AddConstraint(&Constraint{
 			Type:           ConstraintTypeForeignKey,
-			PrimaryTable:   r.InversedTable,
-			PrimaryColumns: r.InversedColumns,
-			Table:          r.OwnerTable,
-			Columns:        r.OwnerColumns,
+			Table:          r.InversedTable,
+			Columns:        r.InversedColumns,
+			PrimaryTable:   r.OwnerTable,
+			PrimaryColumns: r.OwnerColumns,
 			OnDelete:       c.OnDelete,
 			OnUpdate:       c.OnUpdate,
 			Match:          c.Match,
@@ -162,9 +162,9 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	inversedColumns := make(Columns, 0)
 
 	if r.OwnerForeignKey != nil {
-		r.OwnerForeignKey.Table = r.ThroughTable
+		r.OwnerForeignKey.PrimaryTable = r.ThroughTable
 		r.ThroughTable.AddConstraint(r.OwnerForeignKey)
-		for _, oc := range r.OwnerForeignKey.Columns {
+		for _, oc := range r.OwnerForeignKey.PrimaryColumns {
 			r.ThroughTable.AddColumn(oc)
 			ownerColumns = append(ownerColumns, oc)
 		}
@@ -187,9 +187,9 @@ func (t *Table) addRelationshipManyToMany(r *Relationship, opts ...ColumnOption)
 	}
 
 	if r.InversedForeignKey != nil {
-		r.InversedForeignKey.Table = r.ThroughTable
+		r.InversedForeignKey.PrimaryTable = r.ThroughTable
 		r.ThroughTable.AddConstraint(r.InversedForeignKey)
-		for _, ic := range r.InversedForeignKey.Columns {
+		for _, ic := range r.InversedForeignKey.PrimaryColumns {
 			r.ThroughTable.AddColumn(ic)
 			ownerColumns = append(ownerColumns, ic)
 		}
@@ -218,7 +218,7 @@ func (t *Table) AddConstraint(c *Constraint) *Table {
 		t.Constraints = make([]*Constraint, 0, 1)
 	}
 
-	c.Table = t
+	c.PrimaryTable = t
 
 	t.Constraints = append(t.Constraints, c)
 

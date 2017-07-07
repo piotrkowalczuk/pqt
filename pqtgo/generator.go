@@ -436,7 +436,7 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 	return fields
 }
 
-func (g *Generator) generateRepository(w io.Writer, table *pqt.Table) {
+func (g *Generator) generateRepository(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		type %sRepositoryBase struct {
 			%s string
@@ -444,7 +444,7 @@ func (g *Generator) generateRepository(w io.Writer, table *pqt.Table) {
 			%s *sql.DB
 			%s LogFunc
 		}`,
-		g.Formatter.Identifier(table.Name),
+		g.Formatter.Identifier(t.Name),
 		g.Formatter.Identifier("table"),
 		g.Formatter.Identifier("columns"),
 		g.Formatter.Identifier("db"),
@@ -452,14 +452,14 @@ func (g *Generator) generateRepository(w io.Writer, table *pqt.Table) {
 	)
 }
 
-func (g *Generator) generateColumns(w io.Writer, table *pqt.Table) {
+func (g *Generator) generateColumns(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		var (
-			%s  = []string{`, g.Formatter.Identifier("table", table.Name, "columns"))
+			%s  = []string{`, g.Formatter.Identifier("table", t.Name, "columns"))
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
 		fmt.Fprintf(w, `
-			%s,`, g.Formatter.Identifier("table", table.Name, "column", c.Name))
+			%s,`, g.Formatter.Identifier("table", t.Name, "column", c.Name))
 	}
 	io.WriteString(w, `
 		})`)
@@ -474,38 +474,38 @@ func (g *Generator) generateConstants(code *bytes.Buffer, table *pqt.Table) {
 		)`)
 }
 
-func (g *Generator) generateConstantsColumns(w io.Writer, table *pqt.Table) {
+func (g *Generator) generateConstantsColumns(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
-		%s = "%s"`, g.Formatter.Identifier("table", table.Name), table.FullName())
+		%s = "%s"`, g.Formatter.Identifier("table", t.Name), t.FullName())
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
 		fmt.Fprintf(w, `
-			%s = "%s"`, g.Formatter.Identifier("table", table.Name, "column", c.Name), c.Name)
+			%s = "%s"`, g.Formatter.Identifier("table", t.Name, "column", c.Name), c.Name)
 	}
 }
 
-func (g *Generator) generateConstantsConstraints(w io.Writer, table *pqt.Table) {
-	for _, c := range table.Constraints {
-		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.Columns, "_"))
+func (g *Generator) generateConstantsConstraints(w io.Writer, t *pqt.Table) {
+	for _, c := range t.Constraints {
+		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.PrimaryColumns, "_"))
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
 			fmt.Fprintf(w, `
-				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Check"), c.String())
+				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Check"), c.String())
 		case pqt.ConstraintTypePrimaryKey:
 			fmt.Fprintf(w, `
-				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraintPrimaryKey"), c.String())
+				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraintPrimaryKey"), c.String())
 		case pqt.ConstraintTypeForeignKey:
 			fmt.Fprintf(w, `
-				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "ForeignKey"), c.String())
+				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "ForeignKey"), c.String())
 		case pqt.ConstraintTypeExclusion:
 			fmt.Fprintf(w, `
-				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Exclusion"), c.String())
+				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Exclusion"), c.String())
 		case pqt.ConstraintTypeUnique:
 			fmt.Fprintf(w, `
-				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Unique"), c.String())
+				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Unique"), c.String())
 		case pqt.ConstraintTypeIndex:
 			fmt.Fprintf(w, `
-				%s = "%s"`, g.Formatter.Identifier("table", table.Name, "constraint", name, "Index"), c.String())
+				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Index"), c.String())
 		}
 
 		io.WriteString(w, `
@@ -559,8 +559,8 @@ func (g *Generator) generateRepositoryInsertQuery(w io.Writer, t *pqt.Table) {
 	}`)
 }
 
-func (g *Generator) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
+func (g *Generator) generateRepositoryInsert(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("insert"), entityName, entityName)
@@ -574,7 +574,7 @@ func (g *Generator) generateRepositoryInsert(w io.Writer, table *pqt.Table) {
 		g.Formatter.Identifier("db"),
 	)
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
 		fmt.Fprintf(w, "&e.%s,\n", g.Formatter.Identifier(c.Name))
 	}
 	fmt.Fprintf(w, `)
@@ -790,9 +790,9 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(w io.Writer, t 
 	}`)
 }
 
-func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
-	pk, ok := table.PrimaryKey()
+func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
 	}
@@ -832,14 +832,14 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(w io.Writer, table *
 	)
 }
 
-func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
+func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
 
-	for _, u := range g.uniqueConstraints(table) {
+	for _, u := range g.uniqueConstraints(t) {
 		method := []string{"updateOneBy"}
 		arguments := ""
 
-		for i, c := range u.Columns {
+		for i, c := range u.PrimaryColumns {
 			if i != 0 {
 				method = append(method, "And")
 				arguments += ", "
@@ -860,9 +860,9 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 		fmt.Fprintf(w, `
 			buf := bytes.NewBufferString("UPDATE ")
 			buf.WriteString(r.%s)
-			update := NewComposer(%d)`, g.Formatter.Identifier("table"), len(u.Columns))
+			update := NewComposer(%d)`, g.Formatter.Identifier("table"), len(u.PrimaryColumns))
 
-		for _, c := range table.Columns {
+		for _, c := range t.Columns {
 			g.generateRepositorySetClause(w, c, "update")
 		}
 		fmt.Fprintf(w, `
@@ -874,7 +874,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 			buf.WriteString(" SET ")
 			buf.ReadFrom(update)
 			buf.WriteString(" WHERE ")`)
-		for i, c := range u.Columns {
+		for i, c := range u.PrimaryColumns {
 			if i != 0 {
 				fmt.Fprint(w, `
 					update.WriteString(" AND ")`)
@@ -884,7 +884,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 				update.WriteString("=")
 				update.WritePlaceholder()
 				update.Add(%s)`,
-				g.Formatter.Identifier("table", table.Name, "column", c.Name),
+				g.Formatter.Identifier("table", t.Name, "column", c.Name),
 				g.Formatter.IdentifierPrivate(columnForeignName(c)),
 			)
 		}
@@ -900,7 +900,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 
 		fmt.Fprint(w, `
 		buf.WriteString("`)
-		selectList(w, table, -1)
+		selectList(w, t, -1)
 		fmt.Fprint(w, `")
 	}`)
 		fmt.Fprint(w, `
@@ -909,14 +909,14 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(w io.Writ
 	}
 }
 
-func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
-	for _, u := range g.uniqueConstraints(table) {
+func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+	for _, u := range g.uniqueConstraints(t) {
 		method := []string{"updateOneBy"}
 		arguments := ""
 		arguments2 := ""
 
-		for i, c := range u.Columns {
+		for i, c := range u.PrimaryColumns {
 			if i != 0 {
 				method = append(method, "And")
 				arguments += ", "
@@ -1056,12 +1056,12 @@ func (g *Generator) generateRepositoryUpsertQuery(w io.Writer, t *pqt.Table) {
 	}`)
 }
 
-func (g *Generator) generateRepositoryUpsert(w io.Writer, table *pqt.Table) {
+func (g *Generator) generateRepositoryUpsert(w io.Writer, t *pqt.Table) {
 	if g.Version < 9.5 {
 		return
 	}
 
-	entityName := g.Formatter.Identifier(table.Name)
+	entityName := g.Formatter.Identifier(t.Name)
 
 	fmt.Fprintf(w, `
 		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`,
@@ -1081,7 +1081,7 @@ func (g *Generator) generateRepositoryUpsert(w io.Writer, table *pqt.Table) {
 		g.Formatter.Identifier("db"),
 	)
 
-	for _, c := range table.Columns {
+	for _, c := range t.Columns {
 		fmt.Fprintf(w, "&e.%s,\n", g.Formatter.Identifier(c.Name))
 	}
 	fmt.Fprintf(w, `)
@@ -1661,9 +1661,9 @@ func (g *Generator) generateRepositoryCount(w io.Writer, t *pqt.Table) {
 	)
 }
 
-func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
-	pk, ok := table.PrimaryKey()
+func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
 	}
@@ -1680,8 +1680,8 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 		find.WriteString("SELECT ")
 		if len(r.%s) == 0 {
 			find.WriteString("`,
-		len(table.Columns), g.Formatter.Identifier("columns"))
-	selectList(w, table, -1)
+		len(t.Columns), g.Formatter.Identifier("columns"))
+	selectList(w, t, -1)
 	fmt.Fprintf(w, `")
 		} else {
 			find.WriteString(strings.Join(r.%s, ", "))
@@ -1698,8 +1698,8 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 		var (
 			ent %sEntity
 		)`,
-		g.Formatter.Identifier("table", table.Name),
-		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
+		g.Formatter.Identifier("table", t.Name),
+		g.Formatter.Identifier("table", t.Name, "column", pk.Name),
 		entityName,
 	)
 
@@ -1728,14 +1728,14 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(w io.Writer, table *pq
 	)
 }
 
-func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
+func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
 
-	for _, u := range g.uniqueConstraints(table) {
+	for _, u := range g.uniqueConstraints(t) {
 		method := []string{"FindOneBy"}
 		arguments := ""
 
-		for i, c := range u.Columns {
+		for i, c := range u.PrimaryColumns {
 			if i != 0 {
 				method = append(method, "And")
 				arguments += ", "
@@ -1756,8 +1756,8 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 			find.WriteString("SELECT ")
 					if len(r.%s) == 0 {
 			find.WriteString("`,
-			len(table.Columns), g.Formatter.Identifier("columns"))
-		selectList(w, table, -1)
+			len(t.Columns), g.Formatter.Identifier("columns"))
+		selectList(w, t, -1)
 		fmt.Fprintf(w, `")
 		} else {
 			find.WriteString(strings.Join(r.%s, ", "))
@@ -1767,9 +1767,9 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 			find.WriteString(" FROM ")
 			find.WriteString(%s)
 			find.WriteString(" WHERE ")`,
-			g.Formatter.Identifier("table", table.Name),
+			g.Formatter.Identifier("table", t.Name),
 		)
-		for i, c := range u.Columns {
+		for i, c := range u.PrimaryColumns {
 			if i != 0 {
 				fmt.Fprint(w, `find.WriteString(" AND ")`)
 			}
@@ -1778,7 +1778,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 		find.WriteString("=")
 		find.WritePlaceholder()
 		find.Add(%s)
-		`, g.Formatter.Identifier("table", table.Name, "column", c.Name), g.Formatter.IdentifierPrivate(columnForeignName(c)))
+		`, g.Formatter.Identifier("table", t.Name, "column", c.Name), g.Formatter.IdentifierPrivate(columnForeignName(c)))
 		}
 
 		fmt.Fprintf(w, `
@@ -1805,9 +1805,9 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(w io.Writer, tab
 	}
 }
 
-func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, table *pqt.Table) {
-	entityName := g.Formatter.Identifier(table.Name)
-	pk, ok := table.PrimaryKey()
+func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, t *pqt.Table) {
+	entityName := g.Formatter.Identifier(t.Name)
+	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
 	}
@@ -1826,9 +1826,9 @@ func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(w io.Writer, table *
 		find.WriteString(%s)
 		find.WriteString("=")
 		find.WritePlaceholder()
-		find.Add(pk)`, len(table.Columns),
-		g.Formatter.Identifier("table", table.Name),
-		g.Formatter.Identifier("table", table.Name, "column", pk.Name),
+		find.Add(pk)`, len(t.Columns),
+		g.Formatter.Identifier("table", t.Name),
+		g.Formatter.Identifier("table", t.Name, "column", pk.Name),
 	)
 
 	fmt.Fprintf(w, `

@@ -130,7 +130,17 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 	}
 	buf.WriteString(" (\n")
 
-	nbOfConstraints := t.Constraints.CountOf(
+	constraints := t.Constraints
+	for _, r := range t.OwnedRelationships {
+		// If ...
+		if len(r.OwnerColumns) == 1 {
+			continue
+		}
+		if r.OwnerForeignKey != nil {
+			constraints = append(constraints, r.OwnerForeignKey)
+		}
+	}
+	nbOfConstraints := constraints.CountOf(
 		pqt.ConstraintTypePrimaryKey,
 		pqt.ConstraintTypeCheck,
 		pqt.ConstraintTypeUnique,
@@ -167,7 +177,7 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 		buf.WriteRune('\n')
 	}
 
-	for i, c := range t.Constraints {
+	for i, c := range constraints {
 		if c.Type == pqt.ConstraintTypeIndex {
 			continue
 		}
@@ -206,11 +216,11 @@ func (g *Generator) generateConstraint(buf *bytes.Buffer, c *pqt.Constraint) err
 }
 
 func uniqueConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
-	fmt.Fprintf(buf, `CONSTRAINT "%s" UNIQUE (%s)`, c.Name(), pqt.JoinColumns(c.Columns, ", "))
+	fmt.Fprintf(buf, `CONSTRAINT "%s" UNIQUE (%s)`, c.Name(), pqt.JoinColumns(c.PrimaryColumns, ", "))
 }
 
 func primaryKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
-	fmt.Fprintf(buf, `CONSTRAINT "%s" PRIMARY KEY (%s)`, c.Name(), pqt.JoinColumns(c.Columns, ", "))
+	fmt.Fprintf(buf, `CONSTRAINT "%s" PRIMARY KEY (%s)`, c.Name(), pqt.JoinColumns(c.PrimaryColumns, ", "))
 }
 
 func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
@@ -225,9 +235,9 @@ func foreignKeyConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) error {
 
 	fmt.Fprintf(buf, `CONSTRAINT "%s" FOREIGN KEY (%s) REFERENCES %s (%s)`,
 		c.Name(),
-		pqt.JoinColumns(c.Columns, ", "),
-		c.PrimaryTable.FullName(),
 		pqt.JoinColumns(c.PrimaryColumns, ", "),
+		c.Table.FullName(),
+		pqt.JoinColumns(c.Columns, ", "),
 	)
 
 	switch c.OnDelete {
@@ -262,9 +272,9 @@ func checkConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint) {
 func indexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint, ver float64) {
 	// TODO: change code so IF NOT EXISTS is optional
 	if ver >= 9.5 {
-		fmt.Fprintf(buf, `CREATE INDEX IF NOT EXISTS "%s" ON %s (%s);`, c.Name(), c.Table.FullName(), c.Columns.String())
+		fmt.Fprintf(buf, `CREATE INDEX IF NOT EXISTS "%s" ON %s (%s);`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
 	} else {
-		fmt.Fprintf(buf, `CREATE INDEX "%s" ON %s (%s);`, c.Name(), c.Table.FullName(), c.Columns.String())
+		fmt.Fprintf(buf, `CREATE INDEX "%s" ON %s (%s);`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
 	}
 	fmt.Fprintln(buf, "")
 }
