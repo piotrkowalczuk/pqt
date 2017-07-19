@@ -237,7 +237,7 @@ func (g *Generator) generateFindExpr(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 		%s []string`, g.Formatter.Identifier("columns"))
 	fmt.Fprintf(w, `
-		%s map[string]bool`, g.Formatter.Identifier("orderBy"))
+		%s []RowOrder`, g.Formatter.Identifier("orderBy"))
 	for _, r := range joinableRelationships(t) {
 		fmt.Fprintf(w, `
 		%s *%sJoin`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
@@ -1420,9 +1420,9 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 	if len(fe.%s) > 0 {
 		i:=0
-		for cn, asc := range fe.%s {
-			for _, tcn := range %s {
-				if cn == tcn {
+		for _, order := range fe.%s {
+			for _, columnName := range %s {
+				if order.Name == columnName {
 					if i == 0 {
 						comp.WriteString(" ORDER BY ")
 					}
@@ -1431,11 +1431,11 @@ func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 							return "", nil, err
 						}
 					}
-					if _, err := comp.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(order.Name); err != nil {
 						return "", nil, err
 					}
-					if !asc {
-						if _, err := comp.WriteString(" DESC "); err != nil {
+					if order.Descending {
+						if _, err := comp.WriteString(" DESC"); err != nil {
 							return "", nil, err
 						}
 					}
@@ -2103,6 +2103,11 @@ func ErrorConstraint(err error) string {
 	}
 
 	return ""
+}
+
+type RowOrder struct {
+	Name string
+	Descending bool
 }
 
 type NullInt64Array struct {

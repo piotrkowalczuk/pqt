@@ -172,11 +172,17 @@ var testNewsFindData = map[string]struct {
 			},
 			Limit:  10,
 			Offset: 100,
-			OrderBy: map[string]bool{
-				model.TableNewsColumnTitle: true,
+			OrderBy: []model.RowOrder{
+				{
+					Name:       model.TableNewsColumnTitle,
+					Descending: true,
+				},
+				{
+					Name: model.TableNewsColumnLead,
+				},
 			},
 		},
-		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.continue=$2 AND t0.created_at=$3 AND t0.lead=$4 AND t0.meta_data=$5 AND t0.score=$6 AND t0.title=$7 AND t0.updated_at=$8 AND t0.views_distribution=$9 ORDER BY title OFFSET $10  LIMIT $11 ",
+		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.continue=$2 AND t0.created_at=$3 AND t0.lead=$4 AND t0.meta_data=$5 AND t0.score=$6 AND t0.title=$7 AND t0.updated_at=$8 AND t0.views_distribution=$9 ORDER BY title DESC, lead OFFSET $10  LIMIT $11 ",
 	},
 }
 

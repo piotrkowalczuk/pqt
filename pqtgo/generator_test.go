@@ -99,7 +99,7 @@ func TestGenerator_Generate(t *testing.T) {
     		}
 
     		// LogFunc represents function that can be passed into repository to log query result.
-		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
+    		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
 
     		// Rows ...
     		type Rows interface {
@@ -226,7 +226,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Where         *UserCriteria
     			Offset, Limit int64
     			Columns       []string
-    			OrderBy       map[string]bool
+    			OrderBy       []RowOrder
     		}
 
     		type UserCountExpr struct {
@@ -401,9 +401,9 @@ func TestGenerator_Generate(t *testing.T) {
 
     			if len(fe.OrderBy) > 0 {
     				i := 0
-    				for cn, asc := range fe.OrderBy {
-    					for _, tcn := range TableUserColumns {
-    						if cn == tcn {
+    				for _, order := range fe.OrderBy {
+    					for _, columnName := range TableUserColumns {
+    						if order.Name == columnName {
     							if i == 0 {
     								comp.WriteString(" ORDER BY ")
     							}
@@ -412,11 +412,11 @@ func TestGenerator_Generate(t *testing.T) {
     									return "", nil, err
     								}
     							}
-    							if _, err := comp.WriteString(cn); err != nil {
+    							if _, err := comp.WriteString(order.Name); err != nil {
     								return "", nil, err
     							}
-    							if !asc {
-    								if _, err := comp.WriteString(" DESC "); err != nil {
+    							if order.Descending {
+    								if _, err := comp.WriteString(" DESC"); err != nil {
     									return "", nil, err
     								}
     							}
@@ -935,7 +935,7 @@ func TestGenerator_Generate(t *testing.T) {
     			Where         *CommentCriteria
     			Offset, Limit int64
     			Columns       []string
-    			OrderBy       map[string]bool
+    			OrderBy       []RowOrder
     			JoinUser      *UserJoin
     			JoinWpis      *PostJoin
     		}
@@ -1133,9 +1133,9 @@ func TestGenerator_Generate(t *testing.T) {
 
     			if len(fe.OrderBy) > 0 {
     				i := 0
-    				for cn, asc := range fe.OrderBy {
-    					for _, tcn := range TableCommentColumns {
-    						if cn == tcn {
+    				for _, order := range fe.OrderBy {
+    					for _, columnName := range TableCommentColumns {
+    						if order.Name == columnName {
     							if i == 0 {
     								comp.WriteString(" ORDER BY ")
     							}
@@ -1144,11 +1144,11 @@ func TestGenerator_Generate(t *testing.T) {
     									return "", nil, err
     								}
     							}
-    							if _, err := comp.WriteString(cn); err != nil {
+    							if _, err := comp.WriteString(order.Name); err != nil {
     								return "", nil, err
     							}
-    							if !asc {
-    								if _, err := comp.WriteString(" DESC "); err != nil {
+    							if order.Descending {
+    								if _, err := comp.WriteString(" DESC"); err != nil {
     									return "", nil, err
     								}
     							}
@@ -1412,6 +1412,11 @@ func TestGenerator_Generate(t *testing.T) {
     			}
 
     			return ""
+    		}
+
+    		type RowOrder struct {
+    			Name       string
+    			Descending bool
     		}
 
     		type NullInt64Array struct {

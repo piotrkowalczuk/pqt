@@ -91,9 +91,14 @@ func main() {
 	}
 
 	iter, err := repo.comment.FindIter(ctx, &model.CommentFindExpr{
-		OrderBy: map[string]bool{
-			"id": false,
-			"non_existing_column": true,
+		OrderBy: []model.RowOrder{
+			{
+				Name: "id",
+			},
+			{
+				Name:       "non_existing_column",
+				Descending: true,
+			},
 		},
 		Where: &model.CommentCriteria{
 			NewsID: sql.NullInt64{Int64: news.ID, Valid: true},

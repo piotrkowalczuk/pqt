@@ -213,7 +213,7 @@ type CategoryFindExpr struct {
 	Where         *CategoryCriteria
 	Offset, Limit int64
 	Columns       []string
-	OrderBy       map[string]bool
+	OrderBy       []RowOrder
 }
 
 type CategoryCountExpr struct {
@@ -544,9 +544,9 @@ func (r *CategoryRepositoryBase) FindQuery(fe *CategoryFindExpr) (string, []inte
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		for cn, asc := range fe.OrderBy {
-			for _, tcn := range TableCategoryColumns {
-				if cn == tcn {
+		for _, order := range fe.OrderBy {
+			for _, columnName := range TableCategoryColumns {
+				if order.Name == columnName {
 					if i == 0 {
 						comp.WriteString(" ORDER BY ")
 					}
@@ -555,11 +555,11 @@ func (r *CategoryRepositoryBase) FindQuery(fe *CategoryFindExpr) (string, []inte
 							return "", nil, err
 						}
 					}
-					if _, err := comp.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(order.Name); err != nil {
 						return "", nil, err
 					}
-					if !asc {
-						if _, err := comp.WriteString(" DESC "); err != nil {
+					if order.Descending {
+						if _, err := comp.WriteString(" DESC"); err != nil {
 							return "", nil, err
 						}
 					}
@@ -1286,7 +1286,7 @@ type PackageFindExpr struct {
 	Where         *PackageCriteria
 	Offset, Limit int64
 	Columns       []string
-	OrderBy       map[string]bool
+	OrderBy       []RowOrder
 	JoinCategory  *CategoryJoin
 }
 
@@ -1599,9 +1599,9 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		for cn, asc := range fe.OrderBy {
-			for _, tcn := range TablePackageColumns {
-				if cn == tcn {
+		for _, order := range fe.OrderBy {
+			for _, columnName := range TablePackageColumns {
+				if order.Name == columnName {
 					if i == 0 {
 						comp.WriteString(" ORDER BY ")
 					}
@@ -1610,11 +1610,11 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 							return "", nil, err
 						}
 					}
-					if _, err := comp.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(order.Name); err != nil {
 						return "", nil, err
 					}
-					if !asc {
-						if _, err := comp.WriteString(" DESC "); err != nil {
+					if order.Descending {
+						if _, err := comp.WriteString(" DESC"); err != nil {
 							return "", nil, err
 						}
 					}
@@ -2332,7 +2332,7 @@ type NewsFindExpr struct {
 	Where         *NewsCriteria
 	Offset, Limit int64
 	Columns       []string
-	OrderBy       map[string]bool
+	OrderBy       []RowOrder
 }
 
 type NewsCountExpr struct {
@@ -2835,9 +2835,9 @@ func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{},
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		for cn, asc := range fe.OrderBy {
-			for _, tcn := range TableNewsColumns {
-				if cn == tcn {
+		for _, order := range fe.OrderBy {
+			for _, columnName := range TableNewsColumns {
+				if order.Name == columnName {
 					if i == 0 {
 						comp.WriteString(" ORDER BY ")
 					}
@@ -2846,11 +2846,11 @@ func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{},
 							return "", nil, err
 						}
 					}
-					if _, err := comp.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(order.Name); err != nil {
 						return "", nil, err
 					}
-					if !asc {
-						if _, err := comp.WriteString(" DESC "); err != nil {
+					if order.Descending {
+						if _, err := comp.WriteString(" DESC"); err != nil {
 							return "", nil, err
 						}
 					}
@@ -4388,7 +4388,7 @@ type CommentFindExpr struct {
 	Where           *CommentCriteria
 	Offset, Limit   int64
 	Columns         []string
-	OrderBy         map[string]bool
+	OrderBy         []RowOrder
 	JoinNewsByTitle *NewsJoin
 	JoinNewsByID    *NewsJoin
 }
@@ -4829,9 +4829,9 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		for cn, asc := range fe.OrderBy {
-			for _, tcn := range TableCommentColumns {
-				if cn == tcn {
+		for _, order := range fe.OrderBy {
+			for _, columnName := range TableCommentColumns {
+				if order.Name == columnName {
 					if i == 0 {
 						comp.WriteString(" ORDER BY ")
 					}
@@ -4840,11 +4840,11 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 							return "", nil, err
 						}
 					}
-					if _, err := comp.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(order.Name); err != nil {
 						return "", nil, err
 					}
-					if !asc {
-						if _, err := comp.WriteString(" DESC "); err != nil {
+					if order.Descending {
+						if _, err := comp.WriteString(" DESC"); err != nil {
 							return "", nil, err
 						}
 					}
@@ -5596,7 +5596,7 @@ type CompleteFindExpr struct {
 	Where         *CompleteCriteria
 	Offset, Limit int64
 	Columns       []string
-	OrderBy       map[string]bool
+	OrderBy       []RowOrder
 }
 
 type CompleteCountExpr struct {
@@ -7078,9 +7078,9 @@ func (r *CompleteRepositoryBase) FindQuery(fe *CompleteFindExpr) (string, []inte
 
 	if len(fe.OrderBy) > 0 {
 		i := 0
-		for cn, asc := range fe.OrderBy {
-			for _, tcn := range TableCompleteColumns {
-				if cn == tcn {
+		for _, order := range fe.OrderBy {
+			for _, columnName := range TableCompleteColumns {
+				if order.Name == columnName {
 					if i == 0 {
 						comp.WriteString(" ORDER BY ")
 					}
@@ -7089,11 +7089,11 @@ func (r *CompleteRepositoryBase) FindQuery(fe *CompleteFindExpr) (string, []inte
 							return "", nil, err
 						}
 					}
-					if _, err := comp.WriteString(cn); err != nil {
+					if _, err := comp.WriteString(order.Name); err != nil {
 						return "", nil, err
 					}
-					if !asc {
-						if _, err := comp.WriteString(" DESC "); err != nil {
+					if order.Descending {
+						if _, err := comp.WriteString(" DESC"); err != nil {
 							return "", nil, err
 						}
 					}
@@ -8621,6 +8621,11 @@ func ErrorConstraint(err error) string {
 	}
 
 	return ""
+}
+
+type RowOrder struct {
+	Name       string
+	Descending bool
 }
 
 type NullInt64Array struct {
