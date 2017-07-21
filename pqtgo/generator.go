@@ -653,8 +653,7 @@ func (g *Generator) generateRepositorySetClause(w io.Writer, c *pqt.Column, sel 
 	)
 
 	if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
-		switch c.Type {
-		case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+		if g.canBeNil(c, ModeOptional) || g.isNullable(c, ModeOptional) || g.isType(c, ModeOptional, "time.Time") {
 			fmt.Fprintf(w, strings.Replace(`
 				} else {
 					if {{SELECTOR}}.Dirty {

@@ -22,7 +22,7 @@ var testNewsInsertData = map[string]struct {
 			Title:   "title - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.news (content, continue, score, title) VALUES ($1, $2, $3, $4) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "INSERT INTO example.news (content, continue, score, title, version) VALUES ($1, $2, $3, $4, $5) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 	"full": {
 		entity: model.NewsEntity{
@@ -45,7 +45,7 @@ var testNewsInsertData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, version, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 
@@ -370,7 +370,7 @@ var testNewsUpdateData = map[string]struct {
 			Title:   sql.NullString{String: "title - minimum", Valid: true},
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW() WHERE id=$3 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "UPDATE example.news SET content=$1, title=$2, updated_at=NOW(), version=version+1 WHERE id=$3 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 	"full": {
 		patch: model.NewsPatch{
@@ -398,8 +398,12 @@ var testNewsUpdateData = map[string]struct {
 				Valid: true,
 				Time:  time.Now(),
 			},
+			Version: sql.NullInt64{
+				Int64: 999,
+				Valid: true,
+			},
 		},
-		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, title=$7, updated_at=$8, views_distribution=$9 WHERE id=$10 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, title=$7, updated_at=$8, version=$9, views_distribution=$10 WHERE id=$11 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 
@@ -447,7 +451,7 @@ var testNewsUpdateOneByTitleData = map[string]struct {
 		patch: model.NewsPatch{
 			Content: sql.NullString{String: "content - minimum", Valid: true},
 		},
-		query: "UPDATE example.news SET content=$1, updated_at=NOW() WHERE title=$2 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "UPDATE example.news SET content=$1, updated_at=NOW(), version=version+1 WHERE title=$2 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 	"full": {
 		patch: model.NewsPatch{
@@ -475,7 +479,7 @@ var testNewsUpdateOneByTitleData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, updated_at=$7, views_distribution=$8 WHERE title=$9 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "UPDATE example.news SET content=$1, continue=$2, created_at=$3, lead=$4, meta_data=$5, score=$6, updated_at=$7, version=version+1, views_distribution=$8 WHERE title=$9 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 
@@ -599,7 +603,7 @@ var testNewsUpsertData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (example.news_title_key) DO UPDATE SET content=$10, continue=$11, created_at=$12, lead=$13, meta_data=$14, score=$15, updated_at=$16, views_distribution=$17 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, version, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) ON CONFLICT (example.news_title_key) DO UPDATE SET content=$11, continue=$12, created_at=$13, lead=$14, meta_data=$15, score=$16, updated_at=$17, version=version+1, views_distribution=$18 RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 

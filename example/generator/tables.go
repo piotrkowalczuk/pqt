@@ -30,6 +30,10 @@ func schema(sn string) *pqt.Schema {
 		AddColumn(pqt.NewColumn("score", pqt.TypeNumeric(20, 8), pqt.WithNotNull(), pqt.WithDefault("0"))).
 		AddColumn(pqt.NewColumn("views_distribution", pqt.TypeDoubleArray(168))).
 		AddColumn(pqt.NewColumn("meta_data", pqt.TypeJSONB())).
+		AddColumn(pqt.NewColumn("version", pqt.TypeIntegerBig(),
+			pqt.WithNotNull(),
+			pqt.WithDefault("version+1", pqt.EventUpdate),
+		)).
 		AddUnique(title, lead)
 
 	commentID := pqt.NewColumn("id", pqt.TypeSerialBig())
