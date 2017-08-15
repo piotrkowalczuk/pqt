@@ -319,8 +319,12 @@ func (g *Generator) generateIterator(w io.Writer, t *pqt.Table) {
 type %sIterator struct {
 	rows Rows
 	cols []string
-}
+	expr *%sFindExpr
+}`, entityName,
+		entityName,
+		g.Formatter.Identifier(t.Name))
 
+	fmt.Fprintf(w, `
 func (i *%sIterator) Next() bool {
 	return i.rows.Next()
 }
@@ -360,27 +364,31 @@ func (i *%sIterator) %s() (*%sEntity, error) {
 	props, err := ent.%s(cols...)
 	if err != nil {
 		return nil, err
+	}`, entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		g.Formatter.Identifier(t.Name),
+		entityName,
+		g.Formatter.Identifier(t.Name),
+		entityName,
+		entityName,
+		g.Formatter.Identifier("props"))
+
+	if hasJoinableRelationships(t) {
+		fmt.Fprint(w, `
+		var prop []interface{}`)
 	}
+	g.scanJoinableRelationships(w, t, "i.expr")
+
+	fmt.Fprint(w, `
 	if err := i.rows.Scan(props...); err != nil {
 		return nil, err
 	}
 	return &ent, nil
-}
-`, entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		g.Formatter.Identifier(t.Name),
-		entityName,
-		g.Formatter.Identifier(t.Name),
-		entityName,
-		entityName,
-		g.Formatter.Identifier("props"),
-	)
+}`)
 }
 
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
@@ -1298,6 +1306,32 @@ func selectList(w io.Writer, t *pqt.Table, nb int) {
 	}
 }
 
+func (g *Generator) scanJoinableRelationships(w io.Writer, t *pqt.Table, sel string) {
+	for _, r := range joinableRelationships(t) {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		fmt.Fprintf(w, `
+			if %s.%s != nil && %s.%s.%s {
+				ent.%s = &%sEntity{}
+				if prop, err = ent.%s.%s(); err != nil {
+					return nil, err
+				}
+				props = append(props, prop...)
+			}`,
+			sel,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			sel,
+			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("fetch"),
+			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier(r.InversedTable.Name),
+			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
+			g.Formatter.Identifier("props"),
+		)
+	}
+}
+
 func (g *Generator) generateRepositoryFindQuery(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 
@@ -1530,27 +1564,7 @@ func (g *Generator) generateRepositoryFind(w io.Writer, t *pqt.Table) {
 		fmt.Fprint(w, `
 		var prop []interface{}`)
 	}
-	for _, r := range joinableRelationships(t) {
-		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
-			continue
-		}
-		fmt.Fprintf(w, `
-			if fe.%s != nil && fe.%s.%s {
-				ent.%s = &%sEntity{}
-				if prop, err = ent.%s.%s(); err != nil {
-					return nil, err
-				}
-				props = append(props, prop...)
-			}`,
-			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier("fetch"),
-			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier(r.InversedTable.Name),
-			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier("props"),
-		)
-	}
+	g.scanJoinableRelationships(w, t, "fe")
 	fmt.Fprint(w, `
 			err = rows.Scan(props...)
 			if err != nil {
@@ -1604,6 +1618,7 @@ func (g *Generator) generateRepositoryFindIter(w io.Writer, t *pqt.Table) {
 	fmt.Fprintf(w, `
 			return &%sIterator{
 				rows: rows,
+				expr: fe,
 				cols: []string{`,
 		g.Formatter.Identifier(t.Name),
 	)

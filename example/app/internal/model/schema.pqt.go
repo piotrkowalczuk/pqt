@@ -152,6 +152,7 @@ func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 type CategoryIterator struct {
 	rows Rows
 	cols []string
+	expr *CategoryFindExpr
 }
 
 func (i *CategoryIterator) Next() bool {
@@ -649,6 +650,7 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 	}
 	return &CategoryIterator{
 		rows: rows,
+		expr: fe,
 		cols: []string{"content", "created_at", "id", "name", "parent_id", "updated_at"},
 	}, nil
 }
@@ -1226,6 +1228,7 @@ func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 type PackageIterator struct {
 	rows Rows
 	cols []string
+	expr *PackageFindExpr
 }
 
 func (i *PackageIterator) Next() bool {
@@ -1267,6 +1270,14 @@ func (i *PackageIterator) Package() (*PackageEntity, error) {
 	props, err := ent.Props(cols...)
 	if err != nil {
 		return nil, err
+	}
+	var prop []interface{}
+	if i.expr.JoinCategory != nil && i.expr.JoinCategory.Fetch {
+		ent.Category = &CategoryEntity{}
+		if prop, err = ent.Category.Props(); err != nil {
+			return nil, err
+		}
+		props = append(props, prop...)
 	}
 	if err := i.rows.Scan(props...); err != nil {
 		return nil, err
@@ -1712,6 +1723,7 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 	}
 	return &PackageIterator{
 		rows: rows,
+		expr: fe,
 		cols: []string{"break", "category_id", "created_at", "id", "updated_at"},
 	}, nil
 }
@@ -2273,6 +2285,7 @@ func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 type NewsIterator struct {
 	rows Rows
 	cols []string
+	expr *NewsFindExpr
 }
 
 func (i *NewsIterator) Next() bool {
@@ -2989,6 +3002,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 	}
 	return &NewsIterator{
 		rows: rows,
+		expr: fe,
 		cols: []string{"content", "continue", "created_at", "id", "lead", "meta_data", "score", "title", "updated_at", "version", "views_distribution"},
 	}, nil
 }
@@ -4526,6 +4540,7 @@ func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 type CommentIterator struct {
 	rows Rows
 	cols []string
+	expr *CommentFindExpr
 }
 
 func (i *CommentIterator) Next() bool {
@@ -4567,6 +4582,21 @@ func (i *CommentIterator) Comment() (*CommentEntity, error) {
 	props, err := ent.Props(cols...)
 	if err != nil {
 		return nil, err
+	}
+	var prop []interface{}
+	if i.expr.JoinNewsByTitle != nil && i.expr.JoinNewsByTitle.Fetch {
+		ent.NewsByTitle = &NewsEntity{}
+		if prop, err = ent.NewsByTitle.Props(); err != nil {
+			return nil, err
+		}
+		props = append(props, prop...)
+	}
+	if i.expr.JoinNewsByID != nil && i.expr.JoinNewsByID.Fetch {
+		ent.NewsByID = &NewsEntity{}
+		if prop, err = ent.NewsByID.Props(); err != nil {
+			return nil, err
+		}
+		props = append(props, prop...)
 	}
 	if err := i.rows.Scan(props...); err != nil {
 		return nil, err
@@ -5150,6 +5180,7 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	}
 	return &CommentIterator{
 		rows: rows,
+		expr: fe,
 		cols: []string{"content", "created_at", "id", "id_multiply", "news_id", "news_title", "right_now", "updated_at"},
 	}, nil
 }
@@ -5709,6 +5740,7 @@ func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
 type CompleteIterator struct {
 	rows Rows
 	cols []string
+	expr *CompleteFindExpr
 }
 
 func (i *CompleteIterator) Next() bool {
@@ -7384,6 +7416,7 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 	}
 	return &CompleteIterator{
 		rows: rows,
+		expr: fe,
 		cols: []string{"column_bool", "column_bytea", "column_character_0", "column_character_100", "column_decimal", "column_double_array_0", "column_double_array_100", "column_integer", "column_integer_array_0", "column_integer_array_100", "column_integer_big", "column_integer_big_array_0", "column_integer_big_array_100", "column_integer_small", "column_integer_small_array_0", "column_integer_small_array_100", "column_json", "column_json_nn", "column_json_nn_d", "column_jsonb", "column_jsonb_nn", "column_jsonb_nn_d", "column_numeric", "column_real", "column_serial", "column_serial_big", "column_serial_small", "column_text", "column_text_array_0", "column_text_array_100", "column_timestamp", "column_timestamptz", "column_uuid"},
 	}, nil
 }

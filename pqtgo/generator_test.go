@@ -169,6 +169,7 @@ func TestGenerator_Generate(t *testing.T) {
     		type UserIterator struct {
     			rows Rows
     			cols []string
+    			expr *UserFindExpr
     		}
 
     		func (i *UserIterator) Next() bool {
@@ -506,6 +507,7 @@ func TestGenerator_Generate(t *testing.T) {
     			}
     			return &UserIterator{
     				rows: rows,
+    				expr: fe,
     				cols: []string{"id", "name"},
     			}, nil
     		}
@@ -879,6 +881,7 @@ func TestGenerator_Generate(t *testing.T) {
     		type CommentIterator struct {
     			rows Rows
     			cols []string
+    			expr *CommentFindExpr
     		}
 
     		func (i *CommentIterator) Next() bool {
@@ -920,6 +923,21 @@ func TestGenerator_Generate(t *testing.T) {
     			props, err := ent.Props(cols...)
     			if err != nil {
     				return nil, err
+    			}
+    			var prop []interface{}
+    			if i.expr.JoinUser != nil && i.expr.JoinUser.Fetch {
+    				ent.User = &UserEntity{}
+    				if prop, err = ent.User.Props(); err != nil {
+    					return nil, err
+    				}
+    				props = append(props, prop...)
+    			}
+    			if i.expr.JoinWpis != nil && i.expr.JoinWpis.Fetch {
+    				ent.Wpis = &PostEntity{}
+    				if prop, err = ent.Wpis.Props(); err != nil {
+    					return nil, err
+    				}
+    				props = append(props, prop...)
     			}
     			if err := i.rows.Scan(props...); err != nil {
     				return nil, err
@@ -1253,6 +1271,7 @@ func TestGenerator_Generate(t *testing.T) {
     			}
     			return &CommentIterator{
     				rows: rows,
+    				expr: fe,
     				cols: []string{"user_id"},
     			}, nil
     		}
