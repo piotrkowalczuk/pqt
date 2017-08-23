@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 	CONSTRAINT "public.table_name_slug_key" UNIQUE (slug),
 	CONSTRAINT "public.table_name_start_at_end_at_check" CHECK ((start_at IS NULL AND end_at IS NULL) OR start_at < end_at)
 );
+CREATE INDEX "public.table_name_start_at_idx" ON table_name (start_at);
 
 `,
 			given: func() *pqt.Table {
@@ -72,6 +73,7 @@ CREATE TABLE IF NOT EXISTS table_name (
 					AddColumn(&pqt.Column{Name: "enabled", Type: pqt.TypeBool()}).
 					AddColumn(&pqt.Column{Name: "price", Type: pqt.TypeDecimal(10, 1)}).
 					AddColumn(startAt).
+					AddIndex(startAt).
 					AddColumn(endAt).
 					AddColumn(pqt.NewColumn("created_at", pqt.TypeTimestampTZ(), pqt.WithNotNull(), pqt.WithDefault("NOW()"))).
 					AddColumn(&pqt.Column{Name: "created_by", Type: pqt.TypeInteger(), NotNull: true}).
