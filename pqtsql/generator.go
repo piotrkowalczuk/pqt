@@ -177,7 +177,8 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 		buf.WriteRune('\n')
 	}
 
-	for i, c := range constraints {
+	i := 0
+	for _, c := range constraints {
 		if c.Type == pqt.ConstraintTypeIndex {
 			continue
 		}
@@ -190,6 +191,7 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 			buf.WriteRune(',')
 		}
 		buf.WriteRune('\n')
+		i++
 	}
 
 	buf.WriteString(");\n")
