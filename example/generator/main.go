@@ -49,6 +49,7 @@ func main() {
 		Plugins: []pqtgo.Plugin{
 			&generator{},
 		},
+		Components: pqtgo.ComponentAll,
 	}
 	sqlGen := &pqtsql.Generator{Version: version}
 

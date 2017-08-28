@@ -19,6 +19,20 @@ import (
 	"github.com/lib/pq"
 )
 
+// LogFunc represents function that can be passed into repository to log query result.
+type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
+
+// Rows ...
+type Rows interface {
+	io.Closer
+	ColumnTypes() ([]*sql.ColumnType, error)
+	Columns() ([]string, error)
+	Err() error
+	Next() bool
+	NextResultSet() bool
+	Scan(dest ...interface{}) error
+}
+
 func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
 	if jt != JoinDoNot {
 		switch jt {
@@ -49,20 +63,6 @@ func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
 		return
 	}
 	return
-}
-
-// LogFunc represents function that can be passed into repository to log query result.
-type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
-
-// Rows ...
-type Rows interface {
-	io.Closer
-	ColumnTypes() ([]*sql.ColumnType, error)
-	Columns() ([]string, error)
-	Err() error
-	Next() bool
-	NextResultSet() bool
-	Scan(dest ...interface{}) error
 }
 
 const (
@@ -148,6 +148,31 @@ func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+// ScanCategoryRows helps to scan rows straight to the slice of entities.
+func ScanCategoryRows(rows Rows) (entities []*CategoryEntity, err error) {
+	for rows.Next() {
+		var ent CategoryEntity
+		err = rows.Scan(
+			&ent.Content,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.Name,
+			&ent.ParentID,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
 // CategoryIterator is not thread safe.
 type CategoryIterator struct {
 	rows Rows
@@ -217,14 +242,14 @@ type CategoryFindExpr struct {
 	OrderBy       []RowOrder
 }
 
-type CategoryCountExpr struct {
-	Where *CategoryCriteria
-}
-
 type CategoryJoin struct {
 	On, Where *CategoryCriteria
 	Fetch     bool
 	Kind      JoinType
+}
+
+type CategoryCountExpr struct {
+	Where *CategoryCriteria
 }
 
 type CategoryPatch struct {
@@ -233,30 +258,6 @@ type CategoryPatch struct {
 	Name      sql.NullString
 	ParentID  sql.NullInt64
 	UpdatedAt pq.NullTime
-}
-
-func ScanCategoryRows(rows Rows) (entities []*CategoryEntity, err error) {
-	for rows.Next() {
-		var ent CategoryEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.Name,
-			&ent.ParentID,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return
-		}
-
-		entities = append(entities, &ent)
-	}
-	if err = rows.Err(); err != nil {
-		return
-	}
-
-	return
 }
 
 type CategoryRepositoryBase struct {
@@ -1224,6 +1225,30 @@ func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+// ScanPackageRows helps to scan rows straight to the slice of entities.
+func ScanPackageRows(rows Rows) (entities []*PackageEntity, err error) {
+	for rows.Next() {
+		var ent PackageEntity
+		err = rows.Scan(
+			&ent.Break,
+			&ent.CategoryID,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
 // PackageIterator is not thread safe.
 type PackageIterator struct {
 	rows Rows
@@ -1301,15 +1326,15 @@ type PackageFindExpr struct {
 	JoinCategory  *CategoryJoin
 }
 
-type PackageCountExpr struct {
-	Where        *PackageCriteria
-	JoinCategory *CategoryJoin
-}
-
 type PackageJoin struct {
 	On, Where    *PackageCriteria
 	Fetch        bool
 	Kind         JoinType
+	JoinCategory *CategoryJoin
+}
+
+type PackageCountExpr struct {
+	Where        *PackageCriteria
 	JoinCategory *CategoryJoin
 }
 
@@ -1318,29 +1343,6 @@ type PackagePatch struct {
 	CategoryID sql.NullInt64
 	CreatedAt  pq.NullTime
 	UpdatedAt  pq.NullTime
-}
-
-func ScanPackageRows(rows Rows) (entities []*PackageEntity, err error) {
-	for rows.Next() {
-		var ent PackageEntity
-		err = rows.Scan(
-			&ent.Break,
-			&ent.CategoryID,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return
-		}
-
-		entities = append(entities, &ent)
-	}
-	if err = rows.Err(); err != nil {
-		return
-	}
-
-	return
 }
 
 type PackageRepositoryBase struct {
@@ -2281,6 +2283,36 @@ func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+// ScanNewsRows helps to scan rows straight to the slice of entities.
+func ScanNewsRows(rows Rows) (entities []*NewsEntity, err error) {
+	for rows.Next() {
+		var ent NewsEntity
+		err = rows.Scan(
+			&ent.Content,
+			&ent.Continue,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.Lead,
+			&ent.MetaData,
+			&ent.Score,
+			&ent.Title,
+			&ent.UpdatedAt,
+			&ent.Version,
+			&ent.ViewsDistribution,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
 // NewsIterator is not thread safe.
 type NewsIterator struct {
 	rows Rows
@@ -2355,14 +2387,14 @@ type NewsFindExpr struct {
 	OrderBy       []RowOrder
 }
 
-type NewsCountExpr struct {
-	Where *NewsCriteria
-}
-
 type NewsJoin struct {
 	On, Where *NewsCriteria
 	Fetch     bool
 	Kind      JoinType
+}
+
+type NewsCountExpr struct {
+	Where *NewsCriteria
 }
 
 type NewsPatch struct {
@@ -2376,35 +2408,6 @@ type NewsPatch struct {
 	UpdatedAt         pq.NullTime
 	Version           sql.NullInt64
 	ViewsDistribution NullFloat64Array
-}
-
-func ScanNewsRows(rows Rows) (entities []*NewsEntity, err error) {
-	for rows.Next() {
-		var ent NewsEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.Continue,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.Lead,
-			&ent.MetaData,
-			&ent.Score,
-			&ent.Title,
-			&ent.UpdatedAt,
-			&ent.Version,
-			&ent.ViewsDistribution,
-		)
-		if err != nil {
-			return
-		}
-
-		entities = append(entities, &ent)
-	}
-	if err = rows.Err(); err != nil {
-		return
-	}
-
-	return
 }
 
 type NewsRepositoryBase struct {
@@ -4536,6 +4539,33 @@ func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+// ScanCommentRows helps to scan rows straight to the slice of entities.
+func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
+	for rows.Next() {
+		var ent CommentEntity
+		err = rows.Scan(
+			&ent.Content,
+			&ent.CreatedAt,
+			&ent.ID,
+			&ent.IDMultiply,
+			&ent.NewsID,
+			&ent.NewsTitle,
+			&ent.RightNow,
+			&ent.UpdatedAt,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
 // CommentIterator is not thread safe.
 type CommentIterator struct {
 	rows Rows
@@ -4624,16 +4654,16 @@ type CommentFindExpr struct {
 	JoinNewsByID    *NewsJoin
 }
 
-type CommentCountExpr struct {
-	Where           *CommentCriteria
-	JoinNewsByTitle *NewsJoin
-	JoinNewsByID    *NewsJoin
-}
-
 type CommentJoin struct {
 	On, Where       *CommentCriteria
 	Fetch           bool
 	Kind            JoinType
+	JoinNewsByTitle *NewsJoin
+	JoinNewsByID    *NewsJoin
+}
+
+type CommentCountExpr struct {
+	Where           *CommentCriteria
 	JoinNewsByTitle *NewsJoin
 	JoinNewsByID    *NewsJoin
 }
@@ -4647,32 +4677,6 @@ type CommentPatch struct {
 	NewsTitle  sql.NullString
 	RightNow   pq.NullTime
 	UpdatedAt  pq.NullTime
-}
-
-func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
-	for rows.Next() {
-		var ent CommentEntity
-		err = rows.Scan(
-			&ent.Content,
-			&ent.CreatedAt,
-			&ent.ID,
-			&ent.IDMultiply,
-			&ent.NewsID,
-			&ent.NewsTitle,
-			&ent.RightNow,
-			&ent.UpdatedAt,
-		)
-		if err != nil {
-			return
-		}
-
-		entities = append(entities, &ent)
-	}
-	if err = rows.Err(); err != nil {
-		return
-	}
-
-	return
 }
 
 type CommentRepositoryBase struct {
@@ -5736,6 +5740,58 @@ func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+// ScanCompleteRows helps to scan rows straight to the slice of entities.
+func ScanCompleteRows(rows Rows) (entities []*CompleteEntity, err error) {
+	for rows.Next() {
+		var ent CompleteEntity
+		err = rows.Scan(
+			&ent.ColumnBool,
+			&ent.ColumnBytea,
+			&ent.ColumnCharacter0,
+			&ent.ColumnCharacter100,
+			&ent.ColumnDecimal,
+			&ent.ColumnDoubleArray0,
+			&ent.ColumnDoubleArray100,
+			&ent.ColumnInteger,
+			&ent.ColumnIntegerArray0,
+			&ent.ColumnIntegerArray100,
+			&ent.ColumnIntegerBig,
+			&ent.ColumnIntegerBigArray0,
+			&ent.ColumnIntegerBigArray100,
+			&ent.ColumnIntegerSmall,
+			&ent.ColumnIntegerSmallArray0,
+			&ent.ColumnIntegerSmallArray100,
+			&ent.ColumnJson,
+			&ent.ColumnJsonNn,
+			&ent.ColumnJsonNnD,
+			&ent.ColumnJsonb,
+			&ent.ColumnJsonbNn,
+			&ent.ColumnJsonbNnD,
+			&ent.ColumnNumeric,
+			&ent.ColumnReal,
+			&ent.ColumnSerial,
+			&ent.ColumnSerialBig,
+			&ent.ColumnSerialSmall,
+			&ent.ColumnText,
+			&ent.ColumnTextArray0,
+			&ent.ColumnTextArray100,
+			&ent.ColumnTimestamp,
+			&ent.ColumnTimestamptz,
+			&ent.ColumnUUID,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}
+
 // CompleteIterator is not thread safe.
 type CompleteIterator struct {
 	rows Rows
@@ -5832,14 +5888,14 @@ type CompleteFindExpr struct {
 	OrderBy       []RowOrder
 }
 
-type CompleteCountExpr struct {
-	Where *CompleteCriteria
-}
-
 type CompleteJoin struct {
 	On, Where *CompleteCriteria
 	Fetch     bool
 	Kind      JoinType
+}
+
+type CompleteCountExpr struct {
+	Where *CompleteCriteria
 }
 
 type CompletePatch struct {
@@ -5876,57 +5932,6 @@ type CompletePatch struct {
 	ColumnTimestamp            pq.NullTime
 	ColumnTimestamptz          pq.NullTime
 	ColumnUUID                 sql.NullString
-}
-
-func ScanCompleteRows(rows Rows) (entities []*CompleteEntity, err error) {
-	for rows.Next() {
-		var ent CompleteEntity
-		err = rows.Scan(
-			&ent.ColumnBool,
-			&ent.ColumnBytea,
-			&ent.ColumnCharacter0,
-			&ent.ColumnCharacter100,
-			&ent.ColumnDecimal,
-			&ent.ColumnDoubleArray0,
-			&ent.ColumnDoubleArray100,
-			&ent.ColumnInteger,
-			&ent.ColumnIntegerArray0,
-			&ent.ColumnIntegerArray100,
-			&ent.ColumnIntegerBig,
-			&ent.ColumnIntegerBigArray0,
-			&ent.ColumnIntegerBigArray100,
-			&ent.ColumnIntegerSmall,
-			&ent.ColumnIntegerSmallArray0,
-			&ent.ColumnIntegerSmallArray100,
-			&ent.ColumnJson,
-			&ent.ColumnJsonNn,
-			&ent.ColumnJsonNnD,
-			&ent.ColumnJsonb,
-			&ent.ColumnJsonbNn,
-			&ent.ColumnJsonbNnD,
-			&ent.ColumnNumeric,
-			&ent.ColumnReal,
-			&ent.ColumnSerial,
-			&ent.ColumnSerialBig,
-			&ent.ColumnSerialSmall,
-			&ent.ColumnText,
-			&ent.ColumnTextArray0,
-			&ent.ColumnTextArray100,
-			&ent.ColumnTimestamp,
-			&ent.ColumnTimestamptz,
-			&ent.ColumnUUID,
-		)
-		if err != nil {
-			return
-		}
-
-		entities = append(entities, &ent)
-	}
-	if err = rows.Err(); err != nil {
-		return
-	}
-
-	return
 }
 
 type CompleteRepositoryBase struct {
@@ -9249,7 +9254,9 @@ func (c *Composer) Add(arg interface{}) {
 // Args returns all arguments stored as a slice.
 func (c *Composer) Args() []interface{} {
 	return c.args
-} /// SQL ...
+}
+
+/// SQL ...
 const SQL = `
 -- do not modify, generated by pqt
 
