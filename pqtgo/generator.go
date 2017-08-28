@@ -61,7 +61,7 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 	if g.Components&ComponentRepository != 0 {
 		g.generateLogFunc(b, s)
 	}
-	if g.Components&ComponentHelpers != 0 {
+	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 || g.Components&ComponentHelpers != 0 {
 		g.generateInterfaces(b, s)
 	}
 	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
