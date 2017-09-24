@@ -16,6 +16,8 @@ In comparison to other currently available libraries instead of pushing struct t
 - __go generation__ - it includes:
 	- `<table-name>Entity` - struct that reflects single row within the database
 	- `<table-name>Criteria` - object that can be passed to the `Find` method, it allows to create complex queries
+		- `<table-name>Or` - utility function that joins `Criteria` using logical `OR` operator
+		- `<table-name>And` - utility function that joins `Criteria` using logical `AND` operator
 	- `<table-name>Patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
 	- `<table-name>Iterator` - interface used by `FindIter` methods as a result, implementation is `<table-name>Rows` - it wraps `sql.Rows`
 	- `constants`:
@@ -76,10 +78,11 @@ Very welcome in general. Especially in fields like:
 
 ## TODO
 
-* [ ] Change `<entity-name>FindExpr.OrderBy` to slice.
+* [x] Change `<entity-name>FindExpr.OrderBy` to slice.
 * [ ] Postgres types better support.
 * [x] Support for functions.
-* [ ] Selective go/sql generation.
+* [x] Selective go/sql generation.
+* [x] Logical operations (`AND`, `OR`)
 * [ ] Refactor `WithXXX` functions to be prefixed by the type they return for example `TableWithIfNotExists` or `ColumnWithNotNull`.
 * [ ] Constraint.
     * [x] Index

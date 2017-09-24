@@ -138,6 +138,33 @@ var testNewsFindData = map[string]struct {
 		},
 		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE t0.content=$1 AND t0.title=$2",
 	},
+	"logical-condition": {
+		expr: model.NewsFindExpr{
+			Where: model.NewsOr(
+				model.NewsAnd(
+					&model.NewsCriteria{
+						Title: sql.NullString{String: "title - minimum", Valid: true},
+					},
+					&model.NewsCriteria{
+						Content: sql.NullString{String: "content - minimum", Valid: true},
+					},
+				),
+				model.NewsAnd(
+					&model.NewsCriteria{
+						Content: sql.NullString{String: "content - maximum", Valid: true},
+					},
+					&model.NewsCriteria{
+						Title: sql.NullString{String: "title - maximum", Valid: true},
+					},
+					&model.NewsCriteria{
+						Version: sql.NullInt64{Int64: 1000, Valid: true},
+						Lead:    sql.NullString{String: "lead - maximum", Valid: true},
+					},
+				),
+			),
+		},
+		query: "SELECT " + join(model.TableNewsColumns, 0) + " FROM example.news AS t0 WHERE ((t0.title=$1) AND (t0.content=$2)) OR ((t0.content=$3) AND (t0.title=$4) AND (t0.lead=$5 AND t0.version=$6))",
+	},
 	"full": {
 		expr: model.NewsFindExpr{
 			Where: &model.NewsCriteria{

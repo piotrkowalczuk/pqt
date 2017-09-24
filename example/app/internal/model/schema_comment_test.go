@@ -25,6 +25,31 @@ var testCommentFindData = map[string]struct {
 		},
 		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at FROM example.comment AS t0 WHERE t0.content=$1",
 	},
+	"logical-operator": {
+		expr: model.CommentFindExpr{
+			Where: model.CommentOr(
+				&model.CommentCriteria{
+					Content: sql.NullString{String: "content - minimum", Valid: true},
+				},
+
+				model.CommentAnd(
+					&model.CommentCriteria{
+						Content: sql.NullString{String: "content - maximum", Valid: true},
+					},
+					model.CommentOr(
+						&model.CommentCriteria{
+							NewsID: sql.NullInt64{Int64: 20, Valid: true},
+						},
+						&model.CommentCriteria{
+							NewsID:  sql.NullInt64{Int64: 10, Valid: true},
+							Content: sql.NullString{String: "content - minimum", Valid: true},
+						},
+					),
+				),
+			),
+		},
+		query: "SELECT t0.content, t0.created_at, t0.id, multiply(t0.id, t0.id) AS id_multiply, t0.news_id, t0.news_title, now() AS right_now, t0.updated_at FROM example.comment AS t0 WHERE (t0.content=$1) OR ((t0.content=$2) AND ((t0.news_id=$3) OR (t0.content=$4 AND t0.news_id=$5)))",
+	},
 	"minimum-join-news-by-id": {
 		expr: model.CommentFindExpr{
 			Where: &model.CommentCriteria{

@@ -12,6 +12,189 @@ import (
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
 
+var testCategoryInsertData = map[string]struct {
+	entity model.CategoryEntity
+	query  string
+}{
+	"minimum": {
+		entity: model.CategoryEntity{
+			Name:    "name - minimum",
+			Content: "content - minimum",
+		},
+		query: "INSERT INTO example.category (content, name) VALUES ($1, $2) RETURNING content, created_at, id, name, parent_id, updated_at",
+	},
+	"full": {
+		entity: model.CategoryEntity{
+			Name:      "name - full",
+			Content:   "content - full",
+			CreatedAt: time.Now(),
+			UpdatedAt: pq.NullTime{
+				Valid: true,
+				Time:  time.Now(),
+			},
+		},
+		query: "INSERT INTO example.category (content, created_at, name, updated_at) VALUES ($1, $2, $3, $4) RETURNING content, created_at, id, name, parent_id, updated_at",
+	},
+}
+
+func BenchmarkCategoryRepositoryBase_InsertQuery(b *testing.B) {
+	s := setup(b)
+	defer s.teardown(b)
+	b.ResetTimer()
+
+	for hint, given := range testCategoryInsertData {
+		b.Run(hint, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				query, args, err := s.category.InsertQuery(&given.entity, true)
+				if err != nil {
+					b.Fatalf("unexpected error: %s", err.Error())
+				}
+				benchQuery = query
+				benchArgs = args
+			}
+		})
+	}
+}
+
+func TestCategoryRepositoryBase_InsertQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testCategoryInsertData {
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.category.InsertQuery(&given.entity, true)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
+func TestCategoryRepositoryBase_Insert(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testCategoryInsertData {
+		t.Run(hint, func(t *testing.T) {
+			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			got, err := s.category.Insert(ctx, &given.entity)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.entity.Name != got.Name {
+				t.Errorf("wrong name, expected %s but got %s", given.entity.Name, got.Name)
+			}
+			if given.entity.Content != got.Content {
+				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
+			}
+			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
+				t.Error("updated at expected to be invalid")
+			}
+			if got.CreatedAt.IsZero() {
+				t.Error("created at should not be zero value")
+			}
+		})
+	}
+}
+
+var testCategoryFindData = map[string]struct {
+	expr  model.CategoryFindExpr
+	query string
+}{
+	"minimum": {
+		expr: model.CategoryFindExpr{
+			Where: &model.CategoryCriteria{
+				Content: sql.NullString{String: "content - minimum", Valid: true},
+			},
+		},
+		query: "SELECT t0.content, t0.created_at, t0.id, t0.name, t0.parent_id, t0.updated_at FROM example.category AS t0 WHERE t0.content=$1",
+	},
+	"logical-operator": {
+		expr: model.CategoryFindExpr{
+			Where: model.CategoryOr(
+				&model.CategoryCriteria{
+					Content: sql.NullString{String: "content - minimum", Valid: true},
+				},
+
+				model.CategoryAnd(
+					&model.CategoryCriteria{
+						Content: sql.NullString{String: "content - maximum", Valid: true},
+					},
+					model.CategoryOr(
+						&model.CategoryCriteria{
+							ParentID: sql.NullInt64{Int64: 20, Valid: true},
+						},
+						&model.CategoryCriteria{
+							ParentID: sql.NullInt64{Int64: 10, Valid: true},
+							Content:  sql.NullString{String: "content - minimum", Valid: true},
+						},
+					),
+				),
+			),
+		},
+		query: "SELECT t0.content, t0.created_at, t0.id, t0.name, t0.parent_id, t0.updated_at FROM example.category AS t0 WHERE (t0.content=$1) OR ((t0.content=$2) AND ((t0.parent_id=$3) OR (t0.content=$4 AND t0.parent_id=$5)))",
+	},
+	"full": {
+		expr: model.CategoryFindExpr{
+			Where: &model.CategoryCriteria{
+				Content: sql.NullString{String: "content - full", Valid: true},
+				CreatedAt: pq.NullTime{
+					Valid: true,
+					Time:  time.Now(),
+				},
+				Name: sql.NullString{
+					String: "games",
+					Valid:  true,
+				},
+				UpdatedAt: pq.NullTime{
+					Valid: true,
+					Time:  time.Now(),
+				},
+			},
+		},
+		query: "SELECT t0.content, t0.created_at, t0.id, t0.name, t0.parent_id, t0.updated_at FROM example.category AS t0 WHERE t0.content=$1 AND t0.created_at=$2 AND t0.name=$3 AND t0.updated_at=$4",
+	},
+}
+
+func BenchmarkCategoryRepositoryBase_FindQuery(b *testing.B) {
+	s := setup(b)
+	defer s.teardown(b)
+	b.ResetTimer()
+
+	for hint, given := range testCategoryFindData {
+		b.Run(hint, func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				query, args, err := s.category.FindQuery(&given.expr)
+				if err != nil {
+					b.Fatalf("unexpected error: %s", err.Error())
+				}
+				benchQuery = query
+				benchArgs = args
+			}
+		})
+	}
+}
+
+func TestCategoryRepositoryBase_FindQuery(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testCategoryFindData {
+		t.Run(hint, func(t *testing.T) {
+			query, _, err := s.category.FindQuery(&given.expr)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if given.query != query {
+				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
 func TestCategoryRepositoryBase_DeleteOneByID(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
