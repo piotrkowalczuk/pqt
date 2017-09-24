@@ -12,22 +12,24 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
-func assertGoCode(t *testing.T, s1, s2, msg string, com ...interface{}) {
+func assertGoCode(t *testing.T, s1, s2 string) {
 	s1 = fmt.Sprintf("%s", s1)
 	s2 = fmt.Sprintf("%s", s2)
 	tmp1 := strings.Split(s1, "\n")
 	tmp2 := strings.Split(s2, "\n")
 	if s1 != s2 {
 		b := bytes.NewBuffer(nil)
-		for _, diff := range difflib.Diff(tmp1, tmp2) {
+		for i, diff := range difflib.Diff(tmp1, tmp2) {
 			p := strings.Replace(diff.Payload, "\t", "\\t", -1)
 			switch diff.Delta {
 			case difflib.Common:
-				fmt.Fprintf(b, "%s %s\n", diff.Delta.String(), p)
+				if testing.Verbose() {
+					fmt.Fprintf(b, "%20d %s %s\n", i, diff.Delta.String(), p)
+				}
 			case difflib.LeftOnly:
-				fmt.Fprintf(b, "\033[31m%s %s\033[39m\n", diff.Delta.String(), p)
+				fmt.Fprintf(b, "\033[31m%20d %s %s\033[39m\n", i, diff.Delta.String(), p)
 			case difflib.RightOnly:
-				fmt.Fprintf(b, "\033[32m%s %s\033[39m\n", diff.Delta.String(), p)
+				fmt.Fprintf(b, "\033[32m%20d %s %s\033[39m\n", i, diff.Delta.String(), p)
 			}
 		}
 		t.Errorf(b.String())
@@ -36,10 +38,12 @@ func assertGoCode(t *testing.T, s1, s2, msg string, com ...interface{}) {
 
 func TestGenerator_Generate(t *testing.T) {
 	cases := map[string]struct {
-		schema   func() *pqt.Schema
-		expected string
+		components pqtgo.Component
+		schema     func() *pqt.Schema
+		expected   string
 	}{
-		"simple": {
+		"simple-helpers": {
+			components: pqtgo.ComponentAll,
 			schema: func() *pqt.Schema {
 				userID := pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())
 				user := pqt.NewTable("user", pqt.WithTableIfNotExists()).
@@ -59,12 +63,62 @@ func TestGenerator_Generate(t *testing.T) {
 
 				return pqt.NewSchema("example").AddTable(user).AddTable(comment)
 			},
-			expected: `package example
+			expected: expectedSimple,
+		},
+	}
+
+	for hint, c := range cases {
+		t.Run(hint, func(t *testing.T) {
+			g := pqtgo.Generator{
+				Version:    9.5,
+				Pkg:        "example",
+				Components: c.components,
+			}
+			s := c.schema()
+			buf, err := g.Generate(s)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			got := normalize(t, buf)
+			expected := normalize(t, []byte(c.expected))
+			assertGoCode(t, expected, got)
+			//if expected != got {
+			//	t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", expected, got)
+			//}
+		})
+	}
+}
+
+func normalize(t *testing.T, in []byte) string {
+	out, err := format.Source(in)
+	if err != nil {
+		t.Fatalf("formating failure: %s", err.Error())
+	}
+	return string(out)
+}
+
+var expectedSimple = `package example
 
     		import (
     			"github.com/go-kit/kit/log"
     			"github.com/m4rw3r/uuid"
     		)
+
+
+    		// LogFunc represents function that can be passed into repository to log query result.
+    		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
+
+    		// Rows ...
+    		type Rows interface {
+    			io.Closer
+    			ColumnTypes() ([]*sql.ColumnType, error)
+    			Columns() ([]string, error)
+    			Err() error
+    			Next() bool
+    			NextResultSet() bool
+    			Scan(dest ...interface{}) error
+    		}
 
     		func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
     			if jt != JoinDoNot {
@@ -96,20 +150,6 @@ func TestGenerator_Generate(t *testing.T) {
     				return
     			}
     			return
-    		}
-
-    		// LogFunc represents function that can be passed into repository to log query result.
-    		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
-
-    		// Rows ...
-    		type Rows interface {
-    			io.Closer
-    			ColumnTypes() ([]*sql.ColumnType, error)
-    			Columns() ([]string, error)
-    			Err() error
-    			Next() bool
-    			NextResultSet() bool
-    			Scan(dest ...interface{}) error
     		}
 
     		const (
@@ -163,6 +203,27 @@ func TestGenerator_Generate(t *testing.T) {
     				}
     			}
     			return res, nil
+    		}
+
+    		// ScanUserRows helps to scan rows straight to the slice of entities.
+    		func ScanUserRows(rows Rows) (entities []*UserEntity, err error) {
+    			for rows.Next() {
+    				var ent UserEntity
+    				err = rows.Scan(
+    					&ent.Id,
+    					&ent.Name,
+    				)
+    				if err != nil {
+    					return
+    				}
+
+    				entities = append(entities, &ent)
+    			}
+    			if err = rows.Err(); err != nil {
+    				return
+    			}
+
+    			return
     		}
 
     		// UserIterator is not thread safe.
@@ -230,38 +291,18 @@ func TestGenerator_Generate(t *testing.T) {
     			OrderBy       []RowOrder
     		}
 
-    		type UserCountExpr struct {
-    			Where *UserCriteria
-    		}
-
     		type UserJoin struct {
     			On, Where *UserCriteria
     			Fetch     bool
     			Kind      JoinType
     		}
 
-    		type UserPatch struct {
-    			Name sql.NullString
+    		type UserCountExpr struct {
+    			Where *UserCriteria
     		}
 
-    		func ScanUserRows(rows Rows) (entities []*UserEntity, err error) {
-    			for rows.Next() {
-    				var ent UserEntity
-    				err = rows.Scan(
-    					&ent.Id,
-    					&ent.Name,
-    				)
-    				if err != nil {
-    					return
-    				}
-
-    				entities = append(entities, &ent)
-    			}
-    			if err = rows.Err(); err != nil {
-    				return
-    			}
-
-    			return
+    		type UserPatch struct {
+    			Name sql.NullString
     		}
 
     		type UserRepositoryBase struct {
@@ -877,6 +918,26 @@ func TestGenerator_Generate(t *testing.T) {
     			return res, nil
     		}
 
+    		// ScanCommentRows helps to scan rows straight to the slice of entities.
+    		func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
+    			for rows.Next() {
+    				var ent CommentEntity
+    				err = rows.Scan(
+    					&ent.UserId,
+    				)
+    				if err != nil {
+    					return
+    				}
+
+    				entities = append(entities, &ent)
+    			}
+    			if err = rows.Err(); err != nil {
+    				return
+    			}
+
+    			return
+    		}
+
     		// CommentIterator is not thread safe.
     		type CommentIterator struct {
     			rows Rows
@@ -958,12 +1019,6 @@ func TestGenerator_Generate(t *testing.T) {
     			JoinWpis      *PostJoin
     		}
 
-    		type CommentCountExpr struct {
-    			Where    *CommentCriteria
-    			JoinUser *UserJoin
-    			JoinWpis *PostJoin
-    		}
-
     		type CommentJoin struct {
     			On, Where *CommentCriteria
     			Fetch     bool
@@ -972,27 +1027,14 @@ func TestGenerator_Generate(t *testing.T) {
     			JoinWpis  *PostJoin
     		}
 
-    		type CommentPatch struct {
-    			UserId sql.NullInt64
+    		type CommentCountExpr struct {
+    			Where    *CommentCriteria
+    			JoinUser *UserJoin
+    			JoinWpis *PostJoin
     		}
 
-    		func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
-    			for rows.Next() {
-    				var ent CommentEntity
-    				err = rows.Scan(
-    					&ent.UserId,
-    				)
-    				if err != nil {
-    					return
-    				}
-
-    				entities = append(entities, &ent)
-    			}
-    			if err = rows.Err(); err != nil {
-    				return
-    			}
-
-    			return
+    		type CommentPatch struct {
+    			UserId sql.NullInt64
     		}
 
     		type CommentRepositoryBase struct {
@@ -1825,35 +1867,4 @@ func TestGenerator_Generate(t *testing.T) {
     		// Args returns all arguments stored as a slice.
     		func (c *Composer) Args() []interface{} {
     			return c.args
-    		}`,
-		},
-	}
-
-	for hint, c := range cases {
-		t.Run(hint, func(t *testing.T) {
-			g := pqtgo.Generator{
-				Version: 9.5,
-				Pkg:     "example",
-			}
-			s := c.schema()
-			buf, err := g.Generate(s)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-
-			got := normalize(t, buf)
-			expected := normalize(t, []byte(c.expected))
-			if expected != got {
-				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", expected, got)
-			}
-		})
-	}
-}
-
-func normalize(t *testing.T, in []byte) string {
-	out, err := format.Source(in)
-	if err != nil {
-		t.Fatalf("formating failure: %s", err.Error())
-	}
-	return string(out)
-}
+    		}`

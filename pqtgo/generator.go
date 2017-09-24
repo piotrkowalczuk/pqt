@@ -3,6 +3,7 @@ package pqtgo
 import (
 	"bytes"
 	"fmt"
+	"go/format"
 	"io"
 	"reflect"
 	"strings"
@@ -16,89 +17,15 @@ const (
 	ModeMandatory
 	ModeOptional
 	ModeCriteria
-
-	// Public ...
-	Public Visibility = "public"
-	// Private ...
-	Private Visibility = "private"
 )
 
-// Visibility ...
-type Visibility string
-
-type Formatter struct {
-	Visibility Visibility
-	Acronyms   map[string]string
-}
-
-func (f *Formatter) Identifier(args ...string) (r string) {
-	var vis Visibility
-	if f != nil {
-		vis = f.Visibility
-	}
-	switch len(args) {
-	case 0:
-	case 1:
-		r = f.identifier(args[0], vis)
-	default:
-		r = f.identifier(args[0], vis)
-		for _, s := range args[1:] {
-			r += f.identifier(s, Public)
-		}
-	}
-	return r
-}
-
-func (f *Formatter) IdentifierPrivate(args ...string) (r string) {
-	switch len(args) {
-	case 0:
-	case 1:
-		r = f.identifier(args[0], Private)
-	default:
-		r = f.identifier(args[0], Private)
-		for _, s := range args[1:] {
-			r += f.identifier(s, Public)
-		}
-	}
-	return r
-}
-
-func (f *Formatter) identifier(s string, v Visibility) string {
-	var acr map[string]string
-	if f != nil {
-		acr = f.Acronyms
-	}
-	r := snake(s, v == Private, acr)
-	if a, ok := keywords[r]; ok {
-		return a
-	}
-	return r
-}
-
-func (f *Formatter) Type(t pqt.Type, m int32) string {
-	switch tt := t.(type) {
-	case pqt.MappableType:
-		for _, mt := range tt.Mapping {
-			return f.Type(mt, m)
-		}
-		return ""
-	case BuiltinType:
-		return generateTypeBuiltin(tt, m)
-	case pqt.BaseType:
-		return generateTypeBase(tt, m)
-	case CustomType:
-		return generateCustomType(tt, m)
-	default:
-		return ""
-	}
-}
-
 type Generator struct {
-	Formatter *Formatter
-	Version   float64
-	Pkg       string
-	Imports   []string
-	Plugins   []Plugin
+	Formatter  *Formatter
+	Version    float64
+	Pkg        string
+	Imports    []string
+	Plugins    []Plugin
+	Components Component
 }
 
 // Generate ...
@@ -108,7 +35,7 @@ func (g *Generator) Generate(s *pqt.Schema) ([]byte, error) {
 		return nil, err
 	}
 
-	return code.Bytes(), nil
+	return format.Source(code.Bytes())
 }
 
 // GenerateTo ...
@@ -118,7 +45,11 @@ func (g *Generator) GenerateTo(w io.Writer, s *pqt.Schema) error {
 		return err
 	}
 
-	_, err = code.WriteTo(w)
+	buf, err := format.Source(code.Bytes())
+	if err != nil {
+		return err
+	}
+	_, err = w.Write(buf)
 	return err
 }
 
@@ -127,39 +58,67 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 
 	g.generatePackage(b)
 	g.generateImports(b, s)
-	g.generateRepositoryJoinClause(b, s)
-	g.generateLogFunc(b, s)
-	g.generateInterfaces(b, s)
+	if g.Components&ComponentRepository != 0 {
+		g.generateLogFunc(b, s)
+	}
+	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 || g.Components&ComponentHelpers != 0 {
+		g.generateInterfaces(b, s)
+	}
+	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
+		g.generateRepositoryJoinClause(b, s)
+	}
 	for _, t := range s.Tables {
 		g.generateConstants(b, t)
 		g.generateColumns(b, t)
 		g.generateEntity(b, t)
 		g.generateEntityProp(b, t)
 		g.generateEntityProps(b, t)
-		g.generateIterator(b, t)
-		g.generateCriteria(b, t)
-		g.generateFindExpr(b, t)
-		g.generateCountExpr(b, t)
-		g.generateJoin(b, t)
-		g.generatePatch(b, t)
-		g.generateRepositoryScanRows(b, t)
-		g.generateRepository(b, t)
-		g.generateRepositoryInsertQuery(b, t)
-		g.generateRepositoryInsert(b, t)
-		g.generateRepositoryWhereClause(b, t)
-		g.generateRepositoryFindQuery(b, t)
-		g.generateRepositoryFind(b, t)
-		g.generateRepositoryFindIter(b, t)
-		g.generateRepositoryFindOneByPrimaryKey(b, t)
-		g.generateRepositoryFindOneByUniqueConstraint(b, t)
-		g.generateRepositoryUpdateOneByPrimaryKeyQuery(b, t)
-		g.generateRepositoryUpdateOneByPrimaryKey(b, t)
-		g.generateRepositoryUpdateOneByUniqueConstraintQuery(b, t)
-		g.generateRepositoryUpdateOneByUniqueConstraint(b, t)
-		g.generateRepositoryUpsertQuery(b, t)
-		g.generateRepositoryUpsert(b, t)
-		g.generateRepositoryCount(b, t)
-		g.generateRepositoryDeleteOneByPrimaryKey(b, t)
+		if g.Components&ComponentHelpers != 0 {
+			g.generateRepositoryScanRows(b, t)
+		}
+		if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
+			g.generateIterator(b, t)
+			g.generateCriteria(b, t)
+			g.generateFindExpr(b, t)
+			g.generateJoin(b, t)
+		}
+		if g.Components&ComponentCount != 0 {
+			g.generateCountExpr(b, t)
+		}
+		if g.Components&ComponentUpdate != 0 || g.Components&ComponentUpsert != 0 {
+			g.generatePatch(b, t)
+		}
+		if g.Components&ComponentRepository != 0 {
+			g.generateRepository(b, t)
+			if g.Components&ComponentInsert != 0 {
+				g.generateRepositoryInsertQuery(b, t)
+				g.generateRepositoryInsert(b, t)
+			}
+			if g.Components&ComponentFind != 0 {
+				g.generateRepositoryWhereClause(b, t)
+				g.generateRepositoryFindQuery(b, t)
+				g.generateRepositoryFind(b, t)
+				g.generateRepositoryFindIter(b, t)
+				g.generateRepositoryFindOneByPrimaryKey(b, t)
+				g.generateRepositoryFindOneByUniqueConstraint(b, t)
+			}
+			if g.Components&ComponentUpdate != 0 {
+				g.generateRepositoryUpdateOneByPrimaryKeyQuery(b, t)
+				g.generateRepositoryUpdateOneByPrimaryKey(b, t)
+				g.generateRepositoryUpdateOneByUniqueConstraintQuery(b, t)
+				g.generateRepositoryUpdateOneByUniqueConstraint(b, t)
+			}
+			if g.Components&ComponentUpsert != 0 {
+				g.generateRepositoryUpsertQuery(b, t)
+				g.generateRepositoryUpsert(b, t)
+			}
+			if g.Components&ComponentCount != 0 {
+				g.generateRepositoryCount(b, t)
+			}
+			if g.Components&ComponentDelete != 0 {
+				g.generateRepositoryDeleteOneByPrimaryKey(b, t)
+			}
+		}
 	}
 	g.generateStatics(b, s)
 
@@ -1948,8 +1907,10 @@ func (g *Generator) generateEntityProps(w io.Writer, t *pqt.Table) {
 
 func (g *Generator) generateRepositoryScanRows(w io.Writer, t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
+	funcName := g.Formatter.Identifier("scan", t.Name, "rows")
 	fmt.Fprintf(w, `
-		func %s(rows Rows) (entities []*%sEntity, err error) {`, g.Formatter.Identifier("scan", t.Name, "rows"), entityName)
+		// %s helps to scan rows straight to the slice of entities.
+		func %s(rows Rows) (entities []*%sEntity, err error) {`, funcName, funcName, entityName)
 	fmt.Fprintf(w, `
 		for rows.Next() {
 			var ent %sEntity
