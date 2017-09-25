@@ -227,12 +227,40 @@ func (i *CategoryIterator) Category() (*CategoryEntity, error) {
 }
 
 type CategoryCriteria struct {
-	Content   sql.NullString
-	CreatedAt pq.NullTime
-	ID        sql.NullInt64
-	Name      sql.NullString
-	ParentID  sql.NullInt64
-	UpdatedAt pq.NullTime
+	Content                sql.NullString
+	CreatedAt              pq.NullTime
+	ID                     sql.NullInt64
+	Name                   sql.NullString
+	ParentID               sql.NullInt64
+	UpdatedAt              pq.NullTime
+	operator               string
+	child, sibling, parent *CategoryCriteria
+}
+
+func CategoryOperand(operator string, operands ...*CategoryCriteria) *CategoryCriteria {
+	if len(operands) == 0 {
+		return &CategoryCriteria{operator: operator}
+	}
+
+	parent := &CategoryCriteria{
+		operator: operator,
+		child:    operands[0],
+	}
+
+	for i := 0; i < len(operands); i++ {
+		if i < len(operands)-1 {
+			operands[i].sibling = operands[i+1]
+		}
+		operands[i].parent = parent
+	}
+
+	return parent
+}
+func CategoryOr(operands ...*CategoryCriteria) *CategoryCriteria {
+	return CategoryOperand("OR", operands...)
+}
+func CategoryAnd(operands ...*CategoryCriteria) *CategoryCriteria {
+	return CategoryOperand("AND", operands...)
 }
 
 type CategoryFindExpr struct {
@@ -412,6 +440,50 @@ func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) 
 	return e, nil
 }
 func CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) error {
+	if c.child == nil {
+		return _CategoryCriteriaWhereClause(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _CategoryCriteriaWhereClause(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+}
+func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) error {
 	if c.Content.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -1311,11 +1383,39 @@ func (i *PackageIterator) Package() (*PackageEntity, error) {
 }
 
 type PackageCriteria struct {
-	Break      sql.NullString
-	CategoryID sql.NullInt64
-	CreatedAt  pq.NullTime
-	ID         sql.NullInt64
-	UpdatedAt  pq.NullTime
+	Break                  sql.NullString
+	CategoryID             sql.NullInt64
+	CreatedAt              pq.NullTime
+	ID                     sql.NullInt64
+	UpdatedAt              pq.NullTime
+	operator               string
+	child, sibling, parent *PackageCriteria
+}
+
+func PackageOperand(operator string, operands ...*PackageCriteria) *PackageCriteria {
+	if len(operands) == 0 {
+		return &PackageCriteria{operator: operator}
+	}
+
+	parent := &PackageCriteria{
+		operator: operator,
+		child:    operands[0],
+	}
+
+	for i := 0; i < len(operands); i++ {
+		if i < len(operands)-1 {
+			operands[i].sibling = operands[i+1]
+		}
+		operands[i].parent = parent
+	}
+
+	return parent
+}
+func PackageOr(operands ...*PackageCriteria) *PackageCriteria {
+	return PackageOperand("OR", operands...)
+}
+func PackageAnd(operands ...*PackageCriteria) *PackageCriteria {
+	return PackageOperand("AND", operands...)
 }
 
 type PackageFindExpr struct {
@@ -1479,6 +1579,50 @@ func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*
 	return e, nil
 }
 func PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) error {
+	if c.child == nil {
+		return _PackageCriteriaWhereClause(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _PackageCriteriaWhereClause(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+}
+func _PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) error {
 	if c.Break.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -2367,17 +2511,45 @@ func (i *NewsIterator) News() (*NewsEntity, error) {
 }
 
 type NewsCriteria struct {
-	Content           sql.NullString
-	Continue          sql.NullBool
-	CreatedAt         pq.NullTime
-	ID                sql.NullInt64
-	Lead              sql.NullString
-	MetaData          []byte
-	Score             sql.NullFloat64
-	Title             sql.NullString
-	UpdatedAt         pq.NullTime
-	Version           sql.NullInt64
-	ViewsDistribution NullFloat64Array
+	Content                sql.NullString
+	Continue               sql.NullBool
+	CreatedAt              pq.NullTime
+	ID                     sql.NullInt64
+	Lead                   sql.NullString
+	MetaData               []byte
+	Score                  sql.NullFloat64
+	Title                  sql.NullString
+	UpdatedAt              pq.NullTime
+	Version                sql.NullInt64
+	ViewsDistribution      NullFloat64Array
+	operator               string
+	child, sibling, parent *NewsCriteria
+}
+
+func NewsOperand(operator string, operands ...*NewsCriteria) *NewsCriteria {
+	if len(operands) == 0 {
+		return &NewsCriteria{operator: operator}
+	}
+
+	parent := &NewsCriteria{
+		operator: operator,
+		child:    operands[0],
+	}
+
+	for i := 0; i < len(operands); i++ {
+		if i < len(operands)-1 {
+			operands[i].sibling = operands[i+1]
+		}
+		operands[i].parent = parent
+	}
+
+	return parent
+}
+func NewsOr(operands ...*NewsCriteria) *NewsCriteria {
+	return NewsOperand("OR", operands...)
+}
+func NewsAnd(operands ...*NewsCriteria) *NewsCriteria {
+	return NewsOperand("AND", operands...)
 }
 
 type NewsFindExpr struct {
@@ -2666,6 +2838,50 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	return e, nil
 }
 func NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
+	if c.child == nil {
+		return _NewsCriteriaWhereClause(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _NewsCriteriaWhereClause(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+}
+func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 	if c.Content.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -4635,14 +4851,42 @@ func (i *CommentIterator) Comment() (*CommentEntity, error) {
 }
 
 type CommentCriteria struct {
-	Content    sql.NullString
-	CreatedAt  pq.NullTime
-	ID         sql.NullInt64
-	IDMultiply sql.NullInt64
-	NewsID     sql.NullInt64
-	NewsTitle  sql.NullString
-	RightNow   pq.NullTime
-	UpdatedAt  pq.NullTime
+	Content                sql.NullString
+	CreatedAt              pq.NullTime
+	ID                     sql.NullInt64
+	IDMultiply             sql.NullInt64
+	NewsID                 sql.NullInt64
+	NewsTitle              sql.NullString
+	RightNow               pq.NullTime
+	UpdatedAt              pq.NullTime
+	operator               string
+	child, sibling, parent *CommentCriteria
+}
+
+func CommentOperand(operator string, operands ...*CommentCriteria) *CommentCriteria {
+	if len(operands) == 0 {
+		return &CommentCriteria{operator: operator}
+	}
+
+	parent := &CommentCriteria{
+		operator: operator,
+		child:    operands[0],
+	}
+
+	for i := 0; i < len(operands); i++ {
+		if i < len(operands)-1 {
+			operands[i].sibling = operands[i+1]
+		}
+		operands[i].parent = parent
+	}
+
+	return parent
+}
+func CommentOr(operands ...*CommentCriteria) *CommentCriteria {
+	return CommentOperand("OR", operands...)
+}
+func CommentAnd(operands ...*CommentCriteria) *CommentCriteria {
+	return CommentOperand("AND", operands...)
 }
 
 type CommentFindExpr struct {
@@ -4831,6 +5075,50 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 	return e, nil
 }
 func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
+	if c.child == nil {
+		return _CommentCriteriaWhereClause(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _CommentCriteriaWhereClause(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+}
+func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
 	if c.Content.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -5879,6 +6167,34 @@ type CompleteCriteria struct {
 	ColumnTimestamp            pq.NullTime
 	ColumnTimestamptz          pq.NullTime
 	ColumnUUID                 sql.NullString
+	operator                   string
+	child, sibling, parent     *CompleteCriteria
+}
+
+func CompleteOperand(operator string, operands ...*CompleteCriteria) *CompleteCriteria {
+	if len(operands) == 0 {
+		return &CompleteCriteria{operator: operator}
+	}
+
+	parent := &CompleteCriteria{
+		operator: operator,
+		child:    operands[0],
+	}
+
+	for i := 0; i < len(operands); i++ {
+		if i < len(operands)-1 {
+			operands[i].sibling = operands[i+1]
+		}
+		operands[i].parent = parent
+	}
+
+	return parent
+}
+func CompleteOr(operands ...*CompleteCriteria) *CompleteCriteria {
+	return CompleteOperand("OR", operands...)
+}
+func CompleteAnd(operands ...*CompleteCriteria) *CompleteCriteria {
+	return CompleteOperand("AND", operands...)
 }
 
 type CompleteFindExpr struct {
@@ -6642,6 +6958,50 @@ func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) 
 	return e, nil
 }
 func CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) error {
+	if c.child == nil {
+		return _CompleteCriteriaWhereClause(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _CompleteCriteriaWhereClause(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+}
+func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) error {
 	if c.ColumnBool.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")

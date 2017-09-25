@@ -219,16 +219,48 @@ func (g *Generator) generateCountExpr(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateCriteria(w io.Writer, t *pqt.Table) {
+	name := g.Formatter.Identifier(t.Name)
+
 	fmt.Fprintf(w, `
-		type %sCriteria struct {`, g.Formatter.Identifier(t.Name))
+		type %sCriteria struct {`, name)
 	for _, c := range t.Columns {
 		if t := g.columnType(c, ModeCriteria); t != "<nil>" {
 			fmt.Fprintf(w, `
 				%s %s`, g.Formatter.Identifier(c.Name), t)
 		}
 	}
-	fmt.Fprintln(w, `
-		}`)
+	fmt.Fprintf(w, `
+			operator string
+			child, sibling, parent *%sCriteria
+		}`, name)
+	fmt.Fprintf(w, `
+		func %sOperand(operator string, operands ...*%sCriteria) *%sCriteria {
+			if len(operands) == 0 {
+				return &%sCriteria{operator: operator}
+			}
+
+			parent := &%sCriteria{
+				operator: operator,
+				child: operands[0],
+			}
+
+			for i := 0; i < len(operands); i++ {
+				if i < len(operands)-1 {
+					operands[i].sibling = operands[i+1]
+				}
+				operands[i].parent = parent
+			}
+
+			return parent
+		}`, name, name, name, name, name)
+	fmt.Fprintf(w, `
+		func %sOr(operands ...*%sCriteria) *%sCriteria {
+			return %sOperand("OR", operands...)
+		}`, name, name, name, name)
+	fmt.Fprintf(w, `
+		func %sAnd(operands ...*%sCriteria) *%sCriteria {
+			return %sOperand("AND", operands...)
+		}`, name, name, name, name)
 }
 
 func (g *Generator) generateJoin(w io.Writer, t *pqt.Table) {
@@ -1066,8 +1098,58 @@ func (g *Generator) generateRepositoryUpsert(w io.Writer, t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryWhereClause(w io.Writer, t *pqt.Table) {
+	name := g.Formatter.Identifier(t.Name)
+	fnName := fmt.Sprintf("%sCriteriaWhereClause", name)
 	fmt.Fprintf(w, `
-		func %sCriteriaWhereClause(comp *Composer, c *%sCriteria, id int) (error) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier(t.Name))
+		func %s(comp *Composer, c *%sCriteria, id int) (error) {`, fnName, name)
+
+	fmt.Fprintf(w, `
+	if c.child == nil {
+		return _%s(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _%s(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+	}`, fnName, fnName)
+
+	fmt.Fprintf(w, `
+		func _%sCriteriaWhereClause(comp *Composer, c *%sCriteria, id int) (error) {`, name, name)
 ColumnsLoop:
 	for _, c := range t.Columns {
 		braces := 0

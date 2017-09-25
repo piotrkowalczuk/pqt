@@ -9,8 +9,8 @@ import (
 type generator struct{}
 
 func (g *generator) PropertyType(c *pqt.Column, m int32) string {
-	if m == 1 {
-		if c.Type == pqt.TypeSerialBig() {
+	if c.Type == pqt.TypeSerialBig() {
+		if m == 1 {
 			return "int64"
 		}
 	}

@@ -282,7 +282,35 @@ var expectedSimple = `package example
     		type UserCriteria struct {
     			Id   sql.NullInt64
     			Name sql.NullString
+				operator string
+				child, sibling, parent *UserCriteria
     		}
+
+			func UserOperand(operator string, operands ...*UserCriteria) *UserCriteria {
+				if len(operands) == 0 {
+					return &UserCriteria{operator: operator}
+				}
+
+				parent := &UserCriteria{
+					operator: operator,
+					child:    operands[0],
+				}
+
+				for i := 0; i < len(operands); i++ {
+					if i < len(operands)-1 {
+						operands[i].sibling = operands[i+1]
+					}
+					operands[i].parent = parent
+				}
+
+				return parent
+			}
+			func UserOr(operands ...*UserCriteria) *UserCriteria {
+				return UserOperand("OR", operands...)
+			}
+			func UserAnd(operands ...*UserCriteria) *UserCriteria {
+				return UserOperand("AND", operands...)
+			}
 
     		type UserFindExpr struct {
     			Where         *UserCriteria
@@ -370,7 +398,51 @@ var expectedSimple = `package example
     			}
     			return e, nil
     		}
-    		func UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
+			func UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
+				if c.child == nil {
+					return _UserCriteriaWhereClause(comp, c, id)
+				}
+				node := c
+				sibling := false
+				for {
+					if !sibling {
+						if node.child != nil {
+							if node.parent != nil {
+								comp.WriteString("(")
+							}
+							node = node.child
+							continue
+						} else {
+							comp.Dirty = false
+							comp.WriteString("(")
+							if err := _UserCriteriaWhereClause(comp, node, id); err != nil {
+								return err
+							}
+							comp.WriteString(")")
+						}
+					}
+					if node.sibling != nil {
+						sibling = false
+						comp.WriteString(" ")
+						comp.WriteString(node.parent.operator)
+						comp.WriteString(" ")
+						node = node.sibling
+						continue
+					}
+					if node.parent != nil {
+						sibling = true
+						if node.parent.parent != nil {
+							comp.WriteString(")")
+						}
+						node = node.parent
+						continue
+					}
+			
+					break
+				}
+				return nil
+			}
+    		func _UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
     			if c.Id.Valid {
     				if comp.Dirty {
     					comp.WriteString(" AND ")
@@ -1008,7 +1080,35 @@ var expectedSimple = `package example
 
     		type CommentCriteria struct {
     			UserId sql.NullInt64
+				operator string
+				child, sibling, parent *CommentCriteria
     		}
+
+			func CommentOperand(operator string, operands ...*CommentCriteria) *CommentCriteria {
+				if len(operands) == 0 {
+					return &CommentCriteria{operator: operator}
+				}
+
+				parent := &CommentCriteria{
+					operator: operator,
+					child:    operands[0],
+				}
+
+				for i := 0; i < len(operands); i++ {
+					if i < len(operands)-1 {
+						operands[i].sibling = operands[i+1]
+					}
+					operands[i].parent = parent
+				}
+
+				return parent
+			}
+			func CommentOr(operands ...*CommentCriteria) *CommentCriteria {
+				return CommentOperand("OR", operands...)
+			}
+			func CommentAnd(operands ...*CommentCriteria) *CommentCriteria {
+				return CommentOperand("AND", operands...)
+			}
 
     		type CommentFindExpr struct {
     			Where         *CommentCriteria
@@ -1102,7 +1202,51 @@ var expectedSimple = `package example
     			}
     			return e, nil
     		}
-    		func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
+			func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
+				if c.child == nil {
+					return _CommentCriteriaWhereClause(comp, c, id)
+				}
+				node := c
+				sibling := false
+				for {
+					if !sibling {
+						if node.child != nil {
+							if node.parent != nil {
+								comp.WriteString("(")
+							}
+							node = node.child
+							continue
+						} else {
+							comp.Dirty = false
+							comp.WriteString("(")
+							if err := _CommentCriteriaWhereClause(comp, node, id); err != nil {
+								return err
+							}
+							comp.WriteString(")")
+						}
+					}
+					if node.sibling != nil {
+						sibling = false
+						comp.WriteString(" ")
+						comp.WriteString(node.parent.operator)
+						comp.WriteString(" ")
+						node = node.sibling
+						continue
+					}
+					if node.parent != nil {
+						sibling = true
+						if node.parent.parent != nil {
+							comp.WriteString(")")
+						}
+						node = node.parent
+						continue
+					}
+
+					break
+				}
+				return nil
+			}
+    		func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
     			if c.UserId.Valid {
     				if comp.Dirty {
     					comp.WriteString(" AND ")
