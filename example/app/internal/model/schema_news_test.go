@@ -96,7 +96,9 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 
 	for hint, given := range testNewsInsertData {
 		t.Run(hint, func(t *testing.T) {
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
 			got, err := s.news.Insert(ctx, &given.entity)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
@@ -465,6 +467,49 @@ func TestNewsRepositoryBase_UpdateOneByIDQuery(t *testing.T) {
 			}
 			if given.query != query {
 				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
+			}
+		})
+	}
+}
+
+func TestNewsRepositoryBase_UpdateOneByID(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsInsertData {
+		t.Run(hint, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			inserted, err := s.news.Insert(ctx, &given.entity)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			got, err := s.news.UpdateOneByID(ctx, inserted.ID, &model.NewsPatch{
+				Title:   sql.NullString{String: inserted.Title + " (edited)", Valid: true},
+				Lead:    sql.NullString{String: inserted.Lead.String + " (edited)", Valid: inserted.Lead.Valid},
+				Content: sql.NullString{String: inserted.Content + " (edited)", Valid: true},
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if !strings.Contains(got.Title, "(edited)") {
+				t.Errorf("wrong title, should contains 'edited' but got %s", got.Title)
+			}
+			if given.entity.Lead.Valid {
+				if !strings.Contains(got.Lead.String, "(edited)") {
+					t.Errorf("wrong lead, should contains 'edited' but got %s", got.Lead)
+				}
+			}
+			if !got.UpdatedAt.Valid {
+				t.Error("updated at expected to be valid")
+			}
+			if got.CreatedAt.IsZero() {
+				t.Error("created at should not be zero value")
+			}
+			if given.entity.Version >= got.Version {
+				t.Errorf("new version should be higher than %d but got %d", given.entity.Version, got.Version)
 			}
 		})
 	}

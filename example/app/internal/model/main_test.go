@@ -102,6 +102,11 @@ func setup(t testing.TB) *suite {
 			DB:    db,
 			Log:   log,
 		},
+		pkg: &model.PackageRepositoryBase{
+			Table: model.TablePackage,
+			DB:    db,
+			Log:   log,
+		},
 	}
 }
 
@@ -148,6 +153,18 @@ func populateCategory(t testing.TB, r *model.CategoryRepositoryBase, nb int) {
 			if err != nil {
 				t.Fatalf("unexpected error #%d: %s", i, err.Error())
 			}
+		}
+	}
+}
+
+func populatePackage(t testing.TB, r *model.PackageRepositoryBase, nb int) {
+	for i := 1; i <= nb; i++ {
+		_, err := r.Insert(context.Background(), &model.PackageEntity{
+			Break:     sql.NullString{String: fmt.Sprintf("break-%d", i), Valid: true},
+			CreatedAt: time.Now(),
+		})
+		if err != nil {
+			t.Fatalf("unexpected error #%d: %s", i, err.Error())
 		}
 	}
 }
