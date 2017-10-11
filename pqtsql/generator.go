@@ -286,8 +286,11 @@ func indexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint, ver float64) {
 }
 
 func uniqueIndexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint, ver float64) {
-	fmt.Fprintf(buf, `CREATE UNIQUE INDEX "%s" ON %s (%s)`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
-
+	if ver >= 9.5 {
+		fmt.Fprintf(buf, `CREATE UNIQUE INDEX IF NOT EXISTS "%s" ON %s (%s)`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
+	} else {
+		fmt.Fprintf(buf, `CREATE UNIQUE INDEX "%s" ON %s (%s)`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
+	}
 	if c.Where != "" {
 		fmt.Fprintf(buf, " WHERE %s", c.Where)
 	}
