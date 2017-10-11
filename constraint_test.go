@@ -65,16 +65,19 @@ func TestForeignKey(t *testing.T) {
 
 func TestConstraints_CountOf(t *testing.T) {
 	idx := pqt.NewColumn("index", pqt.TypeIntegerBig())
+	uidx := pqt.NewColumn("unique_index", pqt.TypeIntegerBig())
 	unq := pqt.NewColumn("unique", pqt.TypeIntegerBig())
 	chk := pqt.NewColumn("check", pqt.TypeIntegerBig())
 
 	tbl := pqt.NewTable("table").
 		AddColumn(idx).
+		AddColumn(uidx).
 		AddColumn(unq).
 		AddColumn(chk)
 
 	given := pqt.Constraints{
 		pqt.Index(tbl, idx),
+		pqt.UniqueIndex(tbl, "Name", "check > 0", uidx),
 		pqt.Unique(tbl, unq),
 		pqt.Check(tbl, "check > 0", unq),
 	}
@@ -95,5 +98,9 @@ func TestConstraints_CountOf(t *testing.T) {
 	got = given.CountOf(pqt.ConstraintTypeIndex, pqt.ConstraintTypeUnique, pqt.ConstraintTypeCheck)
 	if got != 3 {
 		t.Errorf("expected %d but got %d", 3, got)
+	}
+	got = given.CountOf(pqt.ConstraintTypeUniqueIndex, pqt.ConstraintTypeIndex, pqt.ConstraintTypeUnique, pqt.ConstraintTypeCheck)
+	if got != 4 {
+		t.Errorf("expected %d but got %d", 4, got)
 	}
 }

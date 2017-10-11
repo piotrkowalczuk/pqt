@@ -1,6 +1,8 @@
 package pqt
 
 import (
+	"crypto/md5"
+	"encoding/base64"
 	"fmt"
 	"strings"
 )
@@ -20,6 +22,8 @@ const (
 	ConstraintTypeForeignKey ConstraintType = "fkey"
 	// ConstraintTypeExclusion ...
 	ConstraintTypeExclusion ConstraintType = "excl"
+	// ConstraintTypeUniqueIndex ...
+	ConstraintTypeUniqueIndex ConstraintType = "uidx"
 )
 
 type ConstraintType string
@@ -36,6 +40,7 @@ type Constraint struct {
 	Attribute                                                            []*Attribute
 	Match, OnDelete, OnUpdate                                            int32
 	NoInherit, DeferrableInitiallyDeferred, DeferrableInitiallyImmediate bool
+	MethodSuffix                                                         string
 }
 
 // Name ...
@@ -63,7 +68,21 @@ func (c *Constraint) Name() string {
 		tmp = append(tmp, col.Name)
 	}
 
+	if len(c.Where) > 0 {
+		tmp = append(tmp, c.whereClauseHash())
+	}
+
 	return fmt.Sprintf("%s.%s_%s_%s", schema, c.PrimaryTable.ShortName, strings.Join(tmp, "_"), c.Type)
+}
+
+// WhereClauseHash returns at least 8-character hash of a hash clause
+func (c *Constraint) whereClauseHash() string {
+	sum := md5.Sum([]byte(c.Where))
+	encoded := base64.StdEncoding.EncodeToString(sum[:])
+	if len(encoded) > 8 {
+		encoded = encoded[:8]
+	}
+	return encoded
 }
 
 // Unique constraint ensure that the data contained in a column or a group of columns is unique with respect to all the rows in the table.
@@ -150,6 +169,17 @@ func Index(table *Table, columns ...*Column) *Constraint {
 		Type:           ConstraintTypeIndex,
 		PrimaryTable:   table,
 		PrimaryColumns: columns,
+	}
+}
+
+// UniqueIndex ...
+func UniqueIndex(table *Table, methodSuffix, where string, columns ...*Column) *Constraint {
+	return &Constraint{
+		Type:           ConstraintTypeUniqueIndex,
+		PrimaryTable:   table,
+		PrimaryColumns: columns,
+		Where:          where,
+		MethodSuffix:   methodSuffix,
 	}
 }
 
