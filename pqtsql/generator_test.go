@@ -43,10 +43,12 @@ CREATE TABLE IF NOT EXISTS table_name (
 	end_at TIMESTAMPTZ NOT NULL,
 	id SERIAL,
 	name TEXT,
+	one BIGINT,
 	price DECIMAL(10,1),
 	rel_id INTEGER,
 	slug TEXT NOT NULL,
 	start_at TIMESTAMPTZ NOT NULL,
+	two BIGINT,
 	updated_at TIMESTAMPTZ,
 	updated_by INTEGER,
 
@@ -57,12 +59,17 @@ CREATE TABLE IF NOT EXISTS table_name (
 	CONSTRAINT "public.table_name_start_at_end_at_check" CHECK ((start_at IS NULL AND end_at IS NULL) OR start_at < end_at)
 );
 CREATE INDEX "public.table_name_start_at_idx" ON table_name (start_at);
+CREATE UNIQUE INDEX "public.table_name_one_two_V1tbrhqs_uidx" ON table_name (one,two) WHERE one IS NOT NULL AND two IS NULL AND one > 2;
 
 `,
 			given: func() *pqt.Table {
 				id := pqt.Column{Name: "id", Type: pqt.TypeSerial()}
 				startAt := &pqt.Column{Name: "start_at", Type: pqt.TypeTimestampTZ(), NotNull: true}
 				endAt := &pqt.Column{Name: "end_at", Type: pqt.TypeTimestampTZ(), NotNull: true}
+
+				one := pqt.NewColumn("one", pqt.TypeIntegerBig())
+				two := pqt.NewColumn("two", pqt.TypeIntegerBig())
+
 				_ = pqt.NewTable("related_table").
 					AddColumn(&id)
 
@@ -80,7 +87,10 @@ CREATE INDEX "public.table_name_start_at_idx" ON table_name (start_at);
 					AddColumn(&pqt.Column{Name: "updated_at", Type: pqt.TypeTimestampTZ()}).
 					AddColumn(&pqt.Column{Name: "updated_by", Type: pqt.TypeInteger()}).
 					AddColumn(&pqt.Column{Name: "slug", Type: pqt.TypeText(), NotNull: true, Unique: true}).
-					AddCheck("(start_at IS NULL AND end_at IS NULL) OR start_at < end_at", startAt, endAt)
+					AddCheck("(start_at IS NULL AND end_at IS NULL) OR start_at < end_at", startAt, endAt).
+					AddColumn(one).
+					AddColumn(two).
+					AddUniqueIndex("OneTwo", "one IS NOT NULL AND two IS NULL AND one > 2", one, two)
 			}(),
 		},
 	}

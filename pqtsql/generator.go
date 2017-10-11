@@ -54,8 +54,11 @@ func (g *Generator) generate(s *pqt.Schema) (*bytes.Buffer, error) {
 			return nil, err
 		}
 		for _, cnstr := range t.Constraints {
-			if cnstr.Type == pqt.ConstraintTypeIndex {
+			switch cnstr.Type {
+			case pqt.ConstraintTypeIndex:
 				indexConstraintQuery(code, cnstr, g.Version)
+			case pqt.ConstraintTypeUniqueIndex:
+				uniqueIndexConstraintQuery(code, cnstr, g.Version)
 			}
 		}
 		fmt.Fprintln(code, "")
@@ -179,7 +182,7 @@ func (g *Generator) generateCreateTable(buf *bytes.Buffer, t *pqt.Table) error {
 
 	i := 0
 	for _, c := range constraints {
-		if c.Type == pqt.ConstraintTypeIndex {
+		if c.Type == pqt.ConstraintTypeIndex || c.Type == pqt.ConstraintTypeUniqueIndex {
 			continue
 		}
 		buf.WriteString("	")
@@ -210,6 +213,7 @@ func (g *Generator) generateConstraint(buf *bytes.Buffer, c *pqt.Constraint) err
 	case pqt.ConstraintTypeCheck:
 		checkConstraintQuery(buf, c)
 	case pqt.ConstraintTypeIndex:
+	case pqt.ConstraintTypeUniqueIndex:
 	default:
 		return fmt.Errorf("unknown constraint type: %s", c.Type)
 	}
@@ -279,4 +283,14 @@ func indexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint, ver float64) {
 		fmt.Fprintf(buf, `CREATE INDEX "%s" ON %s (%s);`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
 	}
 	fmt.Fprintln(buf, "")
+}
+
+func uniqueIndexConstraintQuery(buf *bytes.Buffer, c *pqt.Constraint, ver float64) {
+	fmt.Fprintf(buf, `CREATE UNIQUE INDEX "%s" ON %s (%s)`, c.Name(), c.PrimaryTable.FullName(), c.PrimaryColumns.String())
+
+	if c.Where != "" {
+		fmt.Fprintf(buf, " WHERE %s", c.Where)
+	}
+
+	fmt.Fprint(buf, ";\n")
 }
