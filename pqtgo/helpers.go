@@ -5,7 +5,6 @@ import (
 	"go/types"
 	"io"
 	"reflect"
-	"sort"
 	"strings"
 
 	"github.com/huandu/xstrings"
@@ -151,16 +150,6 @@ func or(s1, s2 string) string {
 
 func columnForeignName(c *pqt.Column) string {
 	return c.Table.Name + "_" + c.Name
-}
-
-func sortedColumns(columns []*pqt.Column) []string {
-	tmp := make([]string, 0, len(columns))
-	for _, c := range columns {
-		tmp = append(tmp, c.Name)
-	}
-	sort.Strings(tmp)
-
-	return tmp
 }
 
 func snake(s string, private bool, acronyms map[string]string) string {

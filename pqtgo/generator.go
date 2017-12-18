@@ -485,7 +485,7 @@ func (g *Generator) generateConstantsColumns(w io.Writer, t *pqt.Table) {
 
 func (g *Generator) generateConstantsConstraints(w io.Writer, t *pqt.Table) {
 	for _, c := range t.Constraints {
-		name := fmt.Sprintf(`%s`, pqt.JoinColumns(c.PrimaryColumns, "_"))
+		name := pqt.JoinColumns(c.PrimaryColumns, "_")
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
 			fmt.Fprintf(w, `

@@ -13,8 +13,6 @@ import (
 )
 
 func assertGoCode(t *testing.T, s1, s2 string) {
-	s1 = fmt.Sprintf("%s", s1)
-	s2 = fmt.Sprintf("%s", s2)
 	tmp1 := strings.Split(s1, "\n")
 	tmp2 := strings.Split(s2, "\n")
 	if s1 != s2 {

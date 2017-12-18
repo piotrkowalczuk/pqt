@@ -55,7 +55,6 @@ func (bt BuiltinType) Fingerprint() string {
 
 // CustomType ...
 type CustomType struct {
-	src                                             interface{}
 	mandatory, optional, criteria                   interface{}
 	mandatoryTypeOf, optionalTypeOf, criteriaTypeOf reflect.Type
 }
