@@ -99,7 +99,6 @@ func normalize(t *testing.T, in []byte) string {
 var expectedSimple = `package example
 
     		import (
-    			"github.com/go-kit/kit/log"
     			"github.com/m4rw3r/uuid"
     		)
 
