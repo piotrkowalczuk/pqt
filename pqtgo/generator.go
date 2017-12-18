@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/piotrkowalczuk/pqt"
+	"github.com/piotrkowalczuk/pqt/internal/gogen"
 	"github.com/piotrkowalczuk/pqt/internal/print"
 )
 
@@ -126,11 +127,7 @@ func (g *Generator) generate(s *pqt.Schema) error {
 }
 
 func (g *Generator) generatePackage() {
-	pkg := g.Pkg
-	if pkg == "" {
-		pkg = "main"
-	}
-	g.p.Printf("package %s\n", pkg)
+	gogen.Package(g.p, g.Pkg)
 }
 
 func (g *Generator) generateImports(schema *pqt.Schema) {
