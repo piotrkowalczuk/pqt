@@ -6,6 +6,13 @@ import (
 	"reflect"
 )
 
+const (
+	ModeDefault = iota
+	ModeMandatory
+	ModeOptional
+	ModeCriteria
+)
+
 // BuiltinType ...
 type BuiltinType types.BasicKind
 

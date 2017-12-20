@@ -1,6 +1,12 @@
-package pqtgo
+package pqtgogen
 
-import "github.com/piotrkowalczuk/pqt"
+import (
+	"fmt"
+	"strings"
+
+	"github.com/piotrkowalczuk/pqt"
+	"github.com/piotrkowalczuk/pqt/pqtgo"
+)
 
 const (
 	// Public ...
@@ -22,13 +28,18 @@ func (f *Formatter) Identifier(args ...string) (r string) {
 	if f != nil {
 		vis = f.Visibility
 	}
-	switch len(args) {
+	var tmp []string
+	for _, arg := range args {
+		tmp = append(tmp, strings.Split(arg, "_")...)
+	}
+	fmt.Println(tmp)
+	switch len(tmp) {
 	case 0:
 	case 1:
-		r = f.identifier(args[0], vis)
+		r = f.identifier(tmp[0], vis)
 	default:
-		r = f.identifier(args[0], vis)
-		for _, s := range args[1:] {
+		r = f.identifier(tmp[0], vis)
+		for _, s := range tmp[1:] {
 			r += f.identifier(s, Public)
 		}
 	}
@@ -68,11 +79,11 @@ func (f *Formatter) Type(t pqt.Type, m int32) string {
 			return f.Type(mt, m)
 		}
 		return ""
-	case BuiltinType:
+	case pqtgo.BuiltinType:
 		return generateTypeBuiltin(tt, m)
 	case pqt.BaseType:
 		return generateTypeBase(tt, m)
-	case CustomType:
+	case pqtgo.CustomType:
 		return generateCustomType(tt, m)
 	default:
 		return ""

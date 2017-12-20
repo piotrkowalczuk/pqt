@@ -256,9 +256,11 @@ func CategoryOperand(operator string, operands ...*CategoryCriteria) *CategoryCr
 
 	return parent
 }
+
 func CategoryOr(operands ...*CategoryCriteria) *CategoryCriteria {
 	return CategoryOperand("OR", operands...)
 }
+
 func CategoryAnd(operands ...*CategoryCriteria) *CategoryCriteria {
 	return CategoryOperand("AND", operands...)
 }
@@ -1411,9 +1413,11 @@ func PackageOperand(operator string, operands ...*PackageCriteria) *PackageCrite
 
 	return parent
 }
+
 func PackageOr(operands ...*PackageCriteria) *PackageCriteria {
 	return PackageOperand("OR", operands...)
 }
+
 func PackageAnd(operands ...*PackageCriteria) *PackageCriteria {
 	return PackageOperand("AND", operands...)
 }
@@ -2545,9 +2549,11 @@ func NewsOperand(operator string, operands ...*NewsCriteria) *NewsCriteria {
 
 	return parent
 }
+
 func NewsOr(operands ...*NewsCriteria) *NewsCriteria {
 	return NewsOperand("OR", operands...)
 }
+
 func NewsAnd(operands ...*NewsCriteria) *NewsCriteria {
 	return NewsOperand("AND", operands...)
 }
@@ -4882,9 +4888,11 @@ func CommentOperand(operator string, operands ...*CommentCriteria) *CommentCrite
 
 	return parent
 }
+
 func CommentOr(operands ...*CommentCriteria) *CommentCriteria {
 	return CommentOperand("OR", operands...)
 }
+
 func CommentAnd(operands ...*CommentCriteria) *CommentCriteria {
 	return CommentOperand("AND", operands...)
 }
@@ -6190,9 +6198,11 @@ func CompleteOperand(operator string, operands ...*CompleteCriteria) *CompleteCr
 
 	return parent
 }
+
 func CompleteOr(operands ...*CompleteCriteria) *CompleteCriteria {
 	return CompleteOperand("OR", operands...)
 }
+
 func CompleteAnd(operands ...*CompleteCriteria) *CompleteCriteria {
 	return CompleteOperand("AND", operands...)
 }

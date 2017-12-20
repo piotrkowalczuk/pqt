@@ -1,4 +1,4 @@
-package pqtgo
+package pqtgogen
 
 import (
 	"fmt"
@@ -11,13 +11,7 @@ import (
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
 	"github.com/piotrkowalczuk/pqt/internal/print"
-)
-
-const (
-	ModeDefault = iota
-	ModeMandatory
-	ModeOptional
-	ModeCriteria
+	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 type Generator struct {
@@ -28,6 +22,7 @@ type Generator struct {
 	Plugins    []Plugin
 	Components Component
 
+	g *gogen.Generator
 	p *print.Printer
 }
 
@@ -55,7 +50,8 @@ func (g *Generator) GenerateTo(w io.Writer, s *pqt.Schema) error {
 }
 
 func (g *Generator) generate(s *pqt.Schema) error {
-	g.p = &print.Printer{}
+	g.g = &gogen.Generator{}
+	g.p = &g.g.Printer
 
 	g.generatePackage()
 	g.generateImports(s)
@@ -127,59 +123,15 @@ func (g *Generator) generate(s *pqt.Schema) error {
 }
 
 func (g *Generator) generatePackage() {
-	gogen.Package(g.p, g.Pkg)
+	g.g.Package(g.Pkg)
 }
 
-func (g *Generator) generateImports(schema *pqt.Schema) {
-	imports := []string{
-		"github.com/m4rw3r/uuid",
-	}
-	imports = append(imports, g.Imports...)
-	for _, t := range schema.Tables {
-		for _, c := range t.Columns {
-			if ct, ok := c.Type.(CustomType); ok {
-				imports = append(imports, ct.mandatoryTypeOf.PkgPath())
-				imports = append(imports, ct.mandatoryTypeOf.PkgPath())
-				imports = append(imports, ct.mandatoryTypeOf.PkgPath())
-			}
-		}
-	}
-
-	g.p.Println("import(")
-	for _, imp := range imports {
-		g.p.Print(`"`)
-		g.p.Print(imp)
-		g.p.Println(`"`)
-	}
-	g.p.Println(")")
+func (g *Generator) generateImports(s *pqt.Schema) {
+	g.g.Imports(s, "github.com/m4rw3r/uuid")
 }
 
 func (g *Generator) generateEntity(t *pqt.Table) {
-	g.p.Printf(`
-		// %sEntity ...`, g.Formatter.Identifier(t.Name))
-	g.p.Printf(`
-		type %sEntity struct{`, g.Formatter.Identifier(t.Name))
-	for prop := range g.entityPropertiesGenerator(t) {
-		g.p.Printf(`
-			// %s ...`, g.Formatter.Identifier(prop.Name))
-		if prop.ReadOnly {
-			g.p.Printf(`
-			// %s is read only`, g.Formatter.Identifier(prop.Name))
-		}
-		if prop.Tags != "" {
-			g.p.Printf(
-				`%s %s %s`,
-				g.Formatter.Identifier(prop.Name), prop.Type, prop.Tags,
-			)
-		} else {
-			g.p.Printf(`
-				%s %s`,
-				g.Formatter.Identifier(prop.Name),
-				prop.Type,
-			)
-		}
-	}
-	g.p.Print(`}`)
+	g.g.Entity(t)
 }
 
 func (g *Generator) generateFindExpr(t *pqt.Table) {
@@ -215,48 +167,8 @@ func (g *Generator) generateCountExpr(t *pqt.Table) {
 }
 
 func (g *Generator) generateCriteria(t *pqt.Table) {
-	name := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		type %sCriteria struct {`, name)
-	for _, c := range t.Columns {
-		if t := g.columnType(c, ModeCriteria); t != "<nil>" {
-			g.p.Printf(`
-				%s %s`, g.Formatter.Identifier(c.Name), t)
-		}
-	}
-	g.p.Printf(`
-			operator string
-			child, sibling, parent *%sCriteria
-		}`, name)
-	g.p.Printf(`
-		func %sOperand(operator string, operands ...*%sCriteria) *%sCriteria {
-			if len(operands) == 0 {
-				return &%sCriteria{operator: operator}
-			}
-
-			parent := &%sCriteria{
-				operator: operator,
-				child: operands[0],
-			}
-
-			for i := 0; i < len(operands); i++ {
-				if i < len(operands)-1 {
-					operands[i].sibling = operands[i+1]
-				}
-				operands[i].parent = parent
-			}
-
-			return parent
-		}`, name, name, name, name, name)
-	g.p.Printf(`
-		func %sOr(operands ...*%sCriteria) *%sCriteria {
-			return %sOperand("OR", operands...)
-		}`, name, name, name, name)
-	g.p.Printf(`
-		func %sAnd(operands ...*%sCriteria) *%sCriteria {
-			return %sOperand("AND", operands...)
-		}`, name, name, name, name)
+	g.g.Criteria(t)
+	g.g.Operand(t)
 }
 
 func (g *Generator) generateJoin(t *pqt.Table) {
@@ -286,7 +198,7 @@ ArgumentsLoop:
 			continue ArgumentsLoop
 		}
 
-		if t := g.columnType(c, ModeOptional); t != "<nil>" {
+		if t := g.columnType(c, pqtgo.ModeOptional); t != "<nil>" {
 			g.p.Printf(`
 				%s %s`,
 				g.Formatter.Identifier(c.Name),
@@ -385,7 +297,7 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 
 	go func(out chan structField) {
 		for _, c := range t.Columns {
-			if t := g.columnType(c, ModeDefault); t != "<nil>" {
+			if t := g.columnType(c, pqtgo.ModeDefault); t != "<nil>" {
 				out <- structField{Name: g.Formatter.Identifier(c.Name), Type: t, ReadOnly: c.IsDynamic}
 			}
 		}
@@ -474,6 +386,7 @@ func (g *Generator) generateConstantsColumns(t *pqt.Table) {
 		%s = "%s"`, g.Formatter.Identifier("table", t.Name), t.FullName())
 
 	for _, c := range t.Columns {
+		fmt.Println(g.Formatter.Identifier("table", t.Name, "column", c.Name))
 		g.p.Printf(`
 			%s = "%s"`, g.Formatter.Identifier("table", t.Name, "column", c.Name), c.Name)
 	}
@@ -609,17 +522,17 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 		}
 	}
 	braces := 0
-	if g.canBeNil(c, ModeOptional) {
+	if g.canBeNil(c, pqtgo.ModeOptional) {
 		g.p.Printf(`
 			if p.%s != nil {`, g.Formatter.Identifier(c.Name))
 		braces++
 	}
-	if g.isNullable(c, ModeOptional) {
+	if g.isNullable(c, pqtgo.ModeOptional) {
 		g.p.Printf(`
 			if p.%s.Valid {`, g.Formatter.Identifier(c.Name))
 		braces++
 	}
-	if g.isType(c, ModeOptional, "time.Time") {
+	if g.isType(c, pqtgo.ModeOptional, "time.Time") {
 		g.p.Printf(`
 			if !p.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
 		braces++
@@ -648,7 +561,7 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 	)
 
 	if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
-		if g.canBeNil(c, ModeOptional) || g.isNullable(c, ModeOptional) || g.isType(c, ModeOptional, "time.Time") {
+		if g.canBeNil(c, pqtgo.ModeOptional) || g.isNullable(c, pqtgo.ModeOptional) || g.isType(c, pqtgo.ModeOptional, "time.Time") {
 			g.p.Printf(strings.Replace(`
 				} else {
 					if {{SELECTOR}}.Dirty {
@@ -679,19 +592,19 @@ func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
 	case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
 		return
 	default:
-		if g.canBeNil(c, ModeDefault) {
+		if g.canBeNil(c, pqtgo.ModeDefault) {
 			g.p.Printf(`
 					if e.%s != nil {`,
 				g.Formatter.Identifier(c.Name),
 			)
 			braces++
 		}
-		if g.isNullable(c, ModeDefault) {
+		if g.isNullable(c, pqtgo.ModeDefault) {
 			g.p.Printf(`
 					if e.%s.Valid {`, g.Formatter.Identifier(c.Name))
 			braces++
 		}
-		if g.isType(c, ModeDefault, "time.Time") {
+		if g.isType(c, pqtgo.ModeDefault, "time.Time") {
 			g.p.Printf(`
 					if !e.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
 			braces++
@@ -735,7 +648,7 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 		func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {`,
 		entityName,
 		g.Formatter.Identifier("UpdateOneBy", pk.Name),
-		g.columnType(pk, ModeMandatory),
+		g.columnType(pk, pqtgo.ModeMandatory),
 		entityName,
 	)
 	g.p.Printf(`
@@ -792,7 +705,7 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
 	}
 
 	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("updateOneBy", pk.Name), g.columnType(pk, ModeMandatory), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("updateOneBy", pk.Name), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
 	g.p.Printf(`
 		query, args, err := r.%sQuery(pk, p)
 		if err != nil {
@@ -839,7 +752,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Ta
 				arguments += ", "
 			}
 			method = append(method, c.Name)
-			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, ModeMandatory))
+			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
 		}
 
 		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
@@ -928,7 +841,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(t *pqt.Table) 
 				arguments2 += ", "
 			}
 			method = append(method, c.Name)
-			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, ModeMandatory))
+			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
 			arguments2 += g.Formatter.IdentifierPrivate(columnForeignName(c))
 		}
 
@@ -1183,20 +1096,20 @@ ColumnsLoop:
 				continue ColumnsLoop
 			}
 		}
-		if g.columnType(c, ModeCriteria) == "<nil>" {
+		if g.columnType(c, pqtgo.ModeCriteria) == "<nil>" {
 			return
 		}
-		if g.canBeNil(c, ModeCriteria) {
+		if g.canBeNil(c, pqtgo.ModeCriteria) {
 			braces++
 			g.p.Printf(`
 				if c.%s != nil {`, g.Formatter.Identifier(c.Name))
 		}
-		if g.isNullable(c, ModeCriteria) {
+		if g.isNullable(c, pqtgo.ModeCriteria) {
 			braces++
 			g.p.Printf(`
 				if c.%s.Valid {`, g.Formatter.Identifier(c.Name))
 		}
-		if g.isType(c, ModeCriteria, "time.Time") {
+		if g.isType(c, pqtgo.ModeCriteria, "time.Time") {
 			braces++
 			g.p.Printf(`
 				if !c.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
@@ -1739,7 +1652,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
 		entityName,
 		g.Formatter.Identifier("FindOneBy", pk.Name),
-		g.columnType(pk, ModeMandatory),
+		g.columnType(pk, pqtgo.ModeMandatory),
 		entityName,
 	)
 	g.p.Printf(`
@@ -1808,7 +1721,7 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 				arguments += ", "
 			}
 			method = append(method, c.Name)
-			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, ModeMandatory))
+			arguments += fmt.Sprintf("%s %s", g.Formatter.IdentifierPrivate(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
 		}
 
 		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
@@ -1894,7 +1807,7 @@ func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(t *pqt.Table) {
 		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (int64, error) {`,
 		entityName,
 		g.Formatter.Identifier("DeleteOneBy", pk.Name),
-		g.columnType(pk, ModeMandatory),
+		g.columnType(pk, pqtgo.ModeMandatory),
 	)
 	g.p.Printf(`
 		find := NewComposer(%d)
@@ -1949,9 +1862,9 @@ ColumnsLoop:
 			}
 		}
 		switch {
-		case g.isArray(c, ModeDefault):
+		case g.isArray(c, pqtgo.ModeDefault):
 			pn := g.Formatter.Identifier(c.Name)
-			switch g.columnType(c, ModeDefault) {
+			switch g.columnType(c, pqtgo.ModeDefault) {
 			case "pq.Int64Array":
 				g.p.Printf(`if e.%s == nil { e.%s = []int64{} }`, pn, pn)
 			case "pq.StringArray":
@@ -1966,7 +1879,7 @@ ColumnsLoop:
 
 			g.p.Printf(`
 				return &e.%s, true`, g.Formatter.Identifier(c.Name))
-		case g.canBeNil(c, ModeDefault):
+		case g.canBeNil(c, pqtgo.ModeDefault):
 			g.p.Printf(`
 				return e.%s, true`,
 				g.Formatter.Identifier(c.Name),
@@ -2051,14 +1964,14 @@ func (g *Generator) isArray(c *pqt.Column, m int32) bool {
 func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {
 	if tp, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range tp.Mapping {
-			if ct, ok := mapto.(CustomType); ok {
+			if ct, ok := mapto.(pqtgo.CustomType); ok {
 				switch m {
-				case ModeMandatory:
-					return ct.mandatoryTypeOf.Kind() == reflect.Ptr || ct.mandatoryTypeOf.Kind() == reflect.Map
-				case ModeOptional:
-					return ct.optionalTypeOf.Kind() == reflect.Ptr || ct.optionalTypeOf.Kind() == reflect.Map
-				case ModeCriteria:
-					return ct.criteriaTypeOf.Kind() == reflect.Ptr || ct.criteriaTypeOf.Kind() == reflect.Map
+				case pqtgo.ModeMandatory:
+					return ct.TypeOf(pqtgo.ModeMandatory).Kind() == reflect.Ptr || ct.TypeOf(pqtgo.ModeMandatory).Kind() == reflect.Map
+				case pqtgo.ModeOptional:
+					return ct.TypeOf(pqtgo.ModeOptional).Kind() == reflect.Ptr || ct.TypeOf(pqtgo.ModeOptional).Kind() == reflect.Map
+				case pqtgo.ModeCriteria:
+					return ct.TypeOf(pqtgo.ModeCriteria).Kind() == reflect.Ptr || ct.TypeOf(pqtgo.ModeCriteria).Kind() == reflect.Map
 				default:
 					return false
 				}
@@ -2108,7 +2021,7 @@ func (g *Generator) isType(c *pqt.Column, m int32, types ...string) bool {
 func (g *Generator) isNullable(c *pqt.Column, m int32) bool {
 	if mt, ok := c.Type.(pqt.MappableType); ok {
 		for _, mapto := range mt.Mapping {
-			if ct, ok := mapto.(CustomType); ok {
+			if ct, ok := mapto.(pqtgo.CustomType); ok {
 				tof := ct.TypeOf(columnMode(c, m))
 				if tof == nil {
 					continue

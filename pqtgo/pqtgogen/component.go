@@ -1,4 +1,4 @@
-package pqtgo
+package pqtgogen
 
 type Component uint64
 

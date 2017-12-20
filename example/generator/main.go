@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/piotrkowalczuk/pqt/pqtgo"
+	"github.com/piotrkowalczuk/pqt/pqtgo/pqtgogen"
 	"github.com/piotrkowalczuk/pqt/pqtsql"
 )
 
@@ -39,17 +39,17 @@ func main() {
         // source: cmd/appg/main.go
         // DO NOT EDIT!
     `)
-	goGen := pqtgo.Generator{
-		Formatter: &pqtgo.Formatter{
-			Visibility: pqtgo.Public,
+	goGen := pqtgogen.Generator{
+		Formatter: &pqtgogen.Formatter{
+			Visibility: pqtgogen.Public,
 			Acronyms:   acronyms,
 		},
 		Pkg:     "model",
 		Version: version,
-		Plugins: []pqtgo.Plugin{
+		Plugins: []pqtgogen.Plugin{
 			&generator{},
 		},
-		Components: pqtgo.ComponentAll,
+		Components: pqtgogen.ComponentAll,
 	}
 	sqlGen := &pqtsql.Generator{Version: version}
 

@@ -1,4 +1,4 @@
-package pqtgo_test
+package pqtgogen_test
 
 import (
 	"bytes"
@@ -9,7 +9,8 @@ import (
 
 	"github.com/aryann/difflib"
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/pqtgo"
+	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtgo/pqtgogen"
 )
 
 func assertGoCode(t *testing.T, s1, s2 string) {
@@ -36,12 +37,12 @@ func assertGoCode(t *testing.T, s1, s2 string) {
 
 func TestGenerator_Generate(t *testing.T) {
 	cases := map[string]struct {
-		components pqtgo.Component
+		components pqtgogen.Component
 		schema     func() *pqt.Schema
 		expected   string
 	}{
 		"simple-helpers": {
-			components: pqtgo.ComponentAll,
+			components: pqtgogen.ComponentAll,
 			schema: func() *pqt.Schema {
 				userID := pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())
 				user := pqt.NewTable("user", pqt.WithTableIfNotExists()).
@@ -67,10 +68,11 @@ func TestGenerator_Generate(t *testing.T) {
 
 	for hint, c := range cases {
 		t.Run(hint, func(t *testing.T) {
-			g := pqtgo.Generator{
+			g := pqtgogen.Generator{
 				Version:    9.5,
 				Pkg:        "example",
 				Components: c.components,
+				Formatter:  &pqtgogen.Formatter{Acronyms: formatter.Acronyms},
 			}
 			s := c.schema()
 			buf, err := g.Generate(s)
@@ -101,7 +103,6 @@ var expectedSimple = `package example
     		import (
     			"github.com/m4rw3r/uuid"
     		)
-
 
     		// LogFunc represents function that can be passed into repository to log query result.
     		type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
@@ -151,7 +152,7 @@ var expectedSimple = `package example
 
     		const (
     			TableUser                     = "example.user"
-    			TableUserColumnId             = "id"
+    			TableUserColumnID             = "id"
     			TableUserColumnName           = "name"
     			TableUserConstraintPrimaryKey = "example.user_id_pkey"
 
@@ -162,15 +163,15 @@ var expectedSimple = `package example
 
     		var (
     			TableUserColumns = []string{
-    				TableUserColumnId,
+    				TableUserColumnID,
     				TableUserColumnName,
     			}
     		)
 
     		// UserEntity ...
     		type UserEntity struct {
-    			// Id ...
-    			Id int64
+    			// ID ...
+    			ID int64
     			// Name ...
     			Name string
     		}
@@ -178,8 +179,8 @@ var expectedSimple = `package example
     		func (e *UserEntity) Prop(cn string) (interface{}, bool) {
     			switch cn {
 
-    			case TableUserColumnId:
-    				return &e.Id, true
+    			case TableUserColumnID:
+    				return &e.ID, true
     			case TableUserColumnName:
     				return &e.Name, true
     			default:
@@ -207,7 +208,7 @@ var expectedSimple = `package example
     			for rows.Next() {
     				var ent UserEntity
     				err = rows.Scan(
-    					&ent.Id,
+    					&ent.ID,
     					&ent.Name,
     				)
     				if err != nil {
@@ -277,7 +278,7 @@ var expectedSimple = `package example
     		}
 
     		type UserCriteria struct {
-    			Id   sql.NullInt64
+    			ID   sql.NullInt64
     			Name sql.NullString
 				operator string
 				child, sibling, parent *UserCriteria
@@ -302,9 +303,11 @@ var expectedSimple = `package example
 
 				return parent
 			}
+
 			func UserOr(operands ...*UserCriteria) *UserCriteria {
 				return UserOperand("OR", operands...)
 			}
+
 			func UserAnd(operands ...*UserCriteria) *UserCriteria {
 				return UserOperand("AND", operands...)
 			}
@@ -333,7 +336,7 @@ var expectedSimple = `package example
     		type UserRepositoryBase struct {
     			Table   string
     			Columns []string
-    			Db      *sql.DB
+    			DB      *sql.DB
     			Log     LogFunc
     		}
 
@@ -384,7 +387,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.Id,
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ID,
     				&e.Name,
     			)
     			if r.Log != nil {
@@ -440,14 +443,14 @@ var expectedSimple = `package example
 				return nil
 			}
     		func _UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
-    			if c.Id.Valid {
+    			if c.ID.Valid {
     				if comp.Dirty {
     					comp.WriteString(" AND ")
     				}
     				if err := comp.WriteAlias(id); err != nil {
     					return err
     				}
-    				if _, err := comp.WriteString(TableUserColumnId); err != nil {
+    				if _, err := comp.WriteString(TableUserColumnID); err != nil {
     					return err
     				}
     				if _, err := comp.WriteString("="); err != nil {
@@ -456,7 +459,7 @@ var expectedSimple = `package example
     				if err := comp.WritePlaceholder(); err != nil {
     					return err
     				}
-    				comp.Add(c.Id)
+    				comp.Add(c.ID)
     				comp.Dirty = true
     			}
 
@@ -572,7 +575,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			rows, err := r.Db.QueryContext(ctx, query, args...)
+    			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
     				r.Log(err, "User", "find", query, args...)
     			}
@@ -608,7 +611,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			rows, err := r.Db.QueryContext(ctx, query, args...)
+    			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
     				r.Log(err, "User", "find iter", query, args...)
     			}
@@ -621,7 +624,7 @@ var expectedSimple = `package example
     				cols: []string{"id", "name"},
     			}, nil
     		}
-    		func (r *UserRepositoryBase) FindOneById(ctx context.Context, pk int64) (*UserEntity, error) {
+    		func (r *UserRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*UserEntity, error) {
     			find := NewComposer(2)
     			find.WriteString("SELECT ")
     			if len(r.Columns) == 0 {
@@ -632,7 +635,7 @@ var expectedSimple = `package example
     			find.WriteString(" FROM ")
     			find.WriteString(TableUser)
     			find.WriteString(" WHERE ")
-    			find.WriteString(TableUserColumnId)
+    			find.WriteString(TableUserColumnID)
     			find.WriteString("=")
     			find.WritePlaceholder()
     			find.Add(pk)
@@ -643,7 +646,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+    			err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
     			if r.Log != nil {
     				r.Log(err, "User", "find by primary key", find.String(), find.Args()...)
     			}
@@ -675,14 +678,14 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+    			err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
     			if err != nil {
     				return nil, err
     			}
 
     			return &ent, nil
     		}
-    		func (r *UserRepositoryBase) UpdateOneByIdQuery(pk int64, p *UserPatch) (string, []interface{}, error) {
+    		func (r *UserRepositoryBase) UpdateOneByIDQuery(pk int64, p *UserPatch) (string, []interface{}, error) {
     			buf := bytes.NewBufferString("UPDATE ")
     			buf.WriteString(r.Table)
     			update := NewComposer(2)
@@ -713,7 +716,7 @@ var expectedSimple = `package example
     			buf.ReadFrom(update)
     			buf.WriteString(" WHERE ")
 
-    			update.WriteString(TableUserColumnId)
+    			update.WriteString(TableUserColumnID)
     			update.WriteString("=")
     			update.WritePlaceholder()
     			update.Add(pk)
@@ -727,8 +730,8 @@ var expectedSimple = `package example
     			}
     			return buf.String(), update.Args(), nil
     		}
-    		func (r *UserRepositoryBase) UpdateOneById(ctx context.Context, pk int64, p *UserPatch) (*UserEntity, error) {
-    			query, args, err := r.UpdateOneByIdQuery(pk, p)
+    		func (r *UserRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *UserPatch) (*UserEntity, error) {
+    			query, args, err := r.UpdateOneByIDQuery(pk, p)
     			if err != nil {
     				return nil, err
     			}
@@ -737,7 +740,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(props...)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
     			if r.Log != nil {
     				r.Log(err, "User", "update by primary key", query, args...)
     			}
@@ -799,7 +802,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(props...)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
     			if r.Log != nil {
     				r.Log(err, "User", "update one by unique", query, args...)
     			}
@@ -894,7 +897,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.Id,
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ID,
     				&e.Name,
     			)
     			if r.Log != nil {
@@ -914,7 +917,7 @@ var expectedSimple = `package example
     				return 0, err
     			}
     			var count int64
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&count)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
     			if r.Log != nil {
     				r.Log(err, "User", "count", query, args...)
     			}
@@ -923,16 +926,16 @@ var expectedSimple = `package example
     			}
     			return count, nil
     		}
-    		func (r *UserRepositoryBase) DeleteOneById(ctx context.Context, pk int64) (int64, error) {
+    		func (r *UserRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
     			find := NewComposer(2)
     			find.WriteString("DELETE FROM ")
     			find.WriteString(TableUser)
     			find.WriteString(" WHERE ")
-    			find.WriteString(TableUserColumnId)
+    			find.WriteString(TableUserColumnID)
     			find.WriteString("=")
     			find.WritePlaceholder()
     			find.Add(pk)
-    			res, err := r.Db.ExecContext(ctx, find.String(), find.Args()...)
+    			res, err := r.DB.ExecContext(ctx, find.String(), find.Args()...)
     			if err != nil {
     				return 0, err
     			}
@@ -942,20 +945,20 @@ var expectedSimple = `package example
 
     		const (
     			TableComment                           = "example.comment"
-    			TableCommentColumnUserId               = "user_id"
-    			TableCommentConstraintUserIdForeignKey = "example.comment_user_id_fkey"
+    			TableCommentColumnUserID               = "user_id"
+    			TableCommentConstraintUserIDForeignKey = "example.comment_user_id_fkey"
     		)
 
     		var (
     			TableCommentColumns = []string{
-    				TableCommentColumnUserId,
+    				TableCommentColumnUserID,
     			}
     		)
 
     		// CommentEntity ...
     		type CommentEntity struct {
-    			// UserId ...
-    			UserId sql.NullInt64
+    			// UserID ...
+    			UserID sql.NullInt64
     			// User ...
     			User *UserEntity
     			// Wpis ...
@@ -965,8 +968,8 @@ var expectedSimple = `package example
     		func (e *CommentEntity) Prop(cn string) (interface{}, bool) {
     			switch cn {
 
-    			case TableCommentColumnUserId:
-    				return &e.UserId, true
+    			case TableCommentColumnUserID:
+    				return &e.UserID, true
     			default:
     				return nil, false
     			}
@@ -992,7 +995,7 @@ var expectedSimple = `package example
     			for rows.Next() {
     				var ent CommentEntity
     				err = rows.Scan(
-    					&ent.UserId,
+    					&ent.UserID,
     				)
     				if err != nil {
     					return
@@ -1076,7 +1079,7 @@ var expectedSimple = `package example
     		}
 
     		type CommentCriteria struct {
-    			UserId sql.NullInt64
+    			UserID sql.NullInt64
 				operator string
 				child, sibling, parent *CommentCriteria
     		}
@@ -1100,9 +1103,11 @@ var expectedSimple = `package example
 
 				return parent
 			}
+
 			func CommentOr(operands ...*CommentCriteria) *CommentCriteria {
 				return CommentOperand("OR", operands...)
 			}
+
 			func CommentAnd(operands ...*CommentCriteria) *CommentCriteria {
 				return CommentOperand("AND", operands...)
 			}
@@ -1131,13 +1136,13 @@ var expectedSimple = `package example
     		}
 
     		type CommentPatch struct {
-    			UserId sql.NullInt64
+    			UserID sql.NullInt64
     		}
 
     		type CommentRepositoryBase struct {
     			Table   string
     			Columns []string
-    			Db      *sql.DB
+    			DB      *sql.DB
     			Log     LogFunc
     		}
 
@@ -1147,13 +1152,13 @@ var expectedSimple = `package example
     			buf := bytes.NewBufferString("INSERT INTO ")
     			buf.WriteString(r.Table)
 
-    			if e.UserId.Valid {
+    			if e.UserID.Valid {
     				if columns.Len() > 0 {
     					if _, err := columns.WriteString(", "); err != nil {
     						return "", nil, err
     					}
     				}
-    				if _, err := columns.WriteString(TableCommentColumnUserId); err != nil {
+    				if _, err := columns.WriteString(TableCommentColumnUserID); err != nil {
     					return "", nil, err
     				}
     				if insert.Dirty {
@@ -1164,7 +1169,7 @@ var expectedSimple = `package example
     				if err := insert.WritePlaceholder(); err != nil {
     					return "", nil, err
     				}
-    				insert.Add(e.UserId)
+    				insert.Add(e.UserID)
     				insert.Dirty = true
     			}
 
@@ -1190,7 +1195,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.UserId)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.UserID)
     			if r.Log != nil {
     				r.Log(err, "Comment", "insert", query, args...)
     			}
@@ -1244,14 +1249,14 @@ var expectedSimple = `package example
 				return nil
 			}
     		func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
-    			if c.UserId.Valid {
+    			if c.UserID.Valid {
     				if comp.Dirty {
     					comp.WriteString(" AND ")
     				}
     				if err := comp.WriteAlias(id); err != nil {
     					return err
     				}
-    				if _, err := comp.WriteString(TableCommentColumnUserId); err != nil {
+    				if _, err := comp.WriteString(TableCommentColumnUserID); err != nil {
     					return err
     				}
     				if _, err := comp.WriteString("="); err != nil {
@@ -1260,7 +1265,7 @@ var expectedSimple = `package example
     				if err := comp.WritePlaceholder(); err != nil {
     					return err
     				}
-    				comp.Add(c.UserId)
+    				comp.Add(c.UserID)
     				comp.Dirty = true
     			}
 
@@ -1394,7 +1399,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			rows, err := r.Db.QueryContext(ctx, query, args...)
+    			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
     				r.Log(err, "Comment", "find", query, args...)
     			}
@@ -1445,7 +1450,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			rows, err := r.Db.QueryContext(ctx, query, args...)
+    			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
     				r.Log(err, "Comment", "find iter", query, args...)
     			}
@@ -1464,13 +1469,13 @@ var expectedSimple = `package example
     			buf := bytes.NewBufferString("INSERT INTO ")
     			buf.WriteString(r.Table)
 
-    			if e.UserId.Valid {
+    			if e.UserID.Valid {
     				if columns.Len() > 0 {
     					if _, err := columns.WriteString(", "); err != nil {
     						return "", nil, err
     					}
     				}
-    				if _, err := columns.WriteString(TableCommentColumnUserId); err != nil {
+    				if _, err := columns.WriteString(TableCommentColumnUserID); err != nil {
     					return "", nil, err
     				}
     				if upsert.Dirty {
@@ -1481,7 +1486,7 @@ var expectedSimple = `package example
     				if err := upsert.WritePlaceholder(); err != nil {
     					return "", nil, err
     				}
-    				upsert.Add(e.UserId)
+    				upsert.Add(e.UserID)
     				upsert.Dirty = true
     			}
 
@@ -1495,13 +1500,13 @@ var expectedSimple = `package example
     			buf.WriteString(" ON CONFLICT ")
     			if len(inf) > 0 {
     				upsert.Dirty = false
-    				if p.UserId.Valid {
+    				if p.UserID.Valid {
     					if upsert.Dirty {
     						if _, err := upsert.WriteString(", "); err != nil {
     							return "", nil, err
     						}
     					}
-    					if _, err := upsert.WriteString(TableCommentColumnUserId); err != nil {
+    					if _, err := upsert.WriteString(TableCommentColumnUserID); err != nil {
     						return "", nil, err
     					}
     					if _, err := upsert.WriteString("="); err != nil {
@@ -1510,7 +1515,7 @@ var expectedSimple = `package example
     					if err := upsert.WritePlaceholder(); err != nil {
     						return "", nil, err
     					}
-    					upsert.Add(p.UserId)
+    					upsert.Add(p.UserID)
     					upsert.Dirty = true
 
     				}
@@ -1546,7 +1551,7 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&e.UserId)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.UserID)
     			if r.Log != nil {
     				r.Log(err, "Comment", "upsert", query, args...)
     			}
@@ -1567,7 +1572,7 @@ var expectedSimple = `package example
     				return 0, err
     			}
     			var count int64
-    			err = r.Db.QueryRowContext(ctx, query, args...).Scan(&count)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
     			if r.Log != nil {
     				r.Log(err, "Comment", "count", query, args...)
     			}
