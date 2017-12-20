@@ -358,6 +358,75 @@ type ExamplePatch struct {`)
 	}
 }
 
+func TestIterator(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Iterator(t2)
+	assertOutput(t, g.Printer, `
+// T2Iterator is not thread safe.
+type T2Iterator struct {
+	rows Rows
+	cols []string
+	expr *T2FindExpr
+}
+
+func (i *T2Iterator) Next() bool {
+			return i.rows.Next()
+		}
+
+func (i *T2Iterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *T2Iterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
+func (i *T2Iterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around T2 method that makes iterator more generic.
+func (i *T2Iterator) Ent() (interface{}, error) {
+	return i.T2()
+}
+
+func (i *T2Iterator) T2() (*T2Entity, error) {
+	var ent T2Entity
+	cols, err := i.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.Props(cols...)
+	if err != nil {
+		return nil, err
+	}
+	var prop []interface{}
+	if i.expr.JoinT1 != nil && i.expr.JoinT1.Fetch {
+		ent.T1 = &T1Entity{}
+		if prop, err = ent.T1.Props(); err != nil {
+			return nil, err
+		}
+		props = append(props, prop...)
+	}
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}`)
+}
+
 type testColumn struct {
 	name, kind string
 }

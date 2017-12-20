@@ -189,6 +189,111 @@ ArgumentsLoop:
 }`)
 }
 
+func (g *Generator) Iterator(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+	g.Printf(`
+// %sIterator is not thread safe.
+type %sIterator struct {
+	rows Rows
+	cols []string
+	expr *%sFindExpr
+}`, entityName,
+		entityName,
+		formatter.Public(t.Name))
+
+	g.Printf(`
+func (i *%sIterator) Next() bool {
+	return i.rows.Next()
+}
+
+func (i *%sIterator) Close() error {
+	return i.rows.Close()
+}
+
+func (i *%sIterator) Err() error {
+	return i.rows.Err()
+}
+
+// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
+func (i *%sIterator) Columns() ([]string, error) {
+	if i.cols == nil {
+		cols, err := i.rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		i.cols = cols
+	}
+	return i.cols, nil
+}
+
+// Ent is wrapper around %s method that makes iterator more generic.
+func (i *%sIterator) Ent() (interface{}, error) {
+	return i.%s()
+}
+
+func (i *%sIterator) %s() (*%sEntity, error) {
+	var ent %sEntity
+	cols, err := i.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	props, err := ent.%s(cols...)
+	if err != nil {
+		return nil, err
+	}`, entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		entityName,
+		formatter.Public(t.Name),
+		entityName,
+		formatter.Public(t.Name),
+		entityName,
+		entityName,
+		formatter.Public("props"))
+
+	if hasJoinableRelationships(t) {
+		g.Print(`
+		var prop []interface{}`)
+	}
+	g.scanJoinableRelationships(t, "i.expr")
+
+	g.Print(`
+	if err := i.rows.Scan(props...); err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}`)
+}
+
+func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
+	for _, r := range joinableRelationships(t) {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		g.Printf(`
+			if %s.%s != nil && %s.%s.%s {
+				ent.%s = &%sEntity{}
+				if prop, err = ent.%s.%s(); err != nil {
+					return nil, err
+				}
+				props = append(props, prop...)
+			}`,
+			sel,
+			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			sel,
+			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			formatter.Public("fetch"),
+			formatter.Public(or(r.InversedName, r.InversedTable.Name)),
+			formatter.Public(r.InversedTable.Name),
+			formatter.Public(or(r.InversedName, r.InversedTable.Name)),
+			formatter.Public("props"),
+		)
+	}
+}
+
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
 // It thread differently relationship differently based on ownership.
 func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
@@ -260,4 +365,8 @@ func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
 		rels = append(rels, r)
 	}
 	return
+}
+
+func hasJoinableRelationships(t *pqt.Table) bool {
+	return len(joinableRelationships(t)) > 0
 }

@@ -171,83 +171,8 @@ func (g *Generator) generatePatch(t *pqt.Table) {
 }
 
 func (g *Generator) generateIterator(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-	g.p.Printf(`
-
-// %sIterator is not thread safe.
-type %sIterator struct {
-	rows Rows
-	cols []string
-	expr *%sFindExpr
-}`, entityName,
-		entityName,
-		g.Formatter.Identifier(t.Name))
-
-	g.p.Printf(`
-func (i *%sIterator) Next() bool {
-	return i.rows.Next()
-}
-
-func (i *%sIterator) Close() error {
-	return i.rows.Close()
-}
-
-func (i *%sIterator) Err() error {
-	return i.rows.Err()
-}
-
-// Columns is wrapper around sql.Rows.Columns method, that also cache output inside iterator.
-func (i *%sIterator) Columns() ([]string, error) {
-	if i.cols == nil {
-		cols, err := i.rows.Columns()
-		if err != nil {
-			return nil, err
-		}
-		i.cols = cols
-	}
-	return i.cols, nil
-}
-
-// Ent is wrapper around %s method that makes iterator more generic.
-func (i *%sIterator) Ent() (interface{}, error) {
-	return i.%s()
-}
-
-func (i *%sIterator) %s() (*%sEntity, error) {
-	var ent %sEntity
-	cols, err := i.Columns()
-	if err != nil {
-		return nil, err
-	}
-
-	props, err := ent.%s(cols...)
-	if err != nil {
-		return nil, err
-	}`, entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		entityName,
-		g.Formatter.Identifier(t.Name),
-		entityName,
-		g.Formatter.Identifier(t.Name),
-		entityName,
-		entityName,
-		g.Formatter.Identifier("props"))
-
-	if hasJoinableRelationships(t) {
-		g.p.Print(`
-		var prop []interface{}`)
-	}
-	g.scanJoinableRelationships(t, "i.expr")
-
-	g.p.Print(`
-	if err := i.rows.Scan(props...); err != nil {
-		return nil, err
-	}
-	return &ent, nil
-}`)
+	g.g.Iterator(t)
+	g.g.NewLine()
 }
 
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
