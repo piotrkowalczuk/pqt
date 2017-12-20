@@ -14,6 +14,7 @@ before_install:
   - mkdir -p $GOPATH/bin
 install:
   - go get github.com/aryann/difflib
+  - go get github.com/huandu/xstrings
   - go get .
   - go get ./pqtgo
   - go get ./pqtsql
