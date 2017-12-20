@@ -35,3 +35,7 @@ func (w *Printer) Println(args ...interface{}) {
 		w.Err = err
 	}
 }
+
+func (w *Printer) NewLine() {
+	w.Println("")
+}

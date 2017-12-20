@@ -131,6 +131,25 @@ func %sAnd(operands ...*%sCriteria) *%sCriteria {
 }`, tableName, tableName, tableName, tableName)
 }
 
+func (g *Generator) FindExpr(t *pqt.Table) {
+	g.Printf(`
+type %sFindExpr struct {`, formatter.Public(t.Name))
+	g.Printf(`
+%s *%sCriteria`, formatter.Public("where"), formatter.Public(t.Name))
+	g.Printf(`
+%s, %s int64`, formatter.Public("offset"), formatter.Public("limit"))
+	g.Printf(`
+%s []string`, formatter.Public("columns"))
+	g.Printf(`
+%s []RowOrder`, formatter.Public("orderBy"))
+	for _, r := range joinableRelationships(t) {
+		g.Printf(`
+%s *%sJoin`, formatter.Public("join", or(r.InversedName, r.InversedTable.Name)), formatter.Public(r.InversedTable.Name))
+	}
+	g.Print(`
+}`)
+}
+
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
 // It thread differently relationship differently based on ownership.
 func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
@@ -192,4 +211,14 @@ func (g *Generator) columnType(c *pqt.Column, m int32) string {
 		}
 	}
 	return formatter.Type(c.Type, m)
+}
+
+func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
+	for _, r := range t.OwnedRelationships {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		rels = append(rels, r)
+	}
+	return
 }

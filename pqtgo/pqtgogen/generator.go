@@ -132,25 +132,12 @@ func (g *Generator) generateImports(s *pqt.Schema) {
 
 func (g *Generator) generateEntity(t *pqt.Table) {
 	g.g.Entity(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateFindExpr(t *pqt.Table) {
-	g.p.Printf(`
-		type %sFindExpr struct {`, g.Formatter.Identifier(t.Name))
-	g.p.Printf(`
-		%s *%sCriteria`, g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
-	g.p.Printf(`
-		%s, %s int64`, g.Formatter.Identifier("offset"), g.Formatter.Identifier("limit"))
-	g.p.Printf(`
-		%s []string`, g.Formatter.Identifier("columns"))
-	g.p.Printf(`
-		%s []RowOrder`, g.Formatter.Identifier("orderBy"))
-	for _, r := range joinableRelationships(t) {
-		g.p.Printf(`
-		%s *%sJoin`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
-	}
-	g.p.Println(`
-		}`)
+	g.g.FindExpr(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateCountExpr(t *pqt.Table) {
@@ -168,7 +155,9 @@ func (g *Generator) generateCountExpr(t *pqt.Table) {
 
 func (g *Generator) generateCriteria(t *pqt.Table) {
 	g.g.Criteria(t)
+	g.g.NewLine()
 	g.g.Operand(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateJoin(t *pqt.Table) {
@@ -184,8 +173,9 @@ func (g *Generator) generateJoin(t *pqt.Table) {
 		g.p.Printf(`
 		Join%s *%sJoin`, g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
 	}
-	g.p.Println(`
+	g.p.Print(`
 		}`)
+	g.p.NewLine()
 }
 
 func (g *Generator) generatePatch(t *pqt.Table) {
@@ -386,7 +376,6 @@ func (g *Generator) generateConstantsColumns(t *pqt.Table) {
 		%s = "%s"`, g.Formatter.Identifier("table", t.Name), t.FullName())
 
 	for _, c := range t.Columns {
-		fmt.Println(g.Formatter.Identifier("table", t.Name, "column", c.Name))
 		g.p.Printf(`
 			%s = "%s"`, g.Formatter.Identifier("table", t.Name, "column", c.Name), c.Name)
 	}

@@ -1,7 +1,6 @@
 package pqtgogen
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/piotrkowalczuk/pqt"
@@ -32,7 +31,7 @@ func (f *Formatter) Identifier(args ...string) (r string) {
 	for _, arg := range args {
 		tmp = append(tmp, strings.Split(arg, "_")...)
 	}
-	fmt.Println(tmp)
+
 	switch len(tmp) {
 	case 0:
 	case 1:
