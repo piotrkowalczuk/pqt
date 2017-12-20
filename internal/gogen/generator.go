@@ -150,6 +150,23 @@ type %sFindExpr struct {`, formatter.Public(t.Name))
 }`)
 }
 
+func (g *Generator) Join(t *pqt.Table) {
+	g.Printf(`
+type %sJoin struct {`, formatter.Public(t.Name))
+	g.Printf(`
+%s, %s *%sCriteria`, formatter.Public("on"), formatter.Public("where"), formatter.Public(t.Name))
+	g.Printf(`
+%s bool`, formatter.Public("fetch"))
+	g.Printf(`
+%s JoinType`, formatter.Public("kind"))
+	for _, r := range joinableRelationships(t) {
+		g.Printf(`
+Join%s *%sJoin`, formatter.Public(or(r.InversedName, r.InversedTable.Name)), formatter.Public(r.InversedTable.Name))
+	}
+	g.Print(`
+}`)
+}
+
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
 // It thread differently relationship differently based on ownership.
 func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {

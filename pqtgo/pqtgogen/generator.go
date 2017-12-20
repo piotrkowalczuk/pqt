@@ -161,20 +161,7 @@ func (g *Generator) generateCriteria(t *pqt.Table) {
 }
 
 func (g *Generator) generateJoin(t *pqt.Table) {
-	g.p.Printf(`
-		type %sJoin struct {`, g.Formatter.Identifier(t.Name))
-	g.p.Printf(`
-		%s, %s *%sCriteria`, g.Formatter.Identifier("on"), g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
-	g.p.Printf(`
-		%s bool`, g.Formatter.Identifier("fetch"))
-	g.p.Printf(`
-		%s JoinType`, g.Formatter.Identifier("kind"))
-	for _, r := range joinableRelationships(t) {
-		g.p.Printf(`
-		Join%s *%sJoin`, g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
-	}
-	g.p.Print(`
-		}`)
+	g.g.Join(t)
 	g.p.NewLine()
 }
 

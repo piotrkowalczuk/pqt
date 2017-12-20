@@ -265,6 +265,21 @@ type T2FindExpr struct {
 }`)
 }
 
+func TestJoin(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Join(t2)
+	assertOutput(t, g.Printer, `
+type T2Join struct {
+	On, Where *T2Criteria
+	Fetch     bool
+	Kind      JoinType
+	JoinT1    *T1Join
+}`)
+}
+
 type testColumn struct {
 	name, kind string
 }

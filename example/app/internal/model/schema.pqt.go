@@ -271,11 +271,13 @@ type CategoryFindExpr struct {
 	Columns       []string
 	OrderBy       []RowOrder
 }
+
 type CategoryJoin struct {
 	On, Where *CategoryCriteria
 	Fetch     bool
 	Kind      JoinType
 }
+
 type CategoryCountExpr struct {
 	Where *CategoryCriteria
 }
@@ -1427,12 +1429,14 @@ type PackageFindExpr struct {
 	OrderBy       []RowOrder
 	JoinCategory  *CategoryJoin
 }
+
 type PackageJoin struct {
 	On, Where    *PackageCriteria
 	Fetch        bool
 	Kind         JoinType
 	JoinCategory *CategoryJoin
 }
+
 type PackageCountExpr struct {
 	Where        *PackageCriteria
 	JoinCategory *CategoryJoin
@@ -2560,11 +2564,13 @@ type NewsFindExpr struct {
 	Columns       []string
 	OrderBy       []RowOrder
 }
+
 type NewsJoin struct {
 	On, Where *NewsCriteria
 	Fetch     bool
 	Kind      JoinType
 }
+
 type NewsCountExpr struct {
 	Where *NewsCriteria
 }
@@ -4899,6 +4905,7 @@ type CommentFindExpr struct {
 	JoinNewsByTitle *NewsJoin
 	JoinNewsByID    *NewsJoin
 }
+
 type CommentJoin struct {
 	On, Where       *CommentCriteria
 	Fetch           bool
@@ -4906,6 +4913,7 @@ type CommentJoin struct {
 	JoinNewsByTitle *NewsJoin
 	JoinNewsByID    *NewsJoin
 }
+
 type CommentCountExpr struct {
 	Where           *CommentCriteria
 	JoinNewsByTitle *NewsJoin
@@ -6205,11 +6213,13 @@ type CompleteFindExpr struct {
 	Columns       []string
 	OrderBy       []RowOrder
 }
+
 type CompleteJoin struct {
 	On, Where *CompleteCriteria
 	Fetch     bool
 	Kind      JoinType
 }
+
 type CompleteCountExpr struct {
 	Where *CompleteCriteria
 }
