@@ -280,6 +280,84 @@ type T2Join struct {
 }`)
 }
 
+func TestPatch(t *testing.T) {
+	table := func(columns ...*pqt.Column) *pqt.Table {
+		t := pqt.NewTable("example")
+		for _, c := range columns {
+			t.AddColumn(c)
+
+		}
+		return t
+	}
+	expected := func(columns ...testColumn) string {
+		res := fmt.Sprint(`
+type ExamplePatch struct {`)
+		for _, col := range columns {
+			res += fmt.Sprintf(`
+%s	%s`, col.name, col.kind)
+		}
+		return res + `}`
+	}
+
+	cases := map[string]struct {
+		table *pqt.Table
+		fixed []string
+		exp   string
+	}{
+		"primary_key": {
+			table: table(
+				pqt.NewColumn("a", pqt.TypeIntegerBig(), pqt.WithPrimaryKey()),
+				pqt.NewColumn("b", pqt.TypeBool()),
+			),
+			exp: expected(testColumn{"B", "sql.NullBool"}),
+		},
+		"column-bool": {
+			table: table(pqt.NewColumn("a", pqt.TypeBool())),
+			exp:   expected(testColumn{"A", "sql.NullBool"}),
+		},
+		"column-bool-not-null": {
+			table: table(pqt.NewColumn("a", pqt.TypeBool(), pqt.WithNotNull())),
+			exp:   expected(testColumn{"A", "sql.NullBool"}),
+		},
+		"column-integer": {
+			table: table(pqt.NewColumn("a", pqt.TypeInteger())),
+			exp:   expected(testColumn{"A", "*int32"}),
+		},
+		"column-integer-not-null": {
+			table: table(pqt.NewColumn("a", pqt.TypeInteger(), pqt.WithNotNull())),
+			exp:   expected(testColumn{"A", "*int32"}),
+		},
+		"column-integer-big": {
+			table: table(pqt.NewColumn("a", pqt.TypeIntegerBig())),
+			exp:   expected(testColumn{"A", "sql.NullInt64"}),
+		},
+		"column-integer-big-not-null": {
+			table: table(pqt.NewColumn("a", pqt.TypeIntegerBig(), pqt.WithNotNull())),
+			exp:   expected(testColumn{"A", "sql.NullInt64"}),
+		},
+		"dynamic": {
+			table: func() *pqt.Table {
+				age := pqt.NewColumn("age", pqt.TypeInteger())
+
+				t := pqt.NewTable("example")
+				t.AddColumn(age)
+				t.AddColumn(pqt.NewDynamicColumn("dynamic", &pqt.Function{Type: pqt.TypeInteger()}, age))
+
+				return t
+			}(),
+			exp: expected(testColumn{"Age", "*int32"}, testColumn{"Dynamic", "*int32"}),
+		},
+	}
+
+	for hint, c := range cases {
+		t.Run(hint, func(t *testing.T) {
+			g := &gogen.Generator{}
+			g.Patch(c.table)
+			assertOutput(t, g.Printer, c.exp)
+		})
+	}
+}
+
 type testColumn struct {
 	name, kind string
 }

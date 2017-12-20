@@ -162,29 +162,12 @@ func (g *Generator) generateCriteria(t *pqt.Table) {
 
 func (g *Generator) generateJoin(t *pqt.Table) {
 	g.g.Join(t)
-	g.p.NewLine()
+	g.g.NewLine()
 }
 
 func (g *Generator) generatePatch(t *pqt.Table) {
-	g.p.Printf(`
-		type %sPatch struct {`, g.Formatter.Identifier(t.Name))
-
-ArgumentsLoop:
-	for _, c := range t.Columns {
-		if c.PrimaryKey {
-			continue ArgumentsLoop
-		}
-
-		if t := g.columnType(c, pqtgo.ModeOptional); t != "<nil>" {
-			g.p.Printf(`
-				%s %s`,
-				g.Formatter.Identifier(c.Name),
-				t,
-			)
-		}
-	}
-	g.p.Println(`
-		}`)
+	g.g.Patch(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateIterator(t *pqt.Table) {

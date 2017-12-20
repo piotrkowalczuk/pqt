@@ -167,6 +167,28 @@ Join%s *%sJoin`, formatter.Public(or(r.InversedName, r.InversedTable.Name)), for
 }`)
 }
 
+func (g *Generator) Patch(t *pqt.Table) {
+	g.Printf(`
+type %sPatch struct {`, formatter.Public(t.Name))
+
+ArgumentsLoop:
+	for _, c := range t.Columns {
+		if c.PrimaryKey {
+			continue ArgumentsLoop
+		}
+
+		if t := g.columnType(c, pqtgo.ModeOptional); t != "<nil>" {
+			g.Printf(`
+%s %s`,
+				formatter.Public(c.Name),
+				t,
+			)
+		}
+	}
+	g.Print(`
+}`)
+}
+
 // entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
 // It thread differently relationship differently based on ownership.
 func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
