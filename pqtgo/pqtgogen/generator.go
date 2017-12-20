@@ -141,16 +141,8 @@ func (g *Generator) generateFindExpr(t *pqt.Table) {
 }
 
 func (g *Generator) generateCountExpr(t *pqt.Table) {
-	g.p.Printf(`
-		type %sCountExpr struct {`, g.Formatter.Identifier(t.Name))
-	g.p.Printf(`
-		%s *%sCriteria`, g.Formatter.Identifier("where"), g.Formatter.Identifier(t.Name))
-	for _, r := range joinableRelationships(t) {
-		g.p.Printf(`
-		%s *%sJoin`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier(r.InversedTable.Name))
-	}
-	g.p.Println(`
-		}`)
+	g.g.CountExpr(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateCriteria(t *pqt.Table) {
@@ -173,59 +165,6 @@ func (g *Generator) generatePatch(t *pqt.Table) {
 func (g *Generator) generateIterator(t *pqt.Table) {
 	g.g.Iterator(t)
 	g.g.NewLine()
-}
-
-// entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
-// It thread differently relationship differently based on ownership.
-func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
-	fields := make(chan structField)
-
-	go func(out chan structField) {
-		for _, c := range t.Columns {
-			if t := g.columnType(c, pqtgo.ModeDefault); t != "<nil>" {
-				out <- structField{Name: g.Formatter.Identifier(c.Name), Type: t, ReadOnly: c.IsDynamic}
-			}
-		}
-
-		for _, r := range t.OwnedRelationships {
-			switch r.Type {
-			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.Formatter.Identifier(r.InversedTable.Name))}
-			case pqt.RelationshipTypeOneToOne:
-				out <- structField{Name: g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.Formatter.Identifier(r.InversedTable.Name))}
-			case pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", g.Formatter.Identifier(r.InversedTable.Name))}
-			}
-		}
-
-		for _, r := range t.InversedRelationships {
-			switch r.Type {
-			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: g.Formatter.Identifier(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", g.Formatter.Identifier(r.OwnerTable.Name))}
-			case pqt.RelationshipTypeOneToOne:
-				out <- structField{Name: g.Formatter.Identifier(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", g.Formatter.Identifier(r.OwnerTable.Name))}
-			case pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: g.Formatter.Identifier(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.Formatter.Identifier(r.OwnerTable.Name))}
-			}
-		}
-
-		for _, r := range t.ManyToManyRelationships {
-			if r.Type != pqt.RelationshipTypeManyToMany {
-				continue
-			}
-
-			switch {
-			case r.OwnerTable == t:
-				out <- structField{Name: g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.Formatter.Identifier(r.InversedTable.Name))}
-			case r.InversedTable == t:
-				out <- structField{Name: g.Formatter.Identifier(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", g.Formatter.Identifier(r.OwnerTable.Name))}
-			}
-		}
-
-		close(out)
-	}(fields)
-
-	return fields
 }
 
 func (g *Generator) generateRepository(t *pqt.Table) {

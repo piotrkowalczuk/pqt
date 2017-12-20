@@ -150,6 +150,19 @@ type %sFindExpr struct {`, formatter.Public(t.Name))
 }`)
 }
 
+func (g *Generator) CountExpr(t *pqt.Table) {
+	g.Printf(`
+type %sCountExpr struct {`, formatter.Public(t.Name))
+	g.Printf(`
+%s *%sCriteria`, formatter.Public("where"), formatter.Public(t.Name))
+	for _, r := range joinableRelationships(t) {
+		g.Printf(`
+%s *%sJoin`, formatter.Public("join", or(r.InversedName, r.InversedTable.Name)), formatter.Public(r.InversedTable.Name))
+	}
+	g.Print(`
+}`)
+}
+
 func (g *Generator) Join(t *pqt.Table) {
 	g.Printf(`
 type %sJoin struct {`, formatter.Public(t.Name))

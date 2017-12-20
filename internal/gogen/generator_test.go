@@ -265,6 +265,21 @@ type T2FindExpr struct {
 }`)
 }
 
+func TestCountExpr(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").
+		AddRelationship(pqt.ManyToOne(t1)).
+		AddColumn(pqt.NewColumn("name", pqt.TypeText()))
+
+	g := &gogen.Generator{}
+	g.CountExpr(t2)
+	assertOutput(t, g.Printer, `
+type T2CountExpr struct {
+	Where  *T2Criteria
+	JoinT1 *T1Join
+}`)
+}
+
 func TestJoin(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
