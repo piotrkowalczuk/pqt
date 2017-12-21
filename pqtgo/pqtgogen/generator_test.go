@@ -381,6 +381,7 @@ var expectedSimple = `package example
     			}
     			return buf.String(), insert.Args(), nil
     		}
+
     		func (r *UserRepositoryBase) Insert(ctx context.Context, e *UserEntity) (*UserEntity, error) {
     			query, args, err := r.InsertQuery(e, true)
     			if err != nil {
@@ -390,13 +391,14 @@ var expectedSimple = `package example
     				&e.Name,
     			)
     			if r.Log != nil {
-    				r.Log(err, "User", "insert", query, args...)
+    				r.Log(err, TableUser, "insert", query, args...)
     			}
     			if err != nil {
     				return nil, err
     			}
     			return e, nil
     		}
+
 			func UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
 				if c.child == nil {
 					return _UserCriteriaWhereClause(comp, c, id)
@@ -1190,6 +1192,7 @@ var expectedSimple = `package example
     			}
     			return buf.String(), insert.Args(), nil
     		}
+
     		func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
     			query, args, err := r.InsertQuery(e, true)
     			if err != nil {
@@ -1197,13 +1200,14 @@ var expectedSimple = `package example
     			}
     			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.UserID)
     			if r.Log != nil {
-    				r.Log(err, "Comment", "insert", query, args...)
+    				r.Log(err, TableComment, "insert", query, args...)
     			}
     			if err != nil {
     				return nil, err
     			}
     			return e, nil
     		}
+
 			func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
 				if c.child == nil {
 					return _CommentCriteriaWhereClause(comp, c, id)

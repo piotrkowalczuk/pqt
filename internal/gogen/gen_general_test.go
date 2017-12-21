@@ -82,7 +82,6 @@ func TestGenerator_Entity(t *testing.T) {
 	}
 	cases := map[string]struct {
 		table *pqt.Table
-		fixed []string
 		exp   string
 	}{
 		"simple": {
@@ -166,7 +165,6 @@ child, sibling, parent *ExampleCriteria
 
 	cases := map[string]struct {
 		table *pqt.Table
-		fixed []string
 		exp   string
 	}{
 		"column-bool": {
@@ -387,7 +385,6 @@ type ExamplePatch struct {`)
 
 	cases := map[string]struct {
 		table *pqt.Table
-		fixed []string
 		exp   string
 	}{
 		"primary_key": {

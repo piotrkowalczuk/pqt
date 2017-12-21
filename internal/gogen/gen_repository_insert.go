@@ -8,6 +8,39 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func (g *Generator) RepositoryInsert(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, formatter.Public("insert"), entityName, entityName)
+	g.Printf(`
+			query, args, err := r.%sQuery(e, true)
+			if err != nil {
+				return nil, err
+			}
+			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
+		formatter.Public("insert"),
+		formatter.Public("db"),
+	)
+
+	for _, c := range t.Columns {
+		g.Printf("&e.%s,\n", formatter.Public(c.Name))
+	}
+	g.Printf(`)
+		if r.%s != nil {
+			r.%s(err, Table%s, "insert", query, args...)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return e, nil
+	}`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
+}
+
 func (g *Generator) RepositoryInsertQuery(t *pqt.Table) {
 	entityName := formatter.Public(t.Name)
 
@@ -102,6 +135,6 @@ func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
 		)
 
 		closeBrace(g, braces)
-		g.Println("")
+		g.NewLine()
 	}
 }

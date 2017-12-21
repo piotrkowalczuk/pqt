@@ -180,39 +180,12 @@ func (g *Generator) generateConstantsAndVariables(t *pqt.Table) {
 
 func (g *Generator) generateRepositoryInsertQuery(t *pqt.Table) {
 	g.g.RepositoryInsertQuery(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryInsert(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("insert"), entityName, entityName)
-	g.p.Printf(`
-			query, args, err := r.%sQuery(e, true)
-			if err != nil {
-				return nil, err
-			}
-			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
-		g.Formatter.Identifier("insert"),
-		g.Formatter.Identifier("db"),
-	)
-
-	for _, c := range t.Columns {
-		g.p.Printf("&e.%s,\n", g.Formatter.Identifier(c.Name))
-	}
-	g.p.Printf(`)
-		if r.%s != nil {
-			r.%s(err, "%s", "insert", query, args...)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return e, nil
-	}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
+	g.g.RepositoryInsert(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {

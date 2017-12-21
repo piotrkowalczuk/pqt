@@ -7,6 +7,37 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
 )
 
+func TestGenerator_RepositoryInsert(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Repository(t2)
+	g.RepositoryInsert(t2)
+	assertOutput(t, g.Printer, `
+type T2RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T2RepositoryBase) Insert(ctx context.Context, e *T2Entity) (*T2Entity, error) {
+	query, args, err := r.InsertQuery(e, true)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan()
+	if r.Log != nil {
+		r.Log(err, TableT2, "insert", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
+}`)
+}
+
 func TestGenerator_RepositoryInsertQuery(t *testing.T) {
 	name := pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull(), pqt.WithIndex())
 	description := pqt.NewColumn("description", pqt.TypeText(), pqt.WithColumnShortName("desc"))

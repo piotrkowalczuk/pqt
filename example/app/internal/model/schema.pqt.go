@@ -420,6 +420,7 @@ func (r *CategoryRepositoryBase) InsertQuery(e *CategoryEntity, read bool) (stri
 	}
 	return buf.String(), insert.Args(), nil
 }
+
 func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) (*CategoryEntity, error) {
 	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
@@ -433,13 +434,14 @@ func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) 
 		&e.UpdatedAt,
 	)
 	if r.Log != nil {
-		r.Log(err, "Category", "insert", query, args...)
+		r.Log(err, TableCategory, "insert", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return e, nil
 }
+
 func CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) error {
 	if c.child == nil {
 		return _CategoryCriteriaWhereClause(comp, c, id)
@@ -1562,6 +1564,7 @@ func (r *PackageRepositoryBase) InsertQuery(e *PackageEntity, read bool) (string
 	}
 	return buf.String(), insert.Args(), nil
 }
+
 func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*PackageEntity, error) {
 	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
@@ -1574,13 +1577,14 @@ func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*
 		&e.UpdatedAt,
 	)
 	if r.Log != nil {
-		r.Log(err, "Package", "insert", query, args...)
+		r.Log(err, TablePackage, "insert", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return e, nil
 }
+
 func PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) error {
 	if c.child == nil {
 		return _PackageCriteriaWhereClause(comp, c, id)
@@ -2816,6 +2820,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []in
 	}
 	return buf.String(), insert.Args(), nil
 }
+
 func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEntity, error) {
 	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
@@ -2834,13 +2839,14 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 		&e.ViewsDistribution,
 	)
 	if r.Log != nil {
-		r.Log(err, "News", "insert", query, args...)
+		r.Log(err, TableNews, "insert", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return e, nil
 }
+
 func NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 	if c.child == nil {
 		return _NewsCriteriaWhereClause(comp, c, id)
@@ -5057,6 +5063,7 @@ func (r *CommentRepositoryBase) InsertQuery(e *CommentEntity, read bool) (string
 	}
 	return buf.String(), insert.Args(), nil
 }
+
 func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*CommentEntity, error) {
 	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
@@ -5072,13 +5079,14 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 		&e.UpdatedAt,
 	)
 	if r.Log != nil {
-		r.Log(err, "Comment", "insert", query, args...)
+		r.Log(err, TableComment, "insert", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return e, nil
 }
+
 func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
 	if c.child == nil {
 		return _CommentCriteriaWhereClause(comp, c, id)
@@ -6917,6 +6925,7 @@ func (r *CompleteRepositoryBase) InsertQuery(e *CompleteEntity, read bool) (stri
 	}
 	return buf.String(), insert.Args(), nil
 }
+
 func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) (*CompleteEntity, error) {
 	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
@@ -6957,13 +6966,14 @@ func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) 
 		&e.ColumnUUID,
 	)
 	if r.Log != nil {
-		r.Log(err, "Complete", "insert", query, args...)
+		r.Log(err, TableComplete, "insert", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return e, nil
 }
+
 func CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) error {
 	if c.child == nil {
 		return _CompleteCriteriaWhereClause(comp, c, id)
