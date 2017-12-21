@@ -8,7 +8,7 @@ In comparison to other currently available libraries instead of pushing struct t
 
 - __query builder__:
 	- `Composer` - builder like object that keeps buffer and arguments but also tracks positional parameters.
-- __array support__
+- __json support__
 	- `JSONArrayInt64` - wrapper for []int64, it generates JSONB compatible array `[]` instead of `{}`
 	- `JSONArrayFloat64` - wrapper for []float64, it generates JSONB compatible array `[]` instead of `{}`
 	- `JSONArrayString` - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
@@ -34,7 +34,7 @@ In comparison to other currently available libraries instead of pushing struct t
 		- `UpdateOneBy<primary-key>` - modifies single cri, search by primary key
 		- `UpdateOneBy<unique-key>` - modifies single cri, search by unique key
 		- `DeleteOneBy<primary-key>` - modifies single cri, search by primary key
-	- `func Scan<Entity>Rows(rows *sql.Rows) ([]*<cri>Entity, error) {` helper function
+	- `Scan<Entity>Rows` - helper function that scans `*sql.Rows` into `[]*<table-name>Entity`
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
 	- `tables`
