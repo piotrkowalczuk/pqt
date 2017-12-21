@@ -281,45 +281,8 @@ func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-	pk, ok := t.PrimaryKey()
-	if !ok {
-		return
-	}
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, g.Formatter.Identifier("updateOneBy", pk.Name), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
-	g.p.Printf(`
-		query, args, err := r.%sQuery(pk, p)
-		if err != nil {
-			return nil, err
-		}`, g.Formatter.Identifier("updateOneBy", pk.Name))
-
-	g.p.Printf(`
-		var ent %sEntity
-		props, err := ent.%s(r.%s...)
-		if err != nil {
-			return nil, err
-		}
-		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
-		entityName,
-		g.Formatter.Identifier("props"),
-		g.Formatter.Identifier("columns"),
-		g.Formatter.Identifier("db"),
-	)
-	g.p.Printf(`
-		if r.%s != nil {
-			r.%s(err, "%s", "update by primary key", query, args...)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &ent, nil
-	}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
+	g.g.RepositoryUpdateOneByPrimaryKey(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
@@ -465,7 +428,7 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(t *pqt.Table) 
 
 		g.p.Printf(`
 			if r.%s != nil {
-				r.%s(err, "%s", "update one by unique", query, args...)
+				r.%s(err, Table%s, "update one by unique", query, args...)
 			}
 			if err != nil {
 				return nil, err
@@ -970,7 +933,7 @@ func (g *Generator) generateRepositoryFind(t *pqt.Table) {
 
 	g.p.Printf(`
 		if r.%s != nil {
-			r.%s(err, "%s", "find", query, args...)
+			r.%s(err, Table%s, "find", query, args...)
 		}
 		if err != nil {
 			return nil, err
@@ -1009,7 +972,7 @@ func (g *Generator) generateRepositoryFind(t *pqt.Table) {
 	g.p.Printf(`
 		err = rows.Err()
 		if r.%s != nil {
-			r.%s(err, "%s", "find", query, args...)
+			r.%s(err, Table%s, "find", query, args...)
 		}
 		if err != nil {
 			return nil, err
@@ -1039,7 +1002,7 @@ func (g *Generator) generateRepositoryFindIter(t *pqt.Table) {
 
 	g.p.Printf(`
 	 	if r.%s != nil {
-			r.%s(err, "%s", "find iter", query, args...)
+			r.%s(err, Table%s, "find iter", query, args...)
 		}
 		if err != nil {
 			return nil, err
@@ -1095,7 +1058,7 @@ func (g *Generator) generateRepositoryCount(t *pqt.Table) {
 
 	g.p.Printf(`
 		if r.%s != nil {
-			r.%s(err, "%s", "count", query, args...)
+			r.%s(err, Table%s, "count", query, args...)
 		}
 		if err != nil {
 			return 0, err
@@ -1162,7 +1125,7 @@ func (g *Generator) generateRepositoryFindOneByPrimaryKey(t *pqt.Table) {
 	)
 	g.p.Printf(`
 		if r.%s != nil {
-			r.%s(err, "%s", "find by primary key", find.String(), find.Args()...)
+			r.%s(err, Table%s, "find by primary key", find.String(), find.Args()...)
 		}
 		if err != nil {
 			return nil, err

@@ -37,7 +37,7 @@ func (g *Generator) RepositoryUpsert(t *pqt.Table) {
 	g.Printf(`
 	)
 		if r.%s != nil {
-			r.%s(err, "%s", "upsert", query, args...)
+			r.%s(err, Table%s, "upsert", query, args...)
 		}
 		if err != nil {
 			return nil, err

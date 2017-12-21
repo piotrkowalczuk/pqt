@@ -6,6 +6,48 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func (g *Generator) RepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+	pk, ok := t.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, formatter.Public("updateOneBy", pk.Name), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
+	g.Printf(`
+		query, args, err := r.%sQuery(pk, p)
+		if err != nil {
+			return nil, err
+		}`, formatter.Public("updateOneBy", pk.Name))
+
+	g.Printf(`
+		var ent %sEntity
+		props, err := ent.%s(r.%s...)
+		if err != nil {
+			return nil, err
+		}
+		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
+		entityName,
+		formatter.Public("props"),
+		formatter.Public("columns"),
+		formatter.Public("db"),
+	)
+	g.Printf(`
+		if r.%s != nil {
+			r.%s(err, Table%s, "update by primary key", query, args...)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &ent, nil
+	}`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
+}
+
 func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 	entityName := formatter.Public(t.Name)
 	pk, ok := t.PrimaryKey()

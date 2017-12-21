@@ -579,7 +579,7 @@ var expectedSimple = `package example
     			}
     			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
-    				r.Log(err, "User", "find", query, args...)
+    				r.Log(err, TableUser, "find", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -601,7 +601,7 @@ var expectedSimple = `package example
     			}
     			err = rows.Err()
     			if r.Log != nil {
-    				r.Log(err, "User", "find", query, args...)
+    				r.Log(err, TableUser, "find", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -615,7 +615,7 @@ var expectedSimple = `package example
     			}
     			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
-    				r.Log(err, "User", "find iter", query, args...)
+    				r.Log(err, TableUser, "find iter", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -650,7 +650,7 @@ var expectedSimple = `package example
     			}
     			err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
     			if r.Log != nil {
-    				r.Log(err, "User", "find by primary key", find.String(), find.Args()...)
+    				r.Log(err, TableUser, "find by primary key", find.String(), find.Args()...)
     			}
     			if err != nil {
     				return nil, err
@@ -745,13 +745,14 @@ var expectedSimple = `package example
     			}
     			err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
     			if r.Log != nil {
-    				r.Log(err, "User", "update by primary key", query, args...)
+    				r.Log(err, TableUser, "update by primary key", query, args...)
     			}
     			if err != nil {
     				return nil, err
     			}
     			return &ent, nil
     		}
+
     		func (r *UserRepositoryBase) UpdateOneByNameQuery(userName string, p *UserPatch) (string, []interface{}, error) {
     			buf := bytes.NewBufferString("UPDATE ")
     			buf.WriteString(r.Table)
@@ -807,7 +808,7 @@ var expectedSimple = `package example
     			}
     			err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
     			if r.Log != nil {
-    				r.Log(err, "User", "update one by unique", query, args...)
+    				r.Log(err, TableUser, "update one by unique", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -906,7 +907,7 @@ var expectedSimple = `package example
     				&e.Name,
     			)
     			if r.Log != nil {
-    				r.Log(err, "User", "upsert", query, args...)
+    				r.Log(err, TableUser, "upsert", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -925,7 +926,7 @@ var expectedSimple = `package example
     			var count int64
     			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
     			if r.Log != nil {
-    				r.Log(err, "User", "count", query, args...)
+    				r.Log(err, TableUser, "count", query, args...)
     			}
     			if err != nil {
     				return 0, err
@@ -1412,7 +1413,7 @@ var expectedSimple = `package example
     			}
     			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
-    				r.Log(err, "Comment", "find", query, args...)
+    				r.Log(err, TableComment, "find", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -1449,7 +1450,7 @@ var expectedSimple = `package example
     			}
     			err = rows.Err()
     			if r.Log != nil {
-    				r.Log(err, "Comment", "find", query, args...)
+    				r.Log(err, TableComment, "find", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -1463,7 +1464,7 @@ var expectedSimple = `package example
     			}
     			rows, err := r.DB.QueryContext(ctx, query, args...)
     			if r.Log != nil {
-    				r.Log(err, "Comment", "find iter", query, args...)
+    				r.Log(err, TableComment, "find iter", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -1568,7 +1569,7 @@ var expectedSimple = `package example
 					&e.UserID,
 				)
     			if r.Log != nil {
-    				r.Log(err, "Comment", "upsert", query, args...)
+    				r.Log(err, TableComment, "upsert", query, args...)
     			}
     			if err != nil {
     				return nil, err
@@ -1590,7 +1591,7 @@ var expectedSimple = `package example
     			var count int64
     			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
     			if r.Log != nil {
-    				r.Log(err, "Comment", "count", query, args...)
+    				r.Log(err, TableComment, "count", query, args...)
     			}
     			if err != nil {
     				return 0, err

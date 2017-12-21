@@ -46,7 +46,7 @@ func (r *T2RepositoryBase) Upsert(ctx context.Context, e *T2Entity, p *T2Patch, 
 		&e.Name,
 	)
 	if r.Log != nil {
-		r.Log(err, "T2", "upsert", query, args...)
+		r.Log(err, TableT2, "upsert", query, args...)
 	}
 	if err != nil {
 		return nil, err

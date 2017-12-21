@@ -684,7 +684,7 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Category", "find", query, args...)
+		r.Log(err, TableCategory, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -706,7 +706,7 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 	}
 	err = rows.Err()
 	if r.Log != nil {
-		r.Log(err, "Category", "find", query, args...)
+		r.Log(err, TableCategory, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -720,7 +720,7 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Category", "find iter", query, args...)
+		r.Log(err, TableCategory, "find iter", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -755,7 +755,7 @@ func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Ca
 	}
 	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "Category", "find by primary key", find.String(), find.Args()...)
+		r.Log(err, TableCategory, "find by primary key", find.String(), find.Args()...)
 	}
 	if err != nil {
 		return nil, err
@@ -913,13 +913,14 @@ func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p 
 	}
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "Category", "update by primary key", query, args...)
+		r.Log(err, TableCategory, "update by primary key", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &ent, nil
 }
+
 func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(12)
 	columns := bytes.NewBuffer(nil)
@@ -1191,7 +1192,7 @@ func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, 
 		&e.UpdatedAt,
 	)
 	if r.Log != nil {
-		r.Log(err, "Category", "upsert", query, args...)
+		r.Log(err, TableCategory, "upsert", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -1210,7 +1211,7 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCountExpr
 	var count int64
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
 	if r.Log != nil {
-		r.Log(err, "Category", "count", query, args...)
+		r.Log(err, TableCategory, "count", query, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -1831,7 +1832,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Package", "find", query, args...)
+		r.Log(err, TablePackage, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -1861,7 +1862,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 	}
 	err = rows.Err()
 	if r.Log != nil {
-		r.Log(err, "Package", "find", query, args...)
+		r.Log(err, TablePackage, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -1875,7 +1876,7 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Package", "find iter", query, args...)
+		r.Log(err, TablePackage, "find iter", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -1910,7 +1911,7 @@ func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Pac
 	}
 	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "Package", "find by primary key", find.String(), find.Args()...)
+		r.Log(err, TablePackage, "find by primary key", find.String(), find.Args()...)
 	}
 	if err != nil {
 		return nil, err
@@ -2048,13 +2049,14 @@ func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *
 	}
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "Package", "update by primary key", query, args...)
+		r.Log(err, TablePackage, "update by primary key", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &ent, nil
 }
+
 func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(10)
 	columns := bytes.NewBuffer(nil)
@@ -2288,7 +2290,7 @@ func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p 
 		&e.UpdatedAt,
 	)
 	if r.Log != nil {
-		r.Log(err, "Package", "upsert", query, args...)
+		r.Log(err, TablePackage, "upsert", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -2309,7 +2311,7 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCountExpr) 
 	var count int64
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
 	if r.Log != nil {
-		r.Log(err, "Package", "count", query, args...)
+		r.Log(err, TablePackage, "count", query, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -3199,7 +3201,7 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "News", "find", query, args...)
+		r.Log(err, TableNews, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -3221,7 +3223,7 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 	}
 	err = rows.Err()
 	if r.Log != nil {
-		r.Log(err, "News", "find", query, args...)
+		r.Log(err, TableNews, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -3235,7 +3237,7 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "News", "find iter", query, args...)
+		r.Log(err, TableNews, "find iter", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -3270,7 +3272,7 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 	}
 	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "News", "find by primary key", find.String(), find.Args()...)
+		r.Log(err, TableNews, "find by primary key", find.String(), find.Args()...)
 	}
 	if err != nil {
 		return nil, err
@@ -3606,13 +3608,14 @@ func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *New
 	}
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "News", "update by primary key", query, args...)
+		r.Log(err, TableNews, "update by primary key", query, args...)
 	}
 	if err != nil {
 		return nil, err
 	}
 	return &ent, nil
 }
+
 func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
@@ -4128,7 +4131,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle str
 	}
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "News", "update one by unique", query, args...)
+		r.Log(err, TableNews, "update one by unique", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -4147,7 +4150,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTi
 	}
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
 	if r.Log != nil {
-		r.Log(err, "News", "update one by unique", query, args...)
+		r.Log(err, TableNews, "update one by unique", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -4642,7 +4645,7 @@ func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsP
 		&e.ViewsDistribution,
 	)
 	if r.Log != nil {
-		r.Log(err, "News", "upsert", query, args...)
+		r.Log(err, TableNews, "upsert", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -4661,7 +4664,7 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCountExpr) (int64
 	var count int64
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
 	if r.Log != nil {
-		r.Log(err, "News", "count", query, args...)
+		r.Log(err, TableNews, "count", query, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -5443,7 +5446,7 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Comment", "find", query, args...)
+		r.Log(err, TableComment, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -5480,7 +5483,7 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 	}
 	err = rows.Err()
 	if r.Log != nil {
-		r.Log(err, "Comment", "find", query, args...)
+		r.Log(err, TableComment, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -5494,7 +5497,7 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Comment", "find iter", query, args...)
+		r.Log(err, TableComment, "find iter", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -5797,7 +5800,7 @@ func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p 
 		&e.UpdatedAt,
 	)
 	if r.Log != nil {
-		r.Log(err, "Comment", "upsert", query, args...)
+		r.Log(err, TableComment, "upsert", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -5819,7 +5822,7 @@ func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCountExpr) 
 	var count int64
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
 	if r.Log != nil {
-		r.Log(err, "Comment", "count", query, args...)
+		r.Log(err, TableComment, "count", query, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -7776,7 +7779,7 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Complete", "find", query, args...)
+		r.Log(err, TableComplete, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -7798,7 +7801,7 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 	}
 	err = rows.Err()
 	if r.Log != nil {
-		r.Log(err, "Complete", "find", query, args...)
+		r.Log(err, TableComplete, "find", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -7812,7 +7815,7 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 	}
 	rows, err := r.DB.QueryContext(ctx, query, args...)
 	if r.Log != nil {
-		r.Log(err, "Complete", "find iter", query, args...)
+		r.Log(err, TableComplete, "find iter", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -9198,7 +9201,7 @@ func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, 
 		&e.ColumnUUID,
 	)
 	if r.Log != nil {
-		r.Log(err, "Complete", "upsert", query, args...)
+		r.Log(err, TableComplete, "upsert", query, args...)
 	}
 	if err != nil {
 		return nil, err
@@ -9217,7 +9220,7 @@ func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCountExpr
 	var count int64
 	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
 	if r.Log != nil {
-		r.Log(err, "Complete", "count", query, args...)
+		r.Log(err, TableComplete, "count", query, args...)
 	}
 	if err != nil {
 		return 0, err

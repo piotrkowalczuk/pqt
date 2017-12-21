@@ -7,6 +7,44 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
 )
 
+func TestGenerator_RepositoryUpdateOneByPrimaryKey(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").
+		AddRelationship(pqt.ManyToOne(t1)).
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey()))
+
+	g := &gogen.Generator{}
+	g.Repository(t2)
+	g.RepositoryUpdateOneByPrimaryKey(t2)
+	assertOutput(t, g.Printer, `
+type T2RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T2RepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *T2Patch) (*T2Entity, error) {
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent T2Entity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if r.Log != nil {
+		r.Log(err, TableT2, "update by primary key", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}`)
+}
+
 func TestGenerator_RepositoryUpdateOneByPrimaryKeyQuery(t *testing.T) {
 	t0 := pqt.NewTable("t0")
 
