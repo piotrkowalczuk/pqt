@@ -732,6 +732,7 @@ var expectedSimple = `package example
     			}
     			return buf.String(), update.Args(), nil
     		}
+
     		func (r *UserRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *UserPatch) (*UserEntity, error) {
     			query, args, err := r.UpdateOneByIDQuery(pk, p)
     			if err != nil {
@@ -1473,6 +1474,7 @@ var expectedSimple = `package example
     				cols: []string{"user_id"},
     			}, nil
     		}
+
     		func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, inf ...string) (string, []interface{}, error) {
     			upsert := NewComposer(2)
     			columns := bytes.NewBuffer(nil)

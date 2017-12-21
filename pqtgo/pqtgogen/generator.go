@@ -276,63 +276,8 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 }
 
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-	pk, ok := t.PrimaryKey()
-	if !ok {
-		return
-	}
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {`,
-		entityName,
-		g.Formatter.Identifier("UpdateOneBy", pk.Name),
-		g.columnType(pk, pqtgo.ModeMandatory),
-		entityName,
-	)
-	g.p.Printf(`
-		buf := bytes.NewBufferString("UPDATE ")
-		buf.WriteString(r.%s)
-		update := NewComposer(%d)`,
-		g.Formatter.Identifier("table"),
-		len(t.Columns),
-	)
-
-	for _, c := range t.Columns {
-		g.generateRepositorySetClause(c, "update")
-	}
-	g.p.Printf(`
-	if !update.Dirty {
-		return "", nil, errors.New("%s update failure, nothing to update")
-	}`, entityName)
-
-	g.p.Printf(`
-		buf.WriteString(" SET ")
-		buf.ReadFrom(update)
-		buf.WriteString(" WHERE ")
-
-		update.WriteString(%s)
-		update.WriteString("=")
-		update.WritePlaceholder()
-		update.Add(pk)
-
-		buf.ReadFrom(update)
-		buf.WriteString(" RETURNING ")
-		if len(r.%s) > 0 {
-			buf.WriteString(strings.Join(r.%s, ", "))
-		} else {`,
-		g.Formatter.Identifier("table", t.Name, "column", pk.Name),
-		g.Formatter.Identifier("columns"),
-		g.Formatter.Identifier("columns"),
-	)
-
-	g.p.Print(`
-		buf.WriteString("`)
-	g.selectList(t, -1)
-	g.p.Print(`")
-	}`)
-	g.p.Print(`
-		return buf.String(), update.Args(), nil
-	}`)
+	g.g.RepositoryUpdateOneByPrimaryKeyQuery(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(t *pqt.Table) {

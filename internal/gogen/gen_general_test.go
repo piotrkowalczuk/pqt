@@ -523,7 +523,7 @@ func assertOutput(t *testing.T, p print.Printer, e string) {
 	}
 	exp, err := format.Source([]byte(e))
 	if err != nil {
-		t.Fatalf("unexpected expected formatting error: %s", err.Error())
+		t.Fatalf("unexpected formatting error: %s", err.Error())
 	}
 	if !bytes.Equal(got, exp) {
 		t.Errorf("wrong output, expected:\n'%s'\nbut got:\n'%s'", string(exp), string(got))

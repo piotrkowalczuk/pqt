@@ -900,6 +900,7 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 	}
 	return buf.String(), update.Args(), nil
 }
+
 func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *CategoryPatch) (*CategoryEntity, error) {
 	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
@@ -2034,6 +2035,7 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 	}
 	return buf.String(), update.Args(), nil
 }
+
 func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *PackagePatch) (*PackageEntity, error) {
 	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
@@ -3591,6 +3593,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 	}
 	return buf.String(), update.Args(), nil
 }
+
 func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *NewsPatch) (*NewsEntity, error) {
 	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
@@ -5502,6 +5505,7 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 		cols: []string{"content", "created_at", "id", "id_multiply", "news_id", "news_title", "right_now", "updated_at"},
 	}, nil
 }
+
 func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(16)
 	columns := bytes.NewBuffer(nil)
@@ -7819,6 +7823,7 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 		cols: []string{"column_bool", "column_bytea", "column_character_0", "column_character_100", "column_decimal", "column_double_array_0", "column_double_array_100", "column_integer", "column_integer_array_0", "column_integer_array_100", "column_integer_big", "column_integer_big_array_0", "column_integer_big_array_100", "column_integer_small", "column_integer_small_array_0", "column_integer_small_array_100", "column_json", "column_json_nn", "column_json_nn_d", "column_jsonb", "column_jsonb_nn", "column_jsonb_nn_d", "column_numeric", "column_real", "column_serial", "column_serial_big", "column_serial_small", "column_text", "column_text_array_0", "column_text_array_100", "column_timestamp", "column_timestamptz", "column_uuid"},
 	}, nil
 }
+
 func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(66)
 	columns := bytes.NewBuffer(nil)
