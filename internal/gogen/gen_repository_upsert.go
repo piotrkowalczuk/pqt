@@ -5,6 +5,51 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/formatter"
 )
 
+func (g *Generator) RepositoryUpsert(t *pqt.Table) {
+	if g.Version < 9.5 {
+		return
+	}
+
+	entityName := formatter.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`,
+		entityName,
+		formatter.Public("upsert"),
+		entityName,
+		entityName,
+		entityName,
+	)
+	g.Printf(`
+			query, args, err := r.%sQuery(e, p, inf...)
+			if err != nil {
+				return nil, err
+			}
+			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
+		formatter.Public("upsert"),
+		formatter.Public("db"),
+	)
+
+	for _, c := range t.Columns {
+		g.Printf(`
+&e.%s,`, formatter.Public(c.Name))
+	}
+	g.Printf(`
+	)
+		if r.%s != nil {
+			r.%s(err, "%s", "upsert", query, args...)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return e, nil
+	}`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
+}
+
 func (g *Generator) RepositoryUpsertQuery(t *pqt.Table) {
 	if g.Version < 9.5 {
 		return

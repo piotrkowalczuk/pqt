@@ -426,7 +426,8 @@ func (r *CategoryRepositoryBase) Insert(ctx context.Context, e *CategoryEntity) 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Content,
 		&e.CreatedAt,
 		&e.ID,
 		&e.Name,
@@ -1180,7 +1181,8 @@ func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Content,
 		&e.CreatedAt,
 		&e.ID,
 		&e.Name,
@@ -1195,6 +1197,7 @@ func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, 
 	}
 	return e, nil
 }
+
 func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&CategoryFindExpr{
 		Where:   c.Where,
@@ -1571,7 +1574,8 @@ func (r *PackageRepositoryBase) Insert(ctx context.Context, e *PackageEntity) (*
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Break,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Break,
 		&e.CategoryID,
 		&e.CreatedAt,
 		&e.ID,
@@ -2274,7 +2278,8 @@ func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Break,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Break,
 		&e.CategoryID,
 		&e.CreatedAt,
 		&e.ID,
@@ -2288,6 +2293,7 @@ func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p 
 	}
 	return e, nil
 }
+
 func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&PackageFindExpr{
 		Where:   c.Where,
@@ -2828,7 +2834,8 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Content,
 		&e.Continue,
 		&e.CreatedAt,
 		&e.ID,
@@ -4618,7 +4625,8 @@ func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsP
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Content,
 		&e.Continue,
 		&e.CreatedAt,
 		&e.ID,
@@ -4638,6 +4646,7 @@ func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsP
 	}
 	return e, nil
 }
+
 func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&NewsFindExpr{
 		Where:   c.Where,
@@ -5072,7 +5081,8 @@ func (r *CommentRepositoryBase) Insert(ctx context.Context, e *CommentEntity) (*
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Content,
 		&e.CreatedAt,
 		&e.ID,
 		&e.IDMultiply,
@@ -5772,7 +5782,8 @@ func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.Content,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.Content,
 		&e.CreatedAt,
 		&e.ID,
 		&e.IDMultiply,
@@ -5789,6 +5800,7 @@ func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p 
 	}
 	return e, nil
 }
+
 func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&CommentFindExpr{
 		Where:   c.Where,
@@ -6935,7 +6947,8 @@ func (r *CompleteRepositoryBase) Insert(ctx context.Context, e *CompleteEntity) 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ColumnBool,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.ColumnBool,
 		&e.ColumnBytea,
 		&e.ColumnCharacter0,
 		&e.ColumnCharacter100,
@@ -9144,7 +9157,8 @@ func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ColumnBool,
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.ColumnBool,
 		&e.ColumnBytea,
 		&e.ColumnCharacter0,
 		&e.ColumnCharacter100,
@@ -9186,6 +9200,7 @@ func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, 
 	}
 	return e, nil
 }
+
 func (r *CompleteRepositoryBase) Count(ctx context.Context, c *CompleteCountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&CompleteFindExpr{
 		Where:   c.Where,

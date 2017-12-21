@@ -7,6 +7,54 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
 )
 
+func TestGenerator_RepositoryUpsert(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").
+		AddRelationship(pqt.ManyToOne(t1)).
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig())).
+		AddColumn(pqt.NewColumn("name", pqt.TypeText()))
+
+	g := &gogen.Generator{Version: 9.4}
+	g.Repository(t2)
+	g.RepositoryUpsert(t2)
+	assertOutput(t, g.Printer, `
+type T2RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}`)
+
+	g = &gogen.Generator{Version: 9.5}
+	g.Repository(t2)
+	g.RepositoryUpsert(t2)
+	assertOutput(t, g.Printer, `
+type T2RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T2RepositoryBase) Upsert(ctx context.Context, e *T2Entity, p *T2Patch, inf ...string) (*T2Entity, error) {
+	query, args, err := r.UpsertQuery(e, p, inf...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.ID,
+		&e.Name,
+	)
+	if r.Log != nil {
+		r.Log(err, "T2", "upsert", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return e, nil
+}`)
+}
+
 func TestGenerator_RepositoryUpsertQuery(t *testing.T) {
 	name := pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull(), pqt.WithIndex())
 	description := pqt.NewColumn("description", pqt.TypeText(), pqt.WithColumnShortName("desc"))

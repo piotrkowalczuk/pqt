@@ -387,7 +387,8 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ID,
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+					&e.ID,
     				&e.Name,
     			)
     			if r.Log != nil {
@@ -893,12 +894,14 @@ var expectedSimple = `package example
     			}
     			return buf.String(), upsert.Args(), nil
     		}
+
     		func (r *UserRepositoryBase) Upsert(ctx context.Context, e *UserEntity, p *UserPatch, inf ...string) (*UserEntity, error) {
     			query, args, err := r.UpsertQuery(e, p, inf...)
     			if err != nil {
     				return nil, err
     			}
-    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.ID,
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+					&e.ID,
     				&e.Name,
     			)
     			if r.Log != nil {
@@ -909,6 +912,7 @@ var expectedSimple = `package example
     			}
     			return e, nil
     		}
+
     		func (r *UserRepositoryBase) Count(ctx context.Context, c *UserCountExpr) (int64, error) {
     			query, args, err := r.FindQuery(&UserFindExpr{
     				Where:   c.Where,
@@ -1198,7 +1202,9 @@ var expectedSimple = `package example
     			if err != nil {
     				return nil, err
     			}
-    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.UserID)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+					&e.UserID,
+				)
     			if r.Log != nil {
     				r.Log(err, TableComment, "insert", query, args...)
     			}
@@ -1550,12 +1556,15 @@ var expectedSimple = `package example
     			}
     			return buf.String(), upsert.Args(), nil
     		}
+
     		func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p *CommentPatch, inf ...string) (*CommentEntity, error) {
     			query, args, err := r.UpsertQuery(e, p, inf...)
     			if err != nil {
     				return nil, err
     			}
-    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(&e.UserID)
+    			err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+					&e.UserID,
+				)
     			if r.Log != nil {
     				r.Log(err, "Comment", "upsert", query, args...)
     			}
@@ -1564,6 +1573,7 @@ var expectedSimple = `package example
     			}
     			return e, nil
     		}
+
     		func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCountExpr) (int64, error) {
     			query, args, err := r.FindQuery(&CommentFindExpr{
     				Where:   c.Where,

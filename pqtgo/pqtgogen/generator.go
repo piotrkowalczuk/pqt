@@ -540,46 +540,8 @@ func (g *Generator) generateRepositoryUpsertQuery(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryUpsert(t *pqt.Table) {
-	if g.Version < 9.5 {
-		return
-	}
-
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`,
-		entityName,
-		g.Formatter.Identifier("upsert"),
-		entityName,
-		entityName,
-		entityName,
-	)
-	g.p.Printf(`
-			query, args, err := r.%sQuery(e, p, inf...)
-			if err != nil {
-				return nil, err
-			}
-			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
-		g.Formatter.Identifier("upsert"),
-		g.Formatter.Identifier("db"),
-	)
-
-	for _, c := range t.Columns {
-		g.p.Printf("&e.%s,\n", g.Formatter.Identifier(c.Name))
-	}
-	g.p.Printf(`)
-		if r.%s != nil {
-			r.%s(err, "%s", "upsert", query, args...)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return e, nil
-	}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
+	g.g.RepositoryUpsert(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryWhereClause(t *pqt.Table) {

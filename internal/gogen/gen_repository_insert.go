@@ -21,9 +21,11 @@ func (g *Generator) RepositoryInsert(t *pqt.Table) {
 	)
 
 	for _, c := range t.Columns {
-		g.Printf("&e.%s,\n", formatter.Public(c.Name))
+		g.Printf(`
+&e.%s,`, formatter.Public(c.Name))
 	}
-	g.Printf(`)
+	g.Printf(`
+)
 		if r.%s != nil {
 			r.%s(err, Table%s, "insert", query, args...)
 		}
