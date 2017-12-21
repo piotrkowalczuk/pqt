@@ -131,6 +131,22 @@ func %sAnd(operands ...*%sCriteria) *%sCriteria {
 }`, tableName, tableName, tableName, tableName)
 }
 
+func (g *Generator) Repository(t *pqt.Table) {
+	g.Printf(`
+type %sRepositoryBase struct {
+	%s string
+	%s []string
+	%s *sql.DB
+	%s LogFunc
+}`,
+		formatter.Public(t.Name),
+		formatter.Public("table"),
+		formatter.Public("columns"),
+		formatter.Public("db"),
+		formatter.Public("log"),
+	)
+}
+
 func (g *Generator) FindExpr(t *pqt.Table) {
 	g.Printf(`
 type %sFindExpr struct {`, formatter.Public(t.Name))

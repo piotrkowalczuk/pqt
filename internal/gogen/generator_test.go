@@ -249,6 +249,21 @@ func ExampleAnd(operands ...*ExampleCriteria) *ExampleCriteria {
 }`)
 }
 
+func TestRepository(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Repository(t2)
+	assertOutput(t, g.Printer, `
+type T2RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}`)
+}
+
 func TestFindExpr(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))

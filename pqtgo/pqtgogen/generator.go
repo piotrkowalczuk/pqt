@@ -168,19 +168,8 @@ func (g *Generator) generateIterator(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepository(t *pqt.Table) {
-	g.p.Printf(`
-		type %sRepositoryBase struct {
-			%s string
-			%s []string
-			%s *sql.DB
-			%s LogFunc
-		}`,
-		g.Formatter.Identifier(t.Name),
-		g.Formatter.Identifier("table"),
-		g.Formatter.Identifier("columns"),
-		g.Formatter.Identifier("db"),
-		g.Formatter.Identifier("log"),
-	)
+	g.g.Repository(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateColumns(t *pqt.Table) {
