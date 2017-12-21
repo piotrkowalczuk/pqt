@@ -264,6 +264,62 @@ type T2RepositoryBase struct {
 }`)
 }
 
+func TestColumns(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").
+		AddColumn(pqt.NewColumn("id", pqt.TypeIntegerBig(), pqt.WithPrimaryKey())).
+		AddColumn(pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull())).
+		AddColumn(pqt.NewColumn("description", pqt.TypeText())).
+		AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Columns(t2)
+	assertOutput(t, g.Printer, `
+const (
+	TableT2                  = "t2"
+	TableT2ColumnDescription = "description"
+	TableT2ColumnID          = "id"
+	TableT2ColumnName        = "name"
+)
+
+var TableT2Columns = []string{
+	TableT2ColumnDescription,
+	TableT2ColumnID,
+	TableT2ColumnName,
+}`)
+}
+
+func TestConstraints(t *testing.T) {
+	name := pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull(), pqt.WithIndex())
+	description := pqt.NewColumn("description", pqt.TypeText(), pqt.WithColumnShortName("desc"))
+
+	t1ID := pqt.NewColumn("id", pqt.TypeIntegerBig(), pqt.WithPrimaryKey())
+
+	t1 := pqt.NewTable("t1").AddColumn(t1ID)
+	t2 := pqt.NewTable("t2").
+		AddColumn(pqt.NewColumn("id", pqt.TypeIntegerBig(), pqt.WithPrimaryKey())).
+		AddColumn(pqt.NewColumn("t1_id", pqt.TypeIntegerBig(), pqt.WithReference(t1ID))).
+		AddColumn(name).
+		AddColumn(description).
+		AddUnique(name, description).
+		AddCheck("name <> 'LOL'", name)
+
+	pqt.NewSchema("constraints_test").
+		AddTable(t1).
+		AddTable(t2)
+
+	g := &gogen.Generator{}
+	g.Constraints(t2)
+	assertOutput(t, g.Printer, `
+const (
+	TableT2ConstraintPrimaryKey            = "constraints_test.t2_id_pkey"
+	TableT2ConstraintT1IDForeignKey        = "constraints_test.t2_t1_id_fkey"
+	TableT2ConstraintNameIndex             = "constraints_test.t2_name_idx"
+	TableT2ConstraintNameDescriptionUnique = "constraints_test.t2_name_desc_key"
+	TableT2ConstraintNameCheck             = "constraints_test.t2_name_check"
+)`)
+}
+
 func TestFindExpr(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))

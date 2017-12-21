@@ -65,8 +65,7 @@ func (g *Generator) generate(s *pqt.Schema) error {
 		g.generateRepositoryJoinClause(s)
 	}
 	for _, t := range s.Tables {
-		g.generateConstants(t)
-		g.generateColumns(t)
+		g.generateConstantsAndVariables(t)
 		g.generateEntity(t)
 		g.generateEntityProp(t)
 		g.generateEntityProps(t)
@@ -172,65 +171,11 @@ func (g *Generator) generateRepository(t *pqt.Table) {
 	g.g.NewLine()
 }
 
-func (g *Generator) generateColumns(t *pqt.Table) {
-	g.p.Printf(`
-		var (
-			%s  = []string{`, g.Formatter.Identifier("table", t.Name, "columns"))
-
-	for _, c := range t.Columns {
-		g.p.Printf(`
-			%s,`, g.Formatter.Identifier("table", t.Name, "column", c.Name))
-	}
-	g.p.Print(`
-		})`)
-}
-
-func (g *Generator) generateConstants(table *pqt.Table) {
-	g.p.Print(`
-		const (`)
-	g.generateConstantsColumns(table)
-	g.generateConstantsConstraints(table)
-	g.p.Print(`
-		)`)
-}
-
-func (g *Generator) generateConstantsColumns(t *pqt.Table) {
-	g.p.Printf(`
-		%s = "%s"`, g.Formatter.Identifier("table", t.Name), t.FullName())
-
-	for _, c := range t.Columns {
-		g.p.Printf(`
-			%s = "%s"`, g.Formatter.Identifier("table", t.Name, "column", c.Name), c.Name)
-	}
-}
-
-func (g *Generator) generateConstantsConstraints(t *pqt.Table) {
-	for _, c := range t.Constraints {
-		name := pqt.JoinColumns(c.PrimaryColumns, "_")
-		switch c.Type {
-		case pqt.ConstraintTypeCheck:
-			g.p.Printf(`
-				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Check"), c.String())
-		case pqt.ConstraintTypePrimaryKey:
-			g.p.Printf(`
-				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraintPrimaryKey"), c.String())
-		case pqt.ConstraintTypeForeignKey:
-			g.p.Printf(`
-				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "ForeignKey"), c.String())
-		case pqt.ConstraintTypeExclusion:
-			g.p.Printf(`
-				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Exclusion"), c.String())
-		case pqt.ConstraintTypeUnique:
-			g.p.Printf(`
-				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Unique"), c.String())
-		case pqt.ConstraintTypeIndex:
-			g.p.Printf(`
-				%s = "%s"`, g.Formatter.Identifier("table", c.PrimaryTable.Name, "constraint", name, "Index"), c.String())
-		}
-
-		g.p.Print(`
-			`)
-	}
+func (g *Generator) generateConstantsAndVariables(t *pqt.Table) {
+	g.g.Constraints(t)
+	g.g.NewLine()
+	g.g.Columns(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryInsertQuery(t *pqt.Table) {

@@ -151,22 +151,21 @@ var expectedSimple = `package example
     		}
 
     		const (
-    			TableUser                     = "example.user"
-    			TableUserColumnID             = "id"
-    			TableUserColumnName           = "name"
     			TableUserConstraintPrimaryKey = "example.user_id_pkey"
-
     			TableUserConstraintNameUnique = "example.user_name_key"
-
     			TableUserConstraintNameCheck = "example.user_name_check"
     		)
 
-    		var (
-    			TableUserColumns = []string{
-    				TableUserColumnID,
-    				TableUserColumnName,
-    			}
+    		const (
+    			TableUser                     = "example.user"
+    			TableUserColumnID             = "id"
+    			TableUserColumnName           = "name"
     		)
+
+    		var TableUserColumns = []string{
+				TableUserColumnID,
+				TableUserColumnName,
+			}
 
     		// UserEntity ...
     		type UserEntity struct {
@@ -944,16 +943,17 @@ var expectedSimple = `package example
     		}
 
     		const (
-    			TableComment                           = "example.comment"
-    			TableCommentColumnUserID               = "user_id"
     			TableCommentConstraintUserIDForeignKey = "example.comment_user_id_fkey"
     		)
 
-    		var (
-    			TableCommentColumns = []string{
-    				TableCommentColumnUserID,
-    			}
+    		const (
+    			TableComment                           = "example.comment"
+    			TableCommentColumnUserID               = "user_id"
     		)
+
+    		var TableCommentColumns = []string{
+				TableCommentColumnUserID,
+			}
 
     		// CommentEntity ...
     		type CommentEntity struct {

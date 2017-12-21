@@ -131,6 +131,60 @@ func %sAnd(operands ...*%sCriteria) *%sCriteria {
 }`, tableName, tableName, tableName, tableName)
 }
 
+func (g *Generator) Columns(t *pqt.Table) {
+	g.Printf(`
+const (
+%s = "%s"`, formatter.Public("table", t.Name), t.FullName())
+
+	for _, c := range t.Columns {
+		g.Printf(`
+%s = "%s"`, formatter.Public("table", t.Name, "column", c.Name), c.Name)
+	}
+
+	g.Printf(`
+)
+
+var %s = []string{`, formatter.Public("table", t.Name, "columns"))
+
+	for _, c := range t.Columns {
+		g.Printf(`
+%s,`, formatter.Public("table", t.Name, "column", c.Name))
+	}
+	g.Print(`
+}`)
+
+}
+
+func (g *Generator) Constraints(t *pqt.Table) {
+	g.Printf(`
+const (`)
+	for _, c := range t.Constraints {
+		name := pqt.JoinColumns(c.PrimaryColumns, "_")
+		switch c.Type {
+		case pqt.ConstraintTypeCheck:
+			g.Printf(`
+%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Check"), c.String())
+		case pqt.ConstraintTypePrimaryKey:
+			g.Printf(`
+%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraintPrimaryKey"), c.String())
+		case pqt.ConstraintTypeForeignKey:
+			g.Printf(`
+%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "ForeignKey"), c.String())
+		case pqt.ConstraintTypeExclusion:
+			g.Printf(`
+%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Exclusion"), c.String())
+		case pqt.ConstraintTypeUnique:
+			g.Printf(`
+%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Unique"), c.String())
+		case pqt.ConstraintTypeIndex:
+			g.Printf(`
+%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Index"), c.String())
+		}
+	}
+	g.Printf(`
+)`)
+}
+
 func (g *Generator) Repository(t *pqt.Table) {
 	g.Printf(`
 type %sRepositoryBase struct {

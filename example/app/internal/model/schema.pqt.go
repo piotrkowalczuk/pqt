@@ -66,30 +66,29 @@ func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
 }
 
 const (
-	TableCategory                     = "example.category"
-	TableCategoryColumnContent        = "content"
-	TableCategoryColumnCreatedAt      = "created_at"
-	TableCategoryColumnID             = "id"
-	TableCategoryColumnName           = "name"
-	TableCategoryColumnParentID       = "parent_id"
-	TableCategoryColumnUpdatedAt      = "updated_at"
-	TableCategoryConstraintPrimaryKey = "example.category_id_pkey"
-
+	TableCategoryConstraintPrimaryKey         = "example.category_id_pkey"
 	TableCategoryConstraintParentIDForeignKey = "example.category_parent_id_fkey"
-
-	TableCategoryConstraintNameIndex = "example.category_name_idx"
+	TableCategoryConstraintNameIndex          = "example.category_name_idx"
 )
 
-var (
-	TableCategoryColumns = []string{
-		TableCategoryColumnContent,
-		TableCategoryColumnCreatedAt,
-		TableCategoryColumnID,
-		TableCategoryColumnName,
-		TableCategoryColumnParentID,
-		TableCategoryColumnUpdatedAt,
-	}
+const (
+	TableCategory                = "example.category"
+	TableCategoryColumnContent   = "content"
+	TableCategoryColumnCreatedAt = "created_at"
+	TableCategoryColumnID        = "id"
+	TableCategoryColumnName      = "name"
+	TableCategoryColumnParentID  = "parent_id"
+	TableCategoryColumnUpdatedAt = "updated_at"
 )
+
+var TableCategoryColumns = []string{
+	TableCategoryColumnContent,
+	TableCategoryColumnCreatedAt,
+	TableCategoryColumnID,
+	TableCategoryColumnName,
+	TableCategoryColumnParentID,
+	TableCategoryColumnUpdatedAt,
+}
 
 // CategoryEntity ...
 type CategoryEntity struct {
@@ -1229,26 +1228,26 @@ func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (i
 }
 
 const (
-	TablePackage                     = "example.package"
-	TablePackageColumnBreak          = "break"
-	TablePackageColumnCategoryID     = "category_id"
-	TablePackageColumnCreatedAt      = "created_at"
-	TablePackageColumnID             = "id"
-	TablePackageColumnUpdatedAt      = "updated_at"
-	TablePackageConstraintPrimaryKey = "example.package_id_pkey"
-
+	TablePackageConstraintPrimaryKey           = "example.package_id_pkey"
 	TablePackageConstraintCategoryIDForeignKey = "example.package_category_id_fkey"
 )
 
-var (
-	TablePackageColumns = []string{
-		TablePackageColumnBreak,
-		TablePackageColumnCategoryID,
-		TablePackageColumnCreatedAt,
-		TablePackageColumnID,
-		TablePackageColumnUpdatedAt,
-	}
+const (
+	TablePackage                 = "example.package"
+	TablePackageColumnBreak      = "break"
+	TablePackageColumnCategoryID = "category_id"
+	TablePackageColumnCreatedAt  = "created_at"
+	TablePackageColumnID         = "id"
+	TablePackageColumnUpdatedAt  = "updated_at"
 )
+
+var TablePackageColumns = []string{
+	TablePackageColumnBreak,
+	TablePackageColumnCategoryID,
+	TablePackageColumnCreatedAt,
+	TablePackageColumnID,
+	TablePackageColumnUpdatedAt,
+}
 
 // PackageEntity ...
 type PackageEntity struct {
@@ -2321,6 +2320,12 @@ func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (in
 }
 
 const (
+	TableNewsConstraintPrimaryKey      = "example.news_id_pkey"
+	TableNewsConstraintTitleUnique     = "example.news_title_key"
+	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
+)
+
+const (
 	TableNews                        = "example.news"
 	TableNewsColumnContent           = "content"
 	TableNewsColumnContinue          = "continue"
@@ -2333,28 +2338,21 @@ const (
 	TableNewsColumnUpdatedAt         = "updated_at"
 	TableNewsColumnVersion           = "version"
 	TableNewsColumnViewsDistribution = "views_distribution"
-	TableNewsConstraintPrimaryKey    = "example.news_id_pkey"
-
-	TableNewsConstraintTitleUnique = "example.news_title_key"
-
-	TableNewsConstraintTitleLeadUnique = "example.news_title_lead_key"
 )
 
-var (
-	TableNewsColumns = []string{
-		TableNewsColumnContent,
-		TableNewsColumnContinue,
-		TableNewsColumnCreatedAt,
-		TableNewsColumnID,
-		TableNewsColumnLead,
-		TableNewsColumnMetaData,
-		TableNewsColumnScore,
-		TableNewsColumnTitle,
-		TableNewsColumnUpdatedAt,
-		TableNewsColumnVersion,
-		TableNewsColumnViewsDistribution,
-	}
-)
+var TableNewsColumns = []string{
+	TableNewsColumnContent,
+	TableNewsColumnContinue,
+	TableNewsColumnCreatedAt,
+	TableNewsColumnID,
+	TableNewsColumnLead,
+	TableNewsColumnMetaData,
+	TableNewsColumnScore,
+	TableNewsColumnTitle,
+	TableNewsColumnUpdatedAt,
+	TableNewsColumnVersion,
+	TableNewsColumnViewsDistribution,
+}
 
 // NewsEntity ...
 type NewsEntity struct {
@@ -4667,34 +4665,33 @@ func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64
 }
 
 const (
-	TableComment                              = "example.comment"
-	TableCommentColumnContent                 = "content"
-	TableCommentColumnCreatedAt               = "created_at"
-	TableCommentColumnID                      = "id"
-	TableCommentColumnIDMultiply              = "id_multiply"
-	TableCommentColumnNewsID                  = "news_id"
-	TableCommentColumnNewsTitle               = "news_title"
-	TableCommentColumnRightNow                = "right_now"
-	TableCommentColumnUpdatedAt               = "updated_at"
 	TableCommentConstraintNewsTitleForeignKey = "example.comment_news_title_fkey"
-
-	TableCommentConstraintNewsTitleIndex = "example.comment_news_title_idx"
-
-	TableCommentConstraintNewsIDForeignKey = "example.comment_news_id_fkey"
+	TableCommentConstraintNewsTitleIndex      = "example.comment_news_title_idx"
+	TableCommentConstraintNewsIDForeignKey    = "example.comment_news_id_fkey"
 )
 
-var (
-	TableCommentColumns = []string{
-		TableCommentColumnContent,
-		TableCommentColumnCreatedAt,
-		TableCommentColumnID,
-		TableCommentColumnIDMultiply,
-		TableCommentColumnNewsID,
-		TableCommentColumnNewsTitle,
-		TableCommentColumnRightNow,
-		TableCommentColumnUpdatedAt,
-	}
+const (
+	TableComment                 = "example.comment"
+	TableCommentColumnContent    = "content"
+	TableCommentColumnCreatedAt  = "created_at"
+	TableCommentColumnID         = "id"
+	TableCommentColumnIDMultiply = "id_multiply"
+	TableCommentColumnNewsID     = "news_id"
+	TableCommentColumnNewsTitle  = "news_title"
+	TableCommentColumnRightNow   = "right_now"
+	TableCommentColumnUpdatedAt  = "updated_at"
 )
+
+var TableCommentColumns = []string{
+	TableCommentColumnContent,
+	TableCommentColumnCreatedAt,
+	TableCommentColumnID,
+	TableCommentColumnIDMultiply,
+	TableCommentColumnNewsID,
+	TableCommentColumnNewsTitle,
+	TableCommentColumnRightNow,
+	TableCommentColumnUpdatedAt,
+}
 
 // CommentEntity ...
 type CommentEntity struct {
@@ -5802,6 +5799,8 @@ func (r *CommentRepositoryBase) Count(ctx context.Context, c *CommentCountExpr) 
 	return count, nil
 }
 
+const ()
+
 const (
 	TableComplete                                 = "example.complete"
 	TableCompleteColumnColumnBool                 = "column_bool"
@@ -5839,43 +5838,41 @@ const (
 	TableCompleteColumnColumnUUID                 = "column_uuid"
 )
 
-var (
-	TableCompleteColumns = []string{
-		TableCompleteColumnColumnBool,
-		TableCompleteColumnColumnBytea,
-		TableCompleteColumnColumnCharacter0,
-		TableCompleteColumnColumnCharacter100,
-		TableCompleteColumnColumnDecimal,
-		TableCompleteColumnColumnDoubleArray0,
-		TableCompleteColumnColumnDoubleArray100,
-		TableCompleteColumnColumnInteger,
-		TableCompleteColumnColumnIntegerArray0,
-		TableCompleteColumnColumnIntegerArray100,
-		TableCompleteColumnColumnIntegerBig,
-		TableCompleteColumnColumnIntegerBigArray0,
-		TableCompleteColumnColumnIntegerBigArray100,
-		TableCompleteColumnColumnIntegerSmall,
-		TableCompleteColumnColumnIntegerSmallArray0,
-		TableCompleteColumnColumnIntegerSmallArray100,
-		TableCompleteColumnColumnJson,
-		TableCompleteColumnColumnJsonNn,
-		TableCompleteColumnColumnJsonNnD,
-		TableCompleteColumnColumnJsonb,
-		TableCompleteColumnColumnJsonbNn,
-		TableCompleteColumnColumnJsonbNnD,
-		TableCompleteColumnColumnNumeric,
-		TableCompleteColumnColumnReal,
-		TableCompleteColumnColumnSerial,
-		TableCompleteColumnColumnSerialBig,
-		TableCompleteColumnColumnSerialSmall,
-		TableCompleteColumnColumnText,
-		TableCompleteColumnColumnTextArray0,
-		TableCompleteColumnColumnTextArray100,
-		TableCompleteColumnColumnTimestamp,
-		TableCompleteColumnColumnTimestamptz,
-		TableCompleteColumnColumnUUID,
-	}
-)
+var TableCompleteColumns = []string{
+	TableCompleteColumnColumnBool,
+	TableCompleteColumnColumnBytea,
+	TableCompleteColumnColumnCharacter0,
+	TableCompleteColumnColumnCharacter100,
+	TableCompleteColumnColumnDecimal,
+	TableCompleteColumnColumnDoubleArray0,
+	TableCompleteColumnColumnDoubleArray100,
+	TableCompleteColumnColumnInteger,
+	TableCompleteColumnColumnIntegerArray0,
+	TableCompleteColumnColumnIntegerArray100,
+	TableCompleteColumnColumnIntegerBig,
+	TableCompleteColumnColumnIntegerBigArray0,
+	TableCompleteColumnColumnIntegerBigArray100,
+	TableCompleteColumnColumnIntegerSmall,
+	TableCompleteColumnColumnIntegerSmallArray0,
+	TableCompleteColumnColumnIntegerSmallArray100,
+	TableCompleteColumnColumnJson,
+	TableCompleteColumnColumnJsonNn,
+	TableCompleteColumnColumnJsonNnD,
+	TableCompleteColumnColumnJsonb,
+	TableCompleteColumnColumnJsonbNn,
+	TableCompleteColumnColumnJsonbNnD,
+	TableCompleteColumnColumnNumeric,
+	TableCompleteColumnColumnReal,
+	TableCompleteColumnColumnSerial,
+	TableCompleteColumnColumnSerialBig,
+	TableCompleteColumnColumnSerialSmall,
+	TableCompleteColumnColumnText,
+	TableCompleteColumnColumnTextArray0,
+	TableCompleteColumnColumnTextArray100,
+	TableCompleteColumnColumnTimestamp,
+	TableCompleteColumnColumnTimestamptz,
+	TableCompleteColumnColumnUUID,
+}
 
 // CompleteEntity ...
 type CompleteEntity struct {
