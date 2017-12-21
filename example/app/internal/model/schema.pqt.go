@@ -1174,6 +1174,7 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 	}
 	return buf.String(), upsert.Args(), nil
 }
+
 func (r *CategoryRepositoryBase) Upsert(ctx context.Context, e *CategoryEntity, p *CategoryPatch, inf ...string) (*CategoryEntity, error) {
 	query, args, err := r.UpsertQuery(e, p, inf...)
 	if err != nil {
@@ -2267,6 +2268,7 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 	}
 	return buf.String(), upsert.Args(), nil
 }
+
 func (r *PackageRepositoryBase) Upsert(ctx context.Context, e *PackageEntity, p *PackagePatch, inf ...string) (*PackageEntity, error) {
 	query, args, err := r.UpsertQuery(e, p, inf...)
 	if err != nil {
@@ -4610,6 +4612,7 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 	}
 	return buf.String(), upsert.Args(), nil
 }
+
 func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsPatch, inf ...string) (*NewsEntity, error) {
 	query, args, err := r.UpsertQuery(e, p, inf...)
 	if err != nil {
@@ -5763,6 +5766,7 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 	}
 	return buf.String(), upsert.Args(), nil
 }
+
 func (r *CommentRepositoryBase) Upsert(ctx context.Context, e *CommentEntity, p *CommentPatch, inf ...string) (*CommentEntity, error) {
 	query, args, err := r.UpsertQuery(e, p, inf...)
 	if err != nil {
@@ -9134,6 +9138,7 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 	}
 	return buf.String(), upsert.Args(), nil
 }
+
 func (r *CompleteRepositoryBase) Upsert(ctx context.Context, e *CompleteEntity, p *CompletePatch, inf ...string) (*CompleteEntity, error) {
 	query, args, err := r.UpsertQuery(e, p, inf...)
 	if err != nil {

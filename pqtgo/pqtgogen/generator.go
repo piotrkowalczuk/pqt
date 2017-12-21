@@ -50,7 +50,9 @@ func (g *Generator) GenerateTo(w io.Writer, s *pqt.Schema) error {
 }
 
 func (g *Generator) generate(s *pqt.Schema) error {
-	g.g = &gogen.Generator{}
+	g.g = &gogen.Generator{
+		Version: g.Version,
+	}
 	g.p = &g.g.Printer
 
 	g.generatePackage()
