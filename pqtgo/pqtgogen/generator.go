@@ -179,49 +179,7 @@ func (g *Generator) generateConstantsAndVariables(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryInsertQuery(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %sQuery(e *%sEntity, read bool) (string, []interface{}, error) {`, entityName, g.Formatter.Identifier("insert"), entityName)
-	g.p.Printf(`
-		insert := NewComposer(%d)
-		columns := bytes.NewBuffer(nil)
-		buf := bytes.NewBufferString("INSERT INTO ")
-		buf.WriteString(r.%s)
-	`, len(t.Columns), g.Formatter.Identifier("table"))
-
-	for _, c := range t.Columns {
-		if c.IsDynamic {
-			continue
-		}
-		g.generateRepositoryInsertClause(c, "insert")
-	}
-	g.p.Print(`
-		if columns.Len() > 0 {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(insert)
-			buf.WriteString(") ")`)
-	g.p.Printf(`
-			if read {
-				buf.WriteString("RETURNING ")
-				if len(r.%s) > 0 {
-					buf.WriteString(strings.Join(r.%s, ", "))
-				} else {`,
-		g.Formatter.Identifier("columns"),
-		g.Formatter.Identifier("columns"),
-	)
-	g.p.Print(`
-		buf.WriteString("`)
-	g.selectList(t, -1)
-	g.p.Print(`")
-	}`)
-	g.p.Print(`
-			}
-		}
-		return buf.String(), insert.Args(), nil
-	}`)
+	g.g.RepositoryInsertQuery(t)
 }
 
 func (g *Generator) generateRepositoryInsert(t *pqt.Table) {

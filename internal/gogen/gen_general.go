@@ -429,27 +429,3 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 
 	return fields
 }
-
-func (g *Generator) columnType(c *pqt.Column, m int32) string {
-	m = columnMode(c, m)
-	for _, plugin := range g.Plugins {
-		if txt := plugin.PropertyType(c, m); txt != "" {
-			return txt
-		}
-	}
-	return formatter.Type(c.Type, m)
-}
-
-func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
-	for _, r := range t.OwnedRelationships {
-		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
-			continue
-		}
-		rels = append(rels, r)
-	}
-	return
-}
-
-func hasJoinableRelationships(t *pqt.Table) bool {
-	return len(joinableRelationships(t)) > 0
-}

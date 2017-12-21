@@ -1,6 +1,8 @@
 package gogen
 
 import (
+	"fmt"
+	"io"
 	"reflect"
 
 	"github.com/piotrkowalczuk/pqt"
@@ -12,6 +14,13 @@ type structField struct {
 	Type     string
 	Tags     reflect.StructTag
 	ReadOnly bool
+}
+
+func closeBrace(w io.Writer, n int) {
+	for i := 0; i < n; i++ {
+		fmt.Fprintln(w, `
+		}`)
+	}
 }
 
 func columnMode(c *pqt.Column, m int32) int32 {
@@ -32,4 +41,18 @@ func or(s1, s2 string) string {
 		return s2
 	}
 	return s1
+}
+
+func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
+	for _, r := range t.OwnedRelationships {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		rels = append(rels, r)
+	}
+	return
+}
+
+func hasJoinableRelationships(t *pqt.Table) bool {
+	return len(joinableRelationships(t)) > 0
 }

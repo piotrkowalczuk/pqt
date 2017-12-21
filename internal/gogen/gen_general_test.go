@@ -13,7 +13,7 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
-func TestPackage(t *testing.T) {
+func TestGenerator_Package(t *testing.T) {
 	cases := []struct {
 		name, exp string
 	}{
@@ -36,7 +36,7 @@ func TestPackage(t *testing.T) {
 	}
 }
 
-func TestImports(t *testing.T) {
+func TestGenerator_Imports(t *testing.T) {
 	cases := []struct {
 		schema pqt.Schema
 		fixed  []string
@@ -69,7 +69,7 @@ func TestImports(t *testing.T) {
 	}
 }
 
-func TestEntity(t *testing.T) {
+func TestGenerator_Entity(t *testing.T) {
 	table := func(c *pqt.Column) *pqt.Table {
 		t := pqt.NewTable("example")
 		if c != nil {
@@ -143,7 +143,7 @@ Dynamic int32}`,
 	}
 }
 
-func TestCriteria(t *testing.T) {
+func TestGenerator_Criteria(t *testing.T) {
 	table := func(c *pqt.Column) *pqt.Table {
 		t := pqt.NewTable("example")
 		if c != nil {
@@ -216,7 +216,7 @@ child, sibling, parent *ExampleCriteria
 	}
 }
 
-func TestOperand(t *testing.T) {
+func TestGenerator_Operand(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Operand(pqt.NewTable("example"))
 	assertOutput(t, g.Printer, `
@@ -249,7 +249,7 @@ func ExampleAnd(operands ...*ExampleCriteria) *ExampleCriteria {
 }`)
 }
 
-func TestRepository(t *testing.T) {
+func TestGenerator_Repository(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
 
@@ -264,7 +264,7 @@ type T2RepositoryBase struct {
 }`)
 }
 
-func TestColumns(t *testing.T) {
+func TestGenerator_Columns(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").
 		AddColumn(pqt.NewColumn("id", pqt.TypeIntegerBig(), pqt.WithPrimaryKey())).
@@ -289,7 +289,7 @@ var TableT2Columns = []string{
 }`)
 }
 
-func TestConstraints(t *testing.T) {
+func TestGenerator_Constraints(t *testing.T) {
 	name := pqt.NewColumn("name", pqt.TypeText(), pqt.WithNotNull(), pqt.WithIndex())
 	description := pqt.NewColumn("description", pqt.TypeText(), pqt.WithColumnShortName("desc"))
 
@@ -320,7 +320,7 @@ const (
 )`)
 }
 
-func TestFindExpr(t *testing.T) {
+func TestGenerator_FindExpr(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
 
@@ -336,7 +336,7 @@ type T2FindExpr struct {
 }`)
 }
 
-func TestCountExpr(t *testing.T) {
+func TestGenerator_CountExpr(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").
 		AddRelationship(pqt.ManyToOne(t1)).
@@ -351,7 +351,7 @@ type T2CountExpr struct {
 }`)
 }
 
-func TestJoin(t *testing.T) {
+func TestGenerator_Join(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
 
@@ -366,7 +366,7 @@ type T2Join struct {
 }`)
 }
 
-func TestPatch(t *testing.T) {
+func TestGenerator_Patch(t *testing.T) {
 	table := func(columns ...*pqt.Column) *pqt.Table {
 		t := pqt.NewTable("example")
 		for _, c := range columns {
@@ -444,7 +444,7 @@ type ExamplePatch struct {`)
 	}
 }
 
-func TestIterator(t *testing.T) {
+func TestGenerator_Iterator(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
 
