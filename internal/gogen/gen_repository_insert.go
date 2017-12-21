@@ -1,11 +1,8 @@
 package gogen
 
 import (
-	"strings"
-
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/formatter"
-	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 func (g *Generator) RepositoryInsert(t *pqt.Table) {
@@ -85,56 +82,4 @@ func (g *Generator) RepositoryInsertQuery(t *pqt.Table) {
 		}
 		return buf.String(), insert.Args(), nil
 	}`)
-}
-
-func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
-	braces := 0
-
-	switch c.Type {
-	case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
-		return
-	default:
-		if g.canBeNil(c, pqtgo.ModeDefault) {
-			g.Printf(`
-					if e.%s != nil {`,
-				formatter.Public(c.Name),
-			)
-			braces++
-		}
-		if g.isNullable(c, pqtgo.ModeDefault) {
-			g.Printf(`
-					if e.%s.Valid {`, formatter.Public(c.Name))
-			braces++
-		}
-		if g.isType(c, pqtgo.ModeDefault, "time.Time") {
-			g.Printf(`
-					if !e.%s.IsZero() {`, formatter.Public(c.Name))
-			braces++
-		}
-		g.Printf(strings.Replace(`
-			if columns.Len() > 0 {
-				if _, err := columns.WriteString(", "); err != nil {
-					return "", nil, err
-				}
-			}
-			if _, err := columns.WriteString(%s); err != nil {
-				return "", nil, err
-			}
-			if {{SELECTOR}}.Dirty {
-				if _, err := {{SELECTOR}}.WriteString(", "); err != nil {
-					return "", nil, err
-				}
-			}
-			if err := {{SELECTOR}}.WritePlaceholder(); err != nil {
-				return "", nil, err
-			}
-			{{SELECTOR}}.Add(e.%s)
-			{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
-			formatter.Public("table", c.Table.Name, "column", c.Name),
-			formatter.Public(c.Name),
-		)
-
-		closeBrace(g, braces)
-		g.NewLine()
-	}
 }

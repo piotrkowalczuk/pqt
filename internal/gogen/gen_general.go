@@ -12,6 +12,7 @@ import (
 type Generator struct {
 	print.Printer
 	Plugins []Plugin
+	Version float64
 }
 
 // Package generates package header.

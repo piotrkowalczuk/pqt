@@ -2,6 +2,7 @@ package gogen
 
 import (
 	"fmt"
+	"html/template"
 	"reflect"
 	"strings"
 
@@ -142,4 +143,141 @@ func (g *Generator) selectList(t *pqt.Table, nb int) {
 			}
 		}
 	}
+}
+
+func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
+	braces := 0
+
+	switch c.Type {
+	case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
+		return
+	default:
+		if g.canBeNil(c, pqtgo.ModeDefault) {
+			g.Printf(`
+					if e.%s != nil {`,
+				formatter.Public(c.Name),
+			)
+			braces++
+		}
+		if g.isNullable(c, pqtgo.ModeDefault) {
+			g.Printf(`
+					if e.%s.Valid {`, formatter.Public(c.Name))
+			braces++
+		}
+		if g.isType(c, pqtgo.ModeDefault, "time.Time") {
+			g.Printf(`
+					if !e.%s.IsZero() {`, formatter.Public(c.Name))
+			braces++
+		}
+		g.Printf(strings.Replace(`
+			if columns.Len() > 0 {
+				if _, err := columns.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := columns.WriteString(%s); err != nil {
+				return "", nil, err
+			}
+			if {{SELECTOR}}.Dirty {
+				if _, err := {{SELECTOR}}.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if err := {{SELECTOR}}.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			{{SELECTOR}}.Add(e.%s)
+			{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
+			formatter.Public("table", c.Table.Name, "column", c.Name),
+			formatter.Public(c.Name),
+		)
+
+		closeBrace(g, braces)
+		g.NewLine()
+	}
+}
+
+func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
+	if c.PrimaryKey {
+		return
+	}
+	for _, plugin := range g.Plugins {
+		if txt := plugin.SetClause(c); txt != "" {
+			tmpl, err := template.New("root").Parse(txt)
+			if err != nil {
+				panic(err)
+			}
+			if err = tmpl.Execute(g, map[string]interface{}{
+				"selector": fmt.Sprintf("p.%s", formatter.Public(c.Name)),
+				"column":   formatter.Public("table", c.Table.Name, "column", c.Name),
+				"composer": sel,
+			}); err != nil {
+				panic(err)
+			}
+			g.Println("")
+			return
+		}
+	}
+	braces := 0
+	if g.canBeNil(c, pqtgo.ModeOptional) {
+		g.Printf(`
+			if p.%s != nil {`, formatter.Public(c.Name))
+		braces++
+	}
+	if g.isNullable(c, pqtgo.ModeOptional) {
+		g.Printf(`
+			if p.%s.Valid {`, formatter.Public(c.Name))
+		braces++
+	}
+	if g.isType(c, pqtgo.ModeOptional, "time.Time") {
+		g.Printf(`
+			if !p.%s.IsZero() {`, formatter.Public(c.Name))
+		braces++
+	}
+
+	g.Printf(strings.Replace(`
+		if {{SELECTOR}}.Dirty {
+			if _, err := {{SELECTOR}}.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := {{SELECTOR}}.WriteString(%s); err != nil {
+			return "", nil, err
+		}
+		if _, err := {{SELECTOR}}.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := {{SELECTOR}}.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		{{SELECTOR}}.Add(p.%s)
+		{{SELECTOR}}.Dirty=true
+		`, "{{SELECTOR}}", sel, -1),
+		formatter.Public("table", c.Table.Name, "column", c.Name),
+		formatter.Public(c.Name),
+	)
+
+	if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
+		if g.canBeNil(c, pqtgo.ModeOptional) || g.isNullable(c, pqtgo.ModeOptional) || g.isType(c, pqtgo.ModeOptional, "time.Time") {
+			g.Printf(strings.Replace(`
+				} else {
+					if {{SELECTOR}}.Dirty {
+						if _, err := {{SELECTOR}}.WriteString(", "); err != nil {
+							return "", nil, err
+						}
+					}
+					if _, err := {{SELECTOR}}.WriteString(%s); err != nil {
+						return "", nil, err
+					}
+					if _, err := {{SELECTOR}}.WriteString("=%s"); err != nil {
+						return "", nil, err
+					}
+				{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
+				formatter.Public("table", c.Table.Name, "column", c.Name),
+				d,
+			)
+		}
+	}
+
+	closeBrace(g, braces)
 }

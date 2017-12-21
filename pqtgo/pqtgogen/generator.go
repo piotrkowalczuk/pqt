@@ -273,58 +273,6 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 	closeBrace(g.p, braces)
 }
 
-func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
-	braces := 0
-
-	switch c.Type {
-	case pqt.TypeSerial(), pqt.TypeSerialBig(), pqt.TypeSerialSmall():
-		return
-	default:
-		if g.canBeNil(c, pqtgo.ModeDefault) {
-			g.p.Printf(`
-					if e.%s != nil {`,
-				g.Formatter.Identifier(c.Name),
-			)
-			braces++
-		}
-		if g.isNullable(c, pqtgo.ModeDefault) {
-			g.p.Printf(`
-					if e.%s.Valid {`, g.Formatter.Identifier(c.Name))
-			braces++
-		}
-		if g.isType(c, pqtgo.ModeDefault, "time.Time") {
-			g.p.Printf(`
-					if !e.%s.IsZero() {`, g.Formatter.Identifier(c.Name))
-			braces++
-		}
-		g.p.Printf(strings.Replace(`
-			if columns.Len() > 0 {
-				if _, err := columns.WriteString(", "); err != nil {
-					return "", nil, err
-				}
-			}
-			if _, err := columns.WriteString(%s); err != nil {
-				return "", nil, err
-			}
-			if {{SELECTOR}}.Dirty {
-				if _, err := {{SELECTOR}}.WriteString(", "); err != nil {
-					return "", nil, err
-				}
-			}
-			if err := {{SELECTOR}}.WritePlaceholder(); err != nil {
-				return "", nil, err
-			}
-			{{SELECTOR}}.Add(e.%s)
-			{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
-			g.Formatter.Identifier("table", c.Table.Name, "column", c.Name),
-			g.Formatter.Identifier(c.Name),
-		)
-
-		closeBrace(g.p, braces)
-		g.p.Println("")
-	}
-}
-
 func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 	entityName := g.Formatter.Identifier(t.Name)
 	pk, ok := t.PrimaryKey()
@@ -585,86 +533,8 @@ func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(t *pqt.Table) 
 }
 
 func (g *Generator) generateRepositoryUpsertQuery(t *pqt.Table) {
-	if g.Version < 9.5 {
-		return
-	}
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %sQuery(e *%sEntity, p *%sPatch, inf ...string) (string, []interface{}, error) {`,
-		entityName,
-		g.Formatter.Identifier("upsert"),
-		entityName,
-		entityName,
-	)
-	g.p.Printf(`
-		upsert := NewComposer(%d)
-		columns := bytes.NewBuffer(nil)
-		buf := bytes.NewBufferString("INSERT INTO ")
-		buf.WriteString(r.%s)
-	`, len(t.Columns)*2, g.Formatter.Identifier("table"))
-
-	for _, c := range t.Columns {
-		if c.IsDynamic {
-			continue
-		}
-		g.generateRepositoryInsertClause(c, "upsert")
-	}
-
-	g.p.Print(`
-		if upsert.Dirty {
-			buf.WriteString(" (")
-			buf.ReadFrom(columns)
-			buf.WriteString(") VALUES (")
-			buf.ReadFrom(upsert)
-			buf.WriteString(")")
-		}
-		buf.WriteString(" ON CONFLICT ")`,
-	)
-
-	g.p.Print(`
-		if len(inf) > 0 {
-		upsert.Dirty=false`)
-	for _, c := range t.Columns {
-		if c.IsDynamic {
-			continue
-		}
-		g.generateRepositorySetClause(c, "upsert")
-	}
-	closeBrace(g.p, 1)
-
-	g.p.Printf(`
-		if len(inf) > 0 && upsert.Dirty {
-			buf.WriteString("(")
-			for j, i := range inf {
-				if j != 0 {
-					buf.WriteString(", ")
-				}
-				buf.WriteString(i)
-			}
-			buf.WriteString(")")
-			buf.WriteString(" DO UPDATE SET ")
-			buf.ReadFrom(upsert)
-		} else {
-			buf.WriteString(" DO NOTHING ")
-		}
-		if upsert.Dirty {
-			buf.WriteString(" RETURNING ")
-			if len(r.%s) > 0 {
-				buf.WriteString(strings.Join(r.%s, ", "))
-			} else {`,
-		g.Formatter.Identifier("columns"),
-		g.Formatter.Identifier("columns"),
-	)
-	g.p.Print(`
-		buf.WriteString("`)
-	g.selectList(t, -1)
-	g.p.Print(`")
-	}`)
-	g.p.Print(`
-		}
-		return buf.String(), upsert.Args(), nil
-	}`)
+	g.g.RepositoryUpsertQuery(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryUpsert(t *pqt.Table) {
