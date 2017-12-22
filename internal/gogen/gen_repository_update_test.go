@@ -165,7 +165,6 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAgeQuery(t1FirstNam
 		update.Dirty = true
 
 	}
-
 	if p.FirstName.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -185,7 +184,6 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAgeQuery(t1FirstNam
 		update.Dirty = true
 
 	}
-
 	if p.LastName.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -205,7 +203,6 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAgeQuery(t1FirstNam
 		update.Dirty = true
 
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("t1 update failure, nothing to update")
 	}
@@ -259,7 +256,6 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(
 		update.Dirty = true
 
 	}
-
 	if p.FirstName.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -279,7 +275,6 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(
 		update.Dirty = true
 
 	}
-
 	if p.LastName.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -299,7 +294,6 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(
 		update.Dirty = true
 
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("t1 update failure, nothing to update")
 	}

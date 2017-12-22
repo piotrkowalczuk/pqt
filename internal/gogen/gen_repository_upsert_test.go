@@ -242,7 +242,6 @@ func (r *T2RepositoryBase) UpsertQuery(e *T2Entity, p *T2Patch, inf ...string) (
 			upsert.Dirty = true
 
 		}
-
 		if p.CreatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -262,7 +261,6 @@ func (r *T2RepositoryBase) UpsertQuery(e *T2Entity, p *T2Patch, inf ...string) (
 			upsert.Dirty = true
 
 		}
-
 		if p.Description.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -282,7 +280,6 @@ func (r *T2RepositoryBase) UpsertQuery(e *T2Entity, p *T2Patch, inf ...string) (
 			upsert.Dirty = true
 
 		}
-
 		if p.ID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -302,7 +299,6 @@ func (r *T2RepositoryBase) UpsertQuery(e *T2Entity, p *T2Patch, inf ...string) (
 			upsert.Dirty = true
 
 		}
-
 		if p.Name.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -322,7 +318,6 @@ func (r *T2RepositoryBase) UpsertQuery(e *T2Entity, p *T2Patch, inf ...string) (
 			upsert.Dirty = true
 
 		}
-
 		if p.T1ID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -342,9 +337,7 @@ func (r *T2RepositoryBase) UpsertQuery(e *T2Entity, p *T2Patch, inf ...string) (
 			upsert.Dirty = true
 
 		}
-
 	}
-
 	if len(inf) > 0 && upsert.Dirty {
 		buf.WriteString("(")
 		for j, i := range inf {

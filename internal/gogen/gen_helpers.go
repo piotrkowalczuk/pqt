@@ -26,7 +26,11 @@ func (g *Generator) columnType(c *pqt.Column, m int32) string {
 			return txt
 		}
 	}
-	return formatter.Type(c.Type, m)
+	res := formatter.Type(c.Type, m)
+	if res == "" {
+		res = "<nil>"
+	}
+	return res
 }
 
 func (g *Generator) isType(c *pqt.Column, m int32, types ...string) bool {
@@ -280,4 +284,83 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 	}
 
 	closeBrace(g, braces)
+}
+
+func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
+	for _, r := range joinableRelationships(t) {
+		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
+			continue
+		}
+		g.Printf(`
+			if %s.%s != nil && %s.%s.%s {
+				ent.%s = &%sEntity{}
+				if prop, err = ent.%s.%s(); err != nil {
+					return nil, err
+				}
+				props = append(props, prop...)
+			}`,
+			sel,
+			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			sel,
+			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			formatter.Public("fetch"),
+			formatter.Public(or(r.InversedName, r.InversedTable.Name)),
+			formatter.Public(r.InversedTable.Name),
+			formatter.Public(or(r.InversedName, r.InversedTable.Name)),
+			formatter.Public("props"),
+		)
+	}
+}
+
+// entityPropertiesGenerator produces struct field definition for each column and relationship defined on a table.
+// It thread differently relationship differently based on ownership.
+func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
+	fields := make(chan structField)
+
+	go func(out chan structField) {
+		for _, c := range t.Columns {
+			if t := g.columnType(c, pqtgo.ModeDefault); t != "<nil>" {
+				out <- structField{Name: formatter.Public(c.Name), Type: t, ReadOnly: c.IsDynamic}
+			}
+		}
+
+		for _, r := range t.OwnedRelationships {
+			switch r.Type {
+			case pqt.RelationshipTypeOneToMany:
+				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.InversedTable.Name))}
+			case pqt.RelationshipTypeOneToOne:
+				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.InversedTable.Name))}
+			case pqt.RelationshipTypeManyToOne:
+				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.InversedTable.Name))}
+			}
+		}
+
+		for _, r := range t.InversedRelationships {
+			switch r.Type {
+			case pqt.RelationshipTypeOneToMany:
+				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.OwnerTable.Name))}
+			case pqt.RelationshipTypeOneToOne:
+				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.OwnerTable.Name))}
+			case pqt.RelationshipTypeManyToOne:
+				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.OwnerTable.Name))}
+			}
+		}
+
+		for _, r := range t.ManyToManyRelationships {
+			if r.Type != pqt.RelationshipTypeManyToMany {
+				continue
+			}
+
+			switch {
+			case r.OwnerTable == t:
+				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.InversedTable.Name))}
+			case r.InversedTable == t:
+				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.OwnerTable.Name))}
+			}
+		}
+
+		close(out)
+	}(fields)
+
+	return fields
 }

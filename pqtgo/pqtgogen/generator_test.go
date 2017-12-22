@@ -444,6 +444,7 @@ var expectedSimple = `package example
 				}
 				return nil
 			}
+
     		func _UserCriteriaWhereClause(comp *Composer, c *UserCriteria, id int) error {
     			if c.ID.Valid {
     				if comp.Dirty {
@@ -464,7 +465,6 @@ var expectedSimple = `package example
     				comp.Add(c.ID)
     				comp.Dirty = true
     			}
-
     			if c.Name.Valid {
     				if comp.Dirty {
     					comp.WriteString(" AND ")
@@ -484,7 +484,6 @@ var expectedSimple = `package example
     				comp.Add(c.Name)
     				comp.Dirty = true
     			}
-
     			return nil
     		}
 
@@ -710,7 +709,6 @@ var expectedSimple = `package example
     				update.Dirty = true
 
     			}
-
     			if !update.Dirty {
     				return "", nil, errors.New("User update failure, nothing to update")
     			}
@@ -776,7 +774,6 @@ var expectedSimple = `package example
     				update.Dirty = true
 
     			}
-
     			if !update.Dirty {
     				return "", nil, errors.New("user update failure, nothing to update")
     			}
@@ -871,9 +868,7 @@ var expectedSimple = `package example
     					upsert.Dirty = true
 
     				}
-
     			}
-
     			if len(inf) > 0 && upsert.Dirty {
     				buf.WriteString("(")
     				for j, i := range inf {
@@ -1262,6 +1257,7 @@ var expectedSimple = `package example
 				}
 				return nil
 			}
+
     		func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
     			if c.UserID.Valid {
     				if comp.Dirty {
@@ -1282,7 +1278,6 @@ var expectedSimple = `package example
     				comp.Add(c.UserID)
     				comp.Dirty = true
     			}
-
     			return nil
     		}
 
@@ -1297,11 +1292,9 @@ var expectedSimple = `package example
     			if fe.JoinUser != nil && fe.JoinUser.Fetch {
     				buf.WriteString(", t1.id, t1.name")
     			}
-
     			if fe.JoinWpis != nil && fe.JoinWpis.Fetch {
     				buf.WriteString(", t2.body")
     			}
-
     			buf.WriteString(" FROM ")
     			buf.WriteString(r.Table)
     			buf.WriteString(" AS t0")
@@ -1314,7 +1307,6 @@ var expectedSimple = `package example
     					}
     				}
     			}
-
     			if fe.JoinWpis != nil {
     				joinClause(comp, fe.JoinWpis.Kind, "post AS t2 ON ")
     				if fe.JoinWpis.On != nil {
@@ -1324,7 +1316,6 @@ var expectedSimple = `package example
     					}
     				}
     			}
-
     			if comp.Dirty {
     				buf.ReadFrom(comp)
     				comp.Dirty = false
@@ -1534,9 +1525,7 @@ var expectedSimple = `package example
     					upsert.Dirty = true
 
     				}
-
     			}
-
     			if len(inf) > 0 && upsert.Dirty {
     				buf.WriteString("(")
     				for j, i := range inf {

@@ -9,7 +9,7 @@ import (
 
 func TestGenerator_RepositoryInsert(t *testing.T) {
 	t1 := pqt.NewTable("t1")
-	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1))
+	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1)).AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey()))
 
 	g := &gogen.Generator{}
 	g.Repository(t2)
@@ -27,7 +27,9 @@ func (r *T2RepositoryBase) Insert(ctx context.Context, e *T2Entity) (*T2Entity, 
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan()
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+		&e.ID,
+	)
 	if r.Log != nil {
 		r.Log(err, TableT2, "insert", query, args...)
 	}

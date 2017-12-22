@@ -19,7 +19,9 @@ func (g *generator) PropertyType(c *pqt.Column, m int32) string {
 
 func (g *generator) WhereClause(c *pqt.Column) string {
 	if c.Type == pqt.TypeSerialBig() {
-		return fmt.Sprintf("// %s is an empty struct, ignore\n", c.Name)
+		return fmt.Sprintf(`
+// %s is an empty struct, ignore
+`, c.Name)
 	}
 	return ""
 }

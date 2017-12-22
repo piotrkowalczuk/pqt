@@ -3,9 +3,12 @@ package gogen
 import (
 	"fmt"
 	"io"
+	"os"
 	"reflect"
+	"runtime/debug"
 
 	"github.com/piotrkowalczuk/pqt"
+	"github.com/piotrkowalczuk/pqt/internal/formatter"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
@@ -18,7 +21,7 @@ type structField struct {
 
 func closeBrace(w io.Writer, n int) {
 	for i := 0; i < n; i++ {
-		fmt.Fprintln(w, `
+		fmt.Fprint(w, `
 		}`)
 	}
 }
@@ -72,4 +75,35 @@ func uniqueConstraints(t *pqt.Table) []*pqt.Constraint {
 		return nil
 	}
 	return unique
+}
+
+func sqlSelector(c *pqt.Column, id string) string {
+	if !c.IsDynamic {
+		return formatter.Public("table", c.Table.Name, "column", c.Name)
+	}
+	sel := c.Func.Name
+	sel += "("
+	for i := range c.Func.Args {
+		if i != 0 {
+			sel += ", "
+		}
+		sel += fmt.Sprint("t%d.")
+		sel += c.Columns[i].Name
+	}
+	sel += ")"
+
+	ret := fmt.Sprintf(`fmt.Sprintf("%s"`, sel)
+	for range c.Func.Args {
+		ret += ", "
+		ret += id
+	}
+	return ret + ")"
+}
+
+func functionName(f *pqt.Function) string {
+	if f.Name == "" {
+		fmt.Println(fmt.Sprintf("function name is missing\n\n%s", debug.Stack()))
+		os.Exit(1)
+	}
+	return f.Name
 }

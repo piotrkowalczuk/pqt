@@ -487,6 +487,7 @@ func CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) er
 	}
 	return nil
 }
+
 func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) error {
 	if c.Content.Valid {
 		if comp.Dirty {
@@ -507,7 +508,6 @@ func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) e
 		comp.Add(c.Content)
 		comp.Dirty = true
 	}
-
 	if c.CreatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -527,7 +527,6 @@ func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) e
 		comp.Add(c.CreatedAt)
 		comp.Dirty = true
 	}
-
 	// id is an empty struct, ignore
 
 	if c.Name.Valid {
@@ -549,7 +548,6 @@ func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) e
 		comp.Add(c.Name)
 		comp.Dirty = true
 	}
-
 	if c.ParentID.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -569,7 +567,6 @@ func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) e
 		comp.Add(c.ParentID)
 		comp.Dirty = true
 	}
-
 	if c.UpdatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -589,7 +586,6 @@ func _CategoryCriteriaWhereClause(comp *Composer, c *CategoryCriteria, id int) e
 		comp.Add(c.UpdatedAt)
 		comp.Dirty = true
 	}
-
 	return nil
 }
 
@@ -785,7 +781,6 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
-
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -805,7 +800,6 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
-
 	if p.Name.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -825,7 +819,6 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
-
 	if p.ParentID.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -845,7 +838,6 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		update.Dirty = true
 
 	}
-
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -878,7 +870,6 @@ func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) 
 		}
 		update.Dirty = true
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("Category update failure, nothing to update")
 	}
@@ -1057,7 +1048,6 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 			upsert.Dirty = true
 
 		}
-
 		if p.CreatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -1077,7 +1067,6 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 			upsert.Dirty = true
 
 		}
-
 		if p.Name.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -1097,7 +1086,6 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ParentID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -1117,7 +1105,6 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 			upsert.Dirty = true
 
 		}
-
 		if p.UpdatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -1150,9 +1137,7 @@ func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch
 			}
 			upsert.Dirty = true
 		}
-
 	}
-
 	if len(inf) > 0 && upsert.Dirty {
 		buf.WriteString("(")
 		for j, i := range inf {
@@ -1636,6 +1621,7 @@ func PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) erro
 	}
 	return nil
 }
+
 func _PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) error {
 	if c.Break.Valid {
 		if comp.Dirty {
@@ -1656,7 +1642,6 @@ func _PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) err
 		comp.Add(c.Break)
 		comp.Dirty = true
 	}
-
 	if c.CategoryID.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -1676,7 +1661,6 @@ func _PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) err
 		comp.Add(c.CategoryID)
 		comp.Dirty = true
 	}
-
 	if c.CreatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -1696,7 +1680,6 @@ func _PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) err
 		comp.Add(c.CreatedAt)
 		comp.Dirty = true
 	}
-
 	// id is an empty struct, ignore
 
 	if c.UpdatedAt.Valid {
@@ -1718,7 +1701,6 @@ func _PackageCriteriaWhereClause(comp *Composer, c *PackageCriteria, id int) err
 		comp.Add(c.UpdatedAt)
 		comp.Dirty = true
 	}
-
 	return nil
 }
 
@@ -1733,7 +1715,6 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 	if fe.JoinCategory != nil && fe.JoinCategory.Fetch {
 		buf.WriteString(", t1.content, t1.created_at, t1.id, t1.name, t1.parent_id, t1.updated_at")
 	}
-
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
 	buf.WriteString(" AS t0")
@@ -1746,7 +1727,6 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 			}
 		}
 	}
-
 	if comp.Dirty {
 		buf.ReadFrom(comp)
 		comp.Dirty = false
@@ -1941,7 +1921,6 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		update.Dirty = true
 
 	}
-
 	if p.CategoryID.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1961,7 +1940,6 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		update.Dirty = true
 
 	}
-
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -1981,7 +1959,6 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		update.Dirty = true
 
 	}
-
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -2014,7 +1991,6 @@ func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (s
 		}
 		update.Dirty = true
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("Package update failure, nothing to update")
 	}
@@ -2176,7 +2152,6 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.CategoryID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -2196,7 +2171,6 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.CreatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -2216,7 +2190,6 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.UpdatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -2249,9 +2222,7 @@ func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, i
 			}
 			upsert.Dirty = true
 		}
-
 	}
-
 	if len(inf) > 0 && upsert.Dirty {
 		buf.WriteString("(")
 		for j, i := range inf {
@@ -2904,6 +2875,7 @@ func NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 	}
 	return nil
 }
+
 func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 	if c.Content.Valid {
 		if comp.Dirty {
@@ -2924,7 +2896,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.Content)
 		comp.Dirty = true
 	}
-
 	if c.Continue.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -2944,7 +2915,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.Continue)
 		comp.Dirty = true
 	}
-
 	if c.CreatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -2964,7 +2934,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.CreatedAt)
 		comp.Dirty = true
 	}
-
 	// id is an empty struct, ignore
 
 	if c.Lead.Valid {
@@ -2986,7 +2955,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.Lead)
 		comp.Dirty = true
 	}
-
 	if c.MetaData != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -3006,7 +2974,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.MetaData)
 		comp.Dirty = true
 	}
-
 	if c.Score.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -3026,7 +2993,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.Score)
 		comp.Dirty = true
 	}
-
 	if c.Title.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -3046,7 +3012,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.Title)
 		comp.Dirty = true
 	}
-
 	if c.UpdatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -3066,7 +3031,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.UpdatedAt)
 		comp.Dirty = true
 	}
-
 	if c.Version.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -3086,7 +3050,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.Version)
 		comp.Dirty = true
 	}
-
 	if c.ViewsDistribution.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -3106,7 +3069,6 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 		comp.Add(c.ViewsDistribution)
 		comp.Dirty = true
 	}
-
 	return nil
 }
 
@@ -3367,7 +3329,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.Continue.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3387,7 +3348,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3407,7 +3367,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.Lead.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3427,7 +3386,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.MetaData != nil {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3447,7 +3405,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.Score.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3467,7 +3424,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.Title.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3487,7 +3443,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3520,7 +3475,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Dirty = true
 	}
-
 	if p.Version.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3553,7 +3507,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		}
 		update.Dirty = true
 	}
-
 	if p.ViewsDistribution.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3573,7 +3526,6 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 		update.Dirty = true
 
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("News update failure, nothing to update")
 	}
@@ -3639,7 +3591,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.Continue.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3659,7 +3610,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3679,7 +3629,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.Lead.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3699,7 +3648,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.MetaData != nil {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3719,7 +3667,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.Score.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3739,7 +3686,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.Title.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3759,7 +3705,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3792,7 +3737,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		}
 		update.Dirty = true
 	}
-
 	if p.Version.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3825,7 +3769,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		}
 		update.Dirty = true
 	}
-
 	if p.ViewsDistribution.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3845,7 +3788,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 		update.Dirty = true
 
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("news update failure, nothing to update")
 	}
@@ -3889,7 +3831,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.Continue.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3909,7 +3850,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.CreatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3929,7 +3869,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.Lead.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3949,7 +3888,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.MetaData != nil {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3969,7 +3907,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.Score.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3989,7 +3926,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.Title.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -4009,7 +3945,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if p.UpdatedAt.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -4042,7 +3977,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		}
 		update.Dirty = true
 	}
-
 	if p.Version.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -4075,7 +4009,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		}
 		update.Dirty = true
 	}
-
 	if p.ViewsDistribution.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -4095,7 +4028,6 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 		update.Dirty = true
 
 	}
-
 	if !update.Dirty {
 		return "", nil, errors.New("news update failure, nothing to update")
 	}
@@ -4396,7 +4328,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.Continue.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4416,7 +4347,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.CreatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4436,7 +4366,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.Lead.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4456,7 +4385,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.MetaData != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4476,7 +4404,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.Score.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4496,7 +4423,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.Title.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4516,7 +4442,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 		if p.UpdatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4549,7 +4474,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			}
 			upsert.Dirty = true
 		}
-
 		if p.Version.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4582,7 +4506,6 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			}
 			upsert.Dirty = true
 		}
-
 		if p.ViewsDistribution.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4602,9 +4525,7 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
-
 	}
-
 	if len(inf) > 0 && upsert.Dirty {
 		buf.WriteString("(")
 		for j, i := range inf {
@@ -5154,6 +5075,7 @@ func CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) erro
 	}
 	return nil
 }
+
 func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) error {
 	if c.Content.Valid {
 		if comp.Dirty {
@@ -5174,7 +5096,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.Content)
 		comp.Dirty = true
 	}
-
 	if c.CreatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -5194,7 +5115,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.CreatedAt)
 		comp.Dirty = true
 	}
-
 	// id is an empty struct, ignore
 
 	if c.IDMultiply.Valid {
@@ -5234,7 +5154,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.IDMultiply)
 		comp.Dirty = true
 	}
-
 	if c.NewsID.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -5254,7 +5173,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.NewsID)
 		comp.Dirty = true
 	}
-
 	if c.NewsTitle.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -5274,7 +5192,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.NewsTitle)
 		comp.Dirty = true
 	}
-
 	if c.RightNow.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -5297,7 +5214,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.RightNow)
 		comp.Dirty = true
 	}
-
 	if c.UpdatedAt.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -5317,7 +5233,6 @@ func _CommentCriteriaWhereClause(comp *Composer, c *CommentCriteria, id int) err
 		comp.Add(c.UpdatedAt)
 		comp.Dirty = true
 	}
-
 	return nil
 }
 
@@ -5332,11 +5247,9 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Fetch {
 		buf.WriteString(", t1.content, t1.continue, t1.created_at, t1.id, t1.lead, t1.meta_data, t1.score, t1.title, t1.updated_at, t1.version, t1.views_distribution")
 	}
-
 	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Fetch {
 		buf.WriteString(", t2.content, t2.continue, t2.created_at, t2.id, t2.lead, t2.meta_data, t2.score, t2.title, t2.updated_at, t2.version, t2.views_distribution")
 	}
-
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
 	buf.WriteString(" AS t0")
@@ -5349,7 +5262,6 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 			}
 		}
 	}
-
 	if fe.JoinNewsByID != nil {
 		joinClause(comp, fe.JoinNewsByID.Kind, "example.news AS t2 ON t0.news_id=t2.id")
 		if fe.JoinNewsByID.On != nil {
@@ -5359,7 +5271,6 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 			}
 		}
 	}
-
 	if comp.Dirty {
 		buf.ReadFrom(comp)
 		comp.Dirty = false
@@ -5647,7 +5558,6 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.CreatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -5667,7 +5577,6 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.ID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -5687,7 +5596,6 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.NewsID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -5707,7 +5615,6 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.NewsTitle.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -5727,7 +5634,6 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			upsert.Dirty = true
 
 		}
-
 		if p.UpdatedAt.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -5760,9 +5666,7 @@ func (r *CommentRepositoryBase) UpsertQuery(e *CommentEntity, p *CommentPatch, i
 			}
 			upsert.Dirty = true
 		}
-
 	}
-
 	if len(inf) > 0 && upsert.Dirty {
 		buf.WriteString("(")
 		for j, i := range inf {
@@ -7046,6 +6950,7 @@ func CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) er
 	}
 	return nil
 }
+
 func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) error {
 	if c.ColumnBool.Valid {
 		if comp.Dirty {
@@ -7066,7 +6971,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnBool)
 		comp.Dirty = true
 	}
-
 	if c.ColumnBytea != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7086,7 +6990,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnBytea)
 		comp.Dirty = true
 	}
-
 	if c.ColumnCharacter0.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7106,7 +7009,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnCharacter0)
 		comp.Dirty = true
 	}
-
 	if c.ColumnCharacter100.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7126,7 +7028,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnCharacter100)
 		comp.Dirty = true
 	}
-
 	if c.ColumnDecimal.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7146,7 +7047,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnDecimal)
 		comp.Dirty = true
 	}
-
 	if c.ColumnDoubleArray0.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7166,7 +7066,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnDoubleArray0)
 		comp.Dirty = true
 	}
-
 	if c.ColumnDoubleArray100.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7186,7 +7085,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnDoubleArray100)
 		comp.Dirty = true
 	}
-
 	if c.ColumnInteger != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7206,7 +7104,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnInteger)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerArray0.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7226,7 +7123,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerArray0)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerArray100.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7246,7 +7142,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerArray100)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerBig.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7266,7 +7161,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerBig)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerBigArray0.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7286,7 +7180,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerBigArray0)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerBigArray100.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7306,7 +7199,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerBigArray100)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerSmall != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7326,7 +7218,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerSmall)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerSmallArray0.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7346,7 +7237,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerSmallArray0)
 		comp.Dirty = true
 	}
-
 	if c.ColumnIntegerSmallArray100.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7366,7 +7256,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnIntegerSmallArray100)
 		comp.Dirty = true
 	}
-
 	if c.ColumnJson != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7386,7 +7275,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnJson)
 		comp.Dirty = true
 	}
-
 	if c.ColumnJsonNn != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7406,7 +7294,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnJsonNn)
 		comp.Dirty = true
 	}
-
 	if c.ColumnJsonNnD != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7426,7 +7313,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnJsonNnD)
 		comp.Dirty = true
 	}
-
 	if c.ColumnJsonb != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7446,7 +7332,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnJsonb)
 		comp.Dirty = true
 	}
-
 	if c.ColumnJsonbNn != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7466,7 +7351,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnJsonbNn)
 		comp.Dirty = true
 	}
-
 	if c.ColumnJsonbNnD != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7486,7 +7370,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnJsonbNnD)
 		comp.Dirty = true
 	}
-
 	if c.ColumnNumeric.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7506,7 +7389,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnNumeric)
 		comp.Dirty = true
 	}
-
 	if c.ColumnReal != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7526,7 +7408,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnReal)
 		comp.Dirty = true
 	}
-
 	if c.ColumnSerial != nil {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7546,7 +7427,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnSerial)
 		comp.Dirty = true
 	}
-
 	// column_serial_big is an empty struct, ignore
 
 	if c.ColumnSerialSmall != nil {
@@ -7568,7 +7448,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnSerialSmall)
 		comp.Dirty = true
 	}
-
 	if c.ColumnText.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7588,7 +7467,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnText)
 		comp.Dirty = true
 	}
-
 	if c.ColumnTextArray0.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7608,7 +7486,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnTextArray0)
 		comp.Dirty = true
 	}
-
 	if c.ColumnTextArray100.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7628,7 +7505,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnTextArray100)
 		comp.Dirty = true
 	}
-
 	if c.ColumnTimestamp.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7648,7 +7524,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnTimestamp)
 		comp.Dirty = true
 	}
-
 	if c.ColumnTimestamptz.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7668,7 +7543,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnTimestamptz)
 		comp.Dirty = true
 	}
-
 	if c.ColumnUUID.Valid {
 		if comp.Dirty {
 			comp.WriteString(" AND ")
@@ -7688,7 +7562,6 @@ func _CompleteCriteriaWhereClause(comp *Composer, c *CompleteCriteria, id int) e
 		comp.Add(c.ColumnUUID)
 		comp.Dirty = true
 	}
-
 	return nil
 }
 
@@ -8496,7 +8369,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnBytea != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8516,7 +8388,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnCharacter0.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8536,7 +8407,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnCharacter100.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8556,7 +8426,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnDecimal.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8576,7 +8445,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnDoubleArray0.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8596,7 +8464,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnDoubleArray100.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8616,7 +8483,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnInteger != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8636,7 +8502,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerArray0.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8656,7 +8521,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerArray100.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8676,7 +8540,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerBig.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8696,7 +8559,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerBigArray0.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8716,7 +8578,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerBigArray100.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8736,7 +8597,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerSmall != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8756,7 +8616,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerSmallArray0.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8776,7 +8635,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnIntegerSmallArray100.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8796,7 +8654,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnJson != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8816,7 +8673,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnJsonNn != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8836,7 +8692,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnJsonNnD != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8856,7 +8711,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnJsonb != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8876,7 +8730,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnJsonbNn != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8896,7 +8749,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnJsonbNnD != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8916,7 +8768,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnNumeric.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8936,7 +8787,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnReal != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8956,7 +8806,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnSerial != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8976,7 +8825,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnSerialBig.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -8996,7 +8844,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnSerialSmall != nil {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9016,7 +8863,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnText.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9036,7 +8882,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnTextArray0.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9056,7 +8901,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnTextArray100.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9076,7 +8920,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnTimestamp.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9096,7 +8939,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnTimestamptz.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9116,7 +8958,6 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 		if p.ColumnUUID.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -9136,9 +8977,7 @@ func (r *CompleteRepositoryBase) UpsertQuery(e *CompleteEntity, p *CompletePatch
 			upsert.Dirty = true
 
 		}
-
 	}
-
 	if len(inf) > 0 && upsert.Dirty {
 		buf.WriteString("(")
 		for j, i := range inf {

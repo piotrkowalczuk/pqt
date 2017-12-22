@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"fmt"
 	"go/format"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/aryann/difflib"
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
 	"github.com/piotrkowalczuk/pqt/internal/print"
@@ -510,6 +513,263 @@ func (i *T2Iterator) T2() (*T2Entity, error) {
 }`)
 }
 
+func TestGenerator_WhereClause(t *testing.T) {
+	exp := func(kind, body string) string {
+		res := `
+type T1Criteria struct {`
+		if kind != "none" {
+			res += fmt.Sprintf(`
+	Xyz                    %s`, kind)
+		}
+		res += `
+	operator               string
+	child, sibling, parent *T1Criteria
+}`
+
+		res += fmt.Sprintf(`
+func T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+	if c.child == nil {
+		return _T1CriteriaWhereClause(comp, c, id)
+	}
+	node := c
+	sibling := false
+	for {
+		if !sibling {
+			if node.child != nil {
+				if node.parent != nil {
+					comp.WriteString("(")
+				}
+				node = node.child
+				continue
+			} else {
+				comp.Dirty = false
+				comp.WriteString("(")
+				if err := _T1CriteriaWhereClause(comp, node, id); err != nil {
+					return err
+				}
+				comp.WriteString(")")
+			}
+		}
+		if node.sibling != nil {
+			sibling = false
+			comp.WriteString(" ")
+			comp.WriteString(node.parent.operator)
+			comp.WriteString(" ")
+			node = node.sibling
+			continue
+		}
+		if node.parent != nil {
+			sibling = true
+			if node.parent.parent != nil {
+				comp.WriteString(")")
+			}
+			node = node.parent
+			continue
+		}
+
+		break
+	}
+	return nil
+}
+
+%s`, body)
+		return res
+	}
+	cases := []struct {
+		hint string
+		col  *pqt.Column
+		exp  string
+	}{
+		{
+			hint: "sql-null-type",
+			col:  pqt.NewColumn("xyz", pqt.TypeIntegerBig()),
+			exp: exp("sql.NullInt64", `
+func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+	if c.Xyz.Valid {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableT1ColumnXyz); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Xyz)
+		comp.Dirty = true
+	}
+	return nil
+}`),
+		},
+		{
+			hint: "pointer",
+			col:  pqt.NewColumn("xyz", pqt.TypeInteger()),
+			exp: exp("*int32", `
+func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+	if c.Xyz != nil {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableT1ColumnXyz); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Xyz)
+		comp.Dirty = true
+	}
+	return nil
+}`),
+		},
+		{
+			hint: "non-pointer-time",
+			col:  pqt.NewColumn("xyz", pqtgo.TypeCustom(time.Now(), time.Now(), time.Now())),
+			exp: exp("time.Time", `
+func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+	if !c.Xyz.IsZero() {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableT1ColumnXyz); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Xyz)
+		comp.Dirty = true
+	}
+	return nil
+}`),
+		},
+		{
+			hint: "nullable-time",
+			col:  pqt.NewColumn("xyz", pqt.TypeTimestampTZ(), pqt.WithNotNull()),
+			exp: exp("pq.NullTime", `
+func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+	if c.Xyz.Valid {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableT1ColumnXyz); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Xyz)
+		comp.Dirty = true
+	}
+	return nil
+}`),
+		},
+		{
+			hint: "unknown",
+			col:  pqt.NewColumn("xyz", pqtgo.TypeCustom(struct{}{}, struct{}{}, nil)),
+			exp: exp("none", `
+func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+    			return nil
+    		}`),
+		},
+		{
+			hint: "dynamic",
+			col: func() *pqt.Column {
+				arg1 := pqt.NewColumn("x", pqt.TypeIntegerBig())
+				arg2 := pqt.NewColumn("y", pqt.TypeIntegerBig())
+				dyn := pqt.NewDynamicColumn("xyz", &pqt.Function{Name: "fn", Type: pqt.TypeIntegerBig(), Args: []*pqt.FunctionArg{
+					{
+						Name: "arg1",
+						Type: pqt.TypeIntegerBig(),
+					},
+					{
+						Name: "arg2",
+						Type: pqt.TypeIntegerBig(),
+					},
+				}}, arg1, arg2)
+				_ = pqt.NewTable("example").AddColumn(arg1).AddColumn(arg2).AddColumn(dyn)
+				return dyn
+			}(),
+			exp: exp("sql.NullInt64", `
+func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
+	if c.Xyz.Valid {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if _, err := comp.WriteString("fn"); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("("); err != nil {
+			return err
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableExampleColumnX); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(", "); err != nil {
+			return err
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableExampleColumnY); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(")"); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Xyz)
+		comp.Dirty = true
+	}
+	return nil
+}`),
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.hint, func(t *testing.T) {
+			t1 := pqt.NewTable("t1").AddColumn(c.col)
+
+			g := &gogen.Generator{}
+			g.Criteria(t1)
+			g.WhereClause(t1)
+			assertOutput(t, g.Printer, c.exp)
+		})
+	}
+}
+
 type testColumn struct {
 	name, kind string
 }
@@ -519,13 +779,35 @@ func assertOutput(t *testing.T, p print.Printer, e string) {
 
 	got, err := format.Source(p.Bytes())
 	if err != nil {
-		t.Fatalf("unexpected printer formatting error: %s", err.Error())
+		t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), p.String())
 	}
 	exp, err := format.Source([]byte(e))
 	if err != nil {
 		t.Fatalf("unexpected formatting error: %s", err.Error())
 	}
-	if !bytes.Equal(got, exp) {
-		t.Errorf("wrong output, expected:\n'%s'\nbut got:\n'%s'", string(exp), string(got))
+	assertGoCode(t, string(got), string(exp))
+}
+
+func assertGoCode(t *testing.T, s1, s2 string) {
+	t.Helper()
+
+	tmp1 := strings.Split(s1, "\n")
+	tmp2 := strings.Split(s2, "\n")
+	if s1 != s2 {
+		b := bytes.NewBuffer(nil)
+		for i, diff := range difflib.Diff(tmp1, tmp2) {
+			p := strings.Replace(diff.Payload, "\t", "\\t", -1)
+			switch diff.Delta {
+			case difflib.Common:
+				if testing.Verbose() {
+					fmt.Fprintf(b, "%20d %s %s\n", i, diff.Delta.String(), p)
+				}
+			case difflib.LeftOnly:
+				fmt.Fprintf(b, "\033[31m%20d %s %s\033[39m\n", i, diff.Delta.String(), p)
+			case difflib.RightOnly:
+				fmt.Fprintf(b, "\033[32m%20d %s %s\033[39m\n", i, diff.Delta.String(), p)
+			}
+		}
+		t.Errorf(b.String())
 	}
 }
