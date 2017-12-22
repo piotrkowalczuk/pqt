@@ -325,3 +325,83 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(
 	return buf.String(), update.Args(), nil
 }`)
 }
+
+func TestGenerator_RepositoryUpdateOneByUniqueConstraint(t *testing.T) {
+	t0 := pqt.NewTable("t0")
+
+	g := &gogen.Generator{}
+	g.Repository(t0) // Is here so output can be properly formatted
+	g.RepositoryUpdateOneByUniqueConstraint(t0)
+	assertOutput(t, g.Printer, `
+type T0RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}`)
+
+	firstName := pqt.NewColumn("first_name", pqt.TypeText())
+	lastName := pqt.NewColumn("last_name", pqt.TypeText())
+	age := pqt.NewColumn("age", pqt.TypeIntegerBig())
+	t1 := pqt.NewTable("t1").
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(firstName).
+		AddColumn(lastName).
+		AddColumn(age).
+		AddUnique(firstName, lastName, age).
+		AddUniqueIndex("AgeIsNotSet", "age IS NULL", firstName, lastName)
+
+	pqt.NewSchema("constraints_test").AddTable(t1)
+
+	g = &gogen.Generator{}
+	g.Repository(t1) // Is here so output can be properly formatted
+	g.RepositoryUpdateOneByUniqueConstraint(t1)
+
+	assertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAge(ctx context.Context, t1FirstName string, t1LastName string, t1Age int64, p *T1Patch) (*T1Entity, error) {
+	query, args, err := r.UpdateOneByFirstNameAndLastNameAndAgeQuery(t1FirstName, t1LastName, t1Age, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent T1Entity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if r.Log != nil {
+		r.Log(err, TableT1, "update one by unique", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}
+
+func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSet(ctx context.Context, t1FirstName string, t1LastName string, p *T1Patch) (*T1Entity, error) {
+	query, args, err := r.UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(t1FirstName, t1LastName, p)
+	if err != nil {
+		return nil, err
+	}
+	var ent T1Entity
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if r.Log != nil {
+		r.Log(err, TableT1, "update one by unique", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}`)
+}

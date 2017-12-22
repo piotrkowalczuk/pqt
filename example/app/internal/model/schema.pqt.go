@@ -4140,6 +4140,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle str
 	}
 	return &ent, nil
 }
+
 func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string, p *NewsPatch) (*NewsEntity, error) {
 	query, args, err := r.UpdateOneByTitleAndLeadQuery(newsTitle, newsLead, p)
 	if err != nil {
@@ -4159,6 +4160,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTi
 	}
 	return &ent, nil
 }
+
 func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(22)
 	columns := bytes.NewBuffer(nil)

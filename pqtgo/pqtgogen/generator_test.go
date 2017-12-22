@@ -816,6 +816,7 @@ var expectedSimple = `package example
     			}
     			return &ent, nil
     		}
+
     		func (r *UserRepositoryBase) UpsertQuery(e *UserEntity, p *UserPatch, inf ...string) (string, []interface{}, error) {
     			upsert := NewComposer(4)
     			columns := bytes.NewBuffer(nil)

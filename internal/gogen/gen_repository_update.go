@@ -200,3 +200,75 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 	}`)
 	}
 }
+
+func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+	for i, u := range uniqueConstraints(t) {
+		if i > 0 {
+			g.NewLine()
+		}
+		method := []string{"updateOneBy"}
+		arguments := ""
+		arguments2 := ""
+
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+				arguments2 += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", formatter.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+			arguments2 += formatter.Private(columnForeignName(c))
+		}
+
+		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
+			method = append(method, "Where")
+			method = append(method, u.MethodSuffix)
+		}
+
+		g.Printf(`
+			func (r *%sRepositoryBase) %s(ctx context.Context, %s, p *%sPatch) (*%sEntity, error) {`,
+			entityName,
+			formatter.Public(method...),
+			arguments,
+			entityName,
+			entityName,
+		)
+
+		g.Printf(`
+			query, args, err := r.%s(%s, p)
+			if err != nil {
+				return nil, err
+			}`,
+			formatter.Public(append(method, "query")...),
+			arguments2,
+		)
+		g.Printf(`
+		var ent %sEntity
+		props, err := ent.%s(r.%s...)
+		if err != nil {
+			return nil, err
+		}
+		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
+			entityName,
+			formatter.Public("props"),
+			formatter.Public("columns"),
+			formatter.Public("db"),
+		)
+
+		g.Printf(`
+			if r.%s != nil {
+				r.%s(err, Table%s, "update one by unique", query, args...)
+			}
+			if err != nil {
+				return nil, err
+			}
+			return &ent, nil
+		}`,
+			formatter.Public("log"),
+			formatter.Public("log"),
+			entityName,
+		)
+	}
+}
