@@ -724,9 +724,10 @@ func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindE
 	return &CategoryIterator{
 		rows: rows,
 		expr: fe,
-		cols: []string{"content", "created_at", "id", "name", "parent_id", "updated_at"},
+		cols: fe.Columns,
 	}, nil
 }
+
 func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*CategoryEntity, error) {
 	find := NewComposer(6)
 	find.WriteString("SELECT ")
@@ -1865,9 +1866,10 @@ func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExp
 	return &PackageIterator{
 		rows: rows,
 		expr: fe,
-		cols: []string{"break", "category_id", "created_at", "id", "updated_at"},
+		cols: fe.Columns,
 	}, nil
 }
+
 func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*PackageEntity, error) {
 	find := NewComposer(5)
 	find.WriteString("SELECT ")
@@ -3209,9 +3211,10 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 	return &NewsIterator{
 		rows: rows,
 		expr: fe,
-		cols: []string{"content", "continue", "created_at", "id", "lead", "meta_data", "score", "title", "updated_at", "version", "views_distribution"},
+		cols: fe.Columns,
 	}, nil
 }
+
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
 	find := NewComposer(11)
 	find.WriteString("SELECT ")
@@ -5423,7 +5426,7 @@ func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExp
 	return &CommentIterator{
 		rows: rows,
 		expr: fe,
-		cols: []string{"content", "created_at", "id", "id_multiply", "news_id", "news_title", "right_now", "updated_at"},
+		cols: fe.Columns,
 	}, nil
 }
 
@@ -7703,7 +7706,7 @@ func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindE
 	return &CompleteIterator{
 		rows: rows,
 		expr: fe,
-		cols: []string{"column_bool", "column_bytea", "column_character_0", "column_character_100", "column_decimal", "column_double_array_0", "column_double_array_100", "column_integer", "column_integer_array_0", "column_integer_array_100", "column_integer_big", "column_integer_big_array_0", "column_integer_big_array_100", "column_integer_small", "column_integer_small_array_0", "column_integer_small_array_100", "column_json", "column_json_nn", "column_json_nn_d", "column_jsonb", "column_jsonb_nn", "column_jsonb_nn_d", "column_numeric", "column_real", "column_serial", "column_serial_big", "column_serial_small", "column_text", "column_text_array_0", "column_text_array_100", "column_timestamp", "column_timestamptz", "column_uuid"},
+		cols: fe.Columns,
 	}, nil
 }
 

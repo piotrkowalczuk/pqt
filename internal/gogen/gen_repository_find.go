@@ -6,6 +6,41 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func (g *Generator) RepositoryFindIter(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, formatter.Public("findIter"), entityName, entityName)
+	g.Printf(`
+			query, args, err := r.%sQuery(fe)
+			if err != nil {
+				return nil, err
+			}
+			rows, err := r.%s.QueryContext(ctx, query, args...)`,
+		formatter.Public("find"),
+		formatter.Public("db"),
+	)
+
+	g.Printf(`
+	 	if r.%s != nil {
+			r.%s(err, Table%s, "find iter", query, args...)
+		}
+		if err != nil {
+			return nil, err
+		}`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
+	g.Printf(`
+			return &%sIterator{
+				rows: rows,
+				expr: fe,
+				cols: fe.Columns,
+		}, nil
+	}`, formatter.Public(t.Name))
+}
+
 func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 	entityName := formatter.Public(t.Name)
 

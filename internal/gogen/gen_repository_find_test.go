@@ -10,6 +10,39 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func TestGenerator_RepositoryFindIter(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	g := &gogen.Generator{}
+	g.Repository(t1)
+	g.RepositoryFindIter(t1)
+	assertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T1RepositoryBase) FindIter(ctx context.Context, fe *T1FindExpr) (*T1Iterator, error) {
+	query, args, err := r.FindQuery(fe)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if r.Log != nil {
+		r.Log(err, TableT1, "find iter", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &T1Iterator{
+		rows: rows,
+		expr: fe,
+		cols: fe.Columns,
+	}, nil
+}`)
+}
+
 func TestGenerator_RepositoryFindQuery(t *testing.T) {
 	t1 := pqt.NewTable("t1").
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).

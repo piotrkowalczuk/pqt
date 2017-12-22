@@ -622,9 +622,10 @@ var expectedSimple = `package example
     			return &UserIterator{
     				rows: rows,
     				expr: fe,
-    				cols: []string{"id", "name"},
+    				cols: fe.Columns,
     			}, nil
     		}
+
     		func (r *UserRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*UserEntity, error) {
     			find := NewComposer(2)
     			find.WriteString("SELECT ")
@@ -1466,7 +1467,7 @@ var expectedSimple = `package example
     			return &CommentIterator{
     				rows: rows,
     				expr: fe,
-    				cols: []string{"user_id"},
+    				cols: fe.Columns,
     			}, nil
     		}
 

@@ -290,7 +290,9 @@ func TestNewsRepositoryBase_FindIter(t *testing.T) {
 
 	expected := 10
 	populateNews(t, s.news, expected)
-	iter, err := s.news.FindIter(context.Background(), &model.NewsFindExpr{})
+	iter, err := s.news.FindIter(context.Background(), &model.NewsFindExpr{
+		Columns: []string{model.TableNewsColumnID, model.TableNewsColumnContent},
+	})
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
@@ -301,6 +303,9 @@ func TestNewsRepositoryBase_FindIter(t *testing.T) {
 		ent, err := iter.News()
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if ent.Title != "" {
+			t.Error("title should be empty")
 		}
 		got = append(got, ent)
 	}

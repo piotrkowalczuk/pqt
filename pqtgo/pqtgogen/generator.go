@@ -386,44 +386,8 @@ func (g *Generator) generateRepositoryFind(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryFindIter(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, g.Formatter.Identifier("findIter"), entityName, entityName)
-	g.p.Printf(`
-			query, args, err := r.%sQuery(fe)
-			if err != nil {
-				return nil, err
-			}
-			rows, err := r.%s.QueryContext(ctx, query, args...)`,
-		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier("db"),
-	)
-
-	g.p.Printf(`
-	 	if r.%s != nil {
-			r.%s(err, Table%s, "find iter", query, args...)
-		}
-		if err != nil {
-			return nil, err
-		}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
-	g.p.Printf(`
-			return &%sIterator{
-				rows: rows,
-				expr: fe,
-				cols: []string{`,
-		g.Formatter.Identifier(t.Name),
-	)
-	for _, c := range t.Columns {
-		g.p.Printf(`"%s",`, c.Name)
-	}
-	g.p.Print(`},
-		}, nil
-	}`)
+	g.g.RepositoryFindIter(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryCount(t *pqt.Table) {
