@@ -880,44 +880,6 @@ func (g *Generator) isType(c *pqt.Column, m int32, types ...string) bool {
 	return false
 }
 
-func (g *Generator) isNullable(c *pqt.Column, m int32) bool {
-	if mt, ok := c.Type.(pqt.MappableType); ok {
-		for _, mapto := range mt.Mapping {
-			if ct, ok := mapto.(pqtgo.CustomType); ok {
-				tof := ct.TypeOf(columnMode(c, m))
-				if tof == nil {
-					continue
-				}
-				if tof.Kind() != reflect.Struct {
-					continue
-				}
-
-				if field, ok := tof.FieldByName("Valid"); ok {
-					if field.Type.Kind() == reflect.Bool {
-						return true
-					}
-				}
-			}
-		}
-	}
-	return g.isType(c, m,
-		// sql
-		"sql.NullString",
-		"sql.NullBool",
-		"sql.NullInt64",
-		"sql.NullFloat64",
-		// pq
-		"pq.NullTime",
-		// generated
-		"NullInt64Array",
-		"NullFloat64Array",
-		"NullBoolArray",
-		"NullByteaArray",
-		"NullStringArray",
-		"NullBoolArray",
-	)
-}
-
 func (g *Generator) generateStatics(s *pqt.Schema) {
 	g.p.Print(`
 
@@ -1389,27 +1351,4 @@ func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
 
 func hasJoinableRelationships(t *pqt.Table) bool {
 	return len(joinableRelationships(t)) > 0
-}
-
-func (g *Generator) sqlSelector(c *pqt.Column, id string) string {
-	if !c.IsDynamic {
-		return g.Formatter.Identifier("table", c.Table.Name, "column", c.Name)
-	}
-	sel := c.Func.Name
-	sel += "("
-	for i := range c.Func.Args {
-		if i != 0 {
-			sel += ", "
-		}
-		sel += fmt.Sprint("t%d.")
-		sel += c.Columns[i].Name
-	}
-	sel += ")"
-
-	ret := fmt.Sprintf(`fmt.Sprintf("%s"`, sel)
-	for range c.Func.Args {
-		ret += ", "
-		ret += id
-	}
-	return ret + ")"
 }

@@ -1,9 +1,7 @@
 package pqtgogen
 
 import (
-	"fmt"
 	"go/types"
-	"io"
 	"reflect"
 	"strings"
 
@@ -97,13 +95,6 @@ func generateTypeBase(t pqt.Type, m int32) string {
 		default:
 			return "interface{}"
 		}
-	}
-}
-
-func closeBrace(w io.Writer, n int) {
-	for i := 0; i < n; i++ {
-		fmt.Fprintln(w, `
-		}`)
 	}
 }
 
