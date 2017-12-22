@@ -770,6 +770,14 @@ func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
 	}
 }
 
+func TestGenerator_JoinClause(t *testing.T) {
+	g := &gogen.Generator{}
+	g.JoinClause()
+	if g.Printer.String() == "" {
+		t.Error("output should not be empty")
+	}
+}
+
 type testColumn struct {
 	name, kind string
 }

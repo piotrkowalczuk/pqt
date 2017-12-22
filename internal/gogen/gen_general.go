@@ -516,3 +516,40 @@ ColumnsLoop:
 	return nil`)
 	closeBrace(g, 1)
 }
+
+
+func (g *Generator) JoinClause() {
+	g.Print(`
+	func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
+		if jt != JoinDoNot {
+			switch jt {
+			case JoinInner:
+				if _, err = comp.WriteString(" INNER JOIN "); err != nil {
+					return
+				}
+			case JoinLeft:
+				if _, err = comp.WriteString(" LEFT JOIN "); err != nil {
+					return
+				}
+			case JoinRight:
+				if _, err = comp.WriteString(" RIGHT JOIN "); err != nil {
+					return
+				}
+			case JoinCross:
+				if _, err = comp.WriteString(" CROSS JOIN "); err != nil {
+					return
+				}
+			default:
+				return
+			}
+			if _, err = comp.WriteString(on); err != nil {
+				return
+			}
+			comp.Dirty = true
+			ok = true
+			return
+		}
+		return
+	}`,
+	)
+}

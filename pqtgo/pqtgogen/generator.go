@@ -67,7 +67,7 @@ func (g *Generator) generate(s *pqt.Schema) error {
 		g.generateInterfaces(s)
 	}
 	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
-		g.generateRepositoryJoinClause(s)
+		g.generateJoinClause()
 	}
 	for _, t := range s.Tables {
 		g.generateConstantsAndVariables(t)
@@ -228,40 +228,8 @@ func (g *Generator) generateWhereClause(t *pqt.Table) {
 	g.g.NewLine()
 }
 
-func (g *Generator) generateRepositoryJoinClause(s *pqt.Schema) {
-	g.p.Print(`
-	func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
-		if jt != JoinDoNot {
-			switch jt {
-			case JoinInner:
-				if _, err = comp.WriteString(" INNER JOIN "); err != nil {
-					return
-				}
-			case JoinLeft:
-				if _, err = comp.WriteString(" LEFT JOIN "); err != nil {
-					return
-				}
-			case JoinRight:
-				if _, err = comp.WriteString(" RIGHT JOIN "); err != nil {
-					return
-				}
-			case JoinCross:
-				if _, err = comp.WriteString(" CROSS JOIN "); err != nil {
-					return
-				}
-			default:
-				return
-			}
-			if _, err = comp.WriteString(on); err != nil {
-				return
-			}
-			comp.Dirty = true
-			ok = true
-			return
-		}
-		return
-	}`,
-	)
+func (g *Generator) generateJoinClause() {
+	g.g.JoinClause()
 }
 
 func (g *Generator) generateLogFunc(s *pqt.Schema) {
