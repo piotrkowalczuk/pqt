@@ -135,13 +135,6 @@ var keywords = map[string]string{
 	"var":         "va",
 }
 
-type structField struct {
-	Name     string
-	Type     string
-	Tags     reflect.StructTag
-	ReadOnly bool
-}
-
 func or(s1, s2 string) string {
 	if s1 == "" {
 		return s2

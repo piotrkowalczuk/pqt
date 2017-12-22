@@ -1,6 +1,8 @@
 package gogen
 
 import (
+	"fmt"
+
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/formatter"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
@@ -106,4 +108,95 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 	g.Print(`
 		return buf.String(), update.Args(), nil
 	}`)
+}
+
+func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+
+	for i, u := range uniqueConstraints(t) {
+		if i > 0 {
+			g.NewLine()
+		}
+		method := []string{"updateOneBy"}
+		arguments := ""
+
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", formatter.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+		}
+
+		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
+			method = append(method, "Where")
+			method = append(method, u.MethodSuffix)
+		}
+
+		method = append(method, "query")
+
+		g.Printf(`
+			func (r *%sRepositoryBase) %s(%s, p *%sPatch) (string, []interface{}, error) {`,
+			entityName,
+			formatter.Public(method...),
+			arguments,
+			entityName,
+		)
+
+		g.Printf(`
+			buf := bytes.NewBufferString("UPDATE ")
+			buf.WriteString(r.%s)
+			update := NewComposer(%d)`, formatter.Public("table"), len(u.PrimaryColumns))
+
+		for _, c := range t.Columns {
+			g.generateRepositorySetClause(c, "update")
+		}
+		g.Printf(`
+			if !update.Dirty {
+				return "", nil, errors.New("%s update failure, nothing to update")
+			}`, t.Name,
+		)
+		g.Print(`
+			buf.WriteString(" SET ")
+			buf.ReadFrom(update)
+			buf.WriteString(" WHERE ")`)
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				g.Print(`
+					update.WriteString(" AND ")`)
+			}
+			g.Printf(`
+				update.WriteString(%s)
+				update.WriteString("=")
+				update.WritePlaceholder()
+				update.Add(%s)`,
+				formatter.Public("table", t.Name, "column", c.Name),
+				formatter.Private(columnForeignName(c)),
+			)
+		}
+		g.Printf(`
+			buf.ReadFrom(update)
+			buf.WriteString(" RETURNING ")
+			if len(r.%s) > 0 {
+				buf.WriteString(strings.Join(r.%s, ", "))
+			} else {`,
+			formatter.Public("columns"),
+			formatter.Public("columns"),
+		)
+
+		g.Print(`
+		buf.WriteString("`)
+		g.selectList(t, -1)
+		if len(u.Where) > 0 {
+			g.Printf(` WHERE %s")
+	}`, u.Where)
+		} else {
+			g.Print(`")
+	}`)
+		}
+		g.Print(`
+		return buf.String(), update.Args(), nil
+	}`)
+	}
 }

@@ -3847,7 +3847,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 	}
 
 	if !update.Dirty {
-		return "", nil, errors.New("News update failure, nothing to update")
+		return "", nil, errors.New("news update failure, nothing to update")
 	}
 	buf.WriteString(" SET ")
 	buf.ReadFrom(update)
@@ -3865,6 +3865,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 	}
 	return buf.String(), update.Args(), nil
 }
+
 func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, newsLead string, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
@@ -4096,7 +4097,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 	}
 
 	if !update.Dirty {
-		return "", nil, errors.New("News update failure, nothing to update")
+		return "", nil, errors.New("news update failure, nothing to update")
 	}
 	buf.WriteString(" SET ")
 	buf.ReadFrom(update)
@@ -4119,6 +4120,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 	}
 	return buf.String(), update.Args(), nil
 }
+
 func (r *NewsRepositoryBase) UpdateOneByTitle(ctx context.Context, newsTitle string, p *NewsPatch) (*NewsEntity, error) {
 	query, args, err := r.UpdateOneByTitleQuery(newsTitle, p)
 	if err != nil {

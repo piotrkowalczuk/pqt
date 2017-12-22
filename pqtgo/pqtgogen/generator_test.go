@@ -778,7 +778,7 @@ var expectedSimple = `package example
     			}
 
     			if !update.Dirty {
-    				return "", nil, errors.New("User update failure, nothing to update")
+    				return "", nil, errors.New("user update failure, nothing to update")
     			}
     			buf.WriteString(" SET ")
     			buf.ReadFrom(update)
@@ -796,6 +796,7 @@ var expectedSimple = `package example
     			}
     			return buf.String(), update.Args(), nil
     		}
+
     		func (r *UserRepositoryBase) UpdateOneByName(ctx context.Context, userName string, p *UserPatch) (*UserEntity, error) {
     			query, args, err := r.UpdateOneByNameQuery(userName, p)
     			if err != nil {
