@@ -584,8 +584,10 @@ var expectedSimple = `package example
     				return nil, err
     			}
     			defer rows.Close()
-    			var entities []*UserEntity
-    			var props []interface{}
+    			var (
+					entities []*UserEntity
+    				props []interface{}
+				)
     			for rows.Next() {
     				var ent UserEntity
     				if props, err = ent.Props(); err != nil {
@@ -607,6 +609,7 @@ var expectedSimple = `package example
     			}
     			return entities, nil
     		}
+
     		func (r *UserRepositoryBase) FindIter(ctx context.Context, fe *UserFindExpr) (*UserIterator, error) {
     			query, args, err := r.FindQuery(fe)
     			if err != nil {
@@ -1414,8 +1417,10 @@ var expectedSimple = `package example
     				return nil, err
     			}
     			defer rows.Close()
-    			var entities []*CommentEntity
-    			var props []interface{}
+    			var (
+					entities []*CommentEntity
+    				props []interface{}
+				)
     			for rows.Next() {
     				var ent CommentEntity
     				if props, err = ent.Props(); err != nil {
@@ -1452,6 +1457,7 @@ var expectedSimple = `package example
     			}
     			return entities, nil
     		}
+
     		func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
     			query, args, err := r.FindQuery(fe)
     			if err != nil {

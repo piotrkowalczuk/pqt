@@ -294,3 +294,74 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		entityName,
 	)
 }
+
+func (g *Generator) RepositoryFind(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, formatter.Public("find"), entityName, entityName)
+	g.Printf(`
+			query, args, err := r.%sQuery(fe)
+			if err != nil {
+				return nil, err
+			}
+			rows, err := r.%s.QueryContext(ctx, query, args...)`,
+		formatter.Public("find"),
+		formatter.Public("db"),
+	)
+
+	g.Printf(`
+		if r.%s != nil {
+			r.%s(err, Table%s, "find", query, args...)
+		}
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
+
+	g.Printf(`
+		var (
+			entities []*%sEntity
+			props []interface{}
+		)
+		for rows.Next() {
+			var ent %sEntity
+			if props, err = ent.%s(); err != nil {
+				return nil, err
+			}`,
+		entityName,
+		formatter.Public(t.Name),
+		formatter.Public("props"),
+	)
+	if hasJoinableRelationships(t) {
+		g.Print(`
+		var prop []interface{}`)
+	}
+	g.scanJoinableRelationships(t, "fe")
+	g.Print(`
+			err = rows.Scan(props...)
+			if err != nil {
+				return nil, err
+			}
+
+			entities = append(entities, &ent)
+		}`)
+	g.Printf(`
+		err = rows.Err()
+		if r.%s != nil {
+			r.%s(err, Table%s, "find", query, args...)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return entities, nil
+	}`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
+}

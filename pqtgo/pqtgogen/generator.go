@@ -285,104 +285,14 @@ func (g *Generator) selectList(t *pqt.Table, nb int) {
 	}
 }
 
-func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
-	for _, r := range joinableRelationships(t) {
-		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
-			continue
-		}
-		g.p.Printf(`
-			if %s.%s != nil && %s.%s.%s {
-				ent.%s = &%sEntity{}
-				if prop, err = ent.%s.%s(); err != nil {
-					return nil, err
-				}
-				props = append(props, prop...)
-			}`,
-			sel,
-			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
-			sel,
-			g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier("fetch"),
-			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier(r.InversedTable.Name),
-			g.Formatter.Identifier(or(r.InversedName, r.InversedTable.Name)),
-			g.Formatter.Identifier("props"),
-		)
-	}
-}
-
 func (g *Generator) generateRepositoryFindQuery(t *pqt.Table) {
 	g.g.RepositoryFindQuery(t)
 	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryFind(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, g.Formatter.Identifier("find"), entityName, entityName)
-	g.p.Printf(`
-			query, args, err := r.%sQuery(fe)
-			if err != nil {
-				return nil, err
-			}
-			rows, err := r.%s.QueryContext(ctx, query, args...)`,
-		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier("db"),
-	)
-
-	g.p.Printf(`
-		if r.%s != nil {
-			r.%s(err, Table%s, "find", query, args...)
-		}
-		if err != nil {
-			return nil, err
-		}
-		defer rows.Close()`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
-
-	g.p.Printf(`
-		var entities []*%sEntity
-		var props []interface{}
-		for rows.Next() {
-			var ent %sEntity
-			if props, err = ent.%s(); err != nil {
-				return nil, err
-			}`,
-		entityName,
-		g.Formatter.Identifier(t.Name),
-		g.Formatter.Identifier("props"),
-	)
-	if hasJoinableRelationships(t) {
-		g.p.Print(`
-		var prop []interface{}`)
-	}
-	g.scanJoinableRelationships(t, "fe")
-	g.p.Print(`
-			err = rows.Scan(props...)
-			if err != nil {
-				return nil, err
-			}
-
-			entities = append(entities, &ent)
-		}`)
-	g.p.Printf(`
-		err = rows.Err()
-		if r.%s != nil {
-			r.%s(err, Table%s, "find", query, args...)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return entities, nil
-	}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
+	g.g.RepositoryFind(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryFindIter(t *pqt.Table) {
@@ -1217,8 +1127,4 @@ func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
 		rels = append(rels, r)
 	}
 	return
-}
-
-func hasJoinableRelationships(t *pqt.Table) bool {
-	return len(joinableRelationships(t)) > 0
 }

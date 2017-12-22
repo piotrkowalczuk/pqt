@@ -225,3 +225,60 @@ func (r *T1RepositoryBase) FindOneByID(ctx context.Context, pk int64) (*T1Entity
 	return &ent, nil
 }`)
 }
+
+func TestGenerator_RepositoryFind(t *testing.T) {
+	t1 := pqt.NewTable("t1").
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(pqt.NewColumn("age", pqt.TypeInteger()))
+
+	g := &gogen.Generator{}
+	g.Reset()
+	g.Repository(t1)
+	g.RepositoryFind(t1)
+	assertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T1RepositoryBase) Find(ctx context.Context, fe *T1FindExpr) ([]*T1Entity, error) {
+	query, args, err := r.FindQuery(fe)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := r.DB.QueryContext(ctx, query, args...)
+	if r.Log != nil {
+		r.Log(err, TableT1, "find", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var (
+		entities []*T1Entity
+		props []interface{}
+	)
+	for rows.Next() {
+		var ent T1Entity
+		if props, err = ent.Props(); err != nil {
+			return nil, err
+		}
+		err = rows.Scan(props...)
+		if err != nil {
+			return nil, err
+		}
+
+		entities = append(entities, &ent)
+	}
+	err = rows.Err()
+	if r.Log != nil {
+		r.Log(err, TableT1, "find", query, args...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return entities, nil
+}`)
+}

@@ -686,8 +686,10 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 		return nil, err
 	}
 	defer rows.Close()
-	var entities []*CategoryEntity
-	var props []interface{}
+	var (
+		entities []*CategoryEntity
+		props    []interface{}
+	)
 	for rows.Next() {
 		var ent CategoryEntity
 		if props, err = ent.Props(); err != nil {
@@ -709,6 +711,7 @@ func (r *CategoryRepositoryBase) Find(ctx context.Context, fe *CategoryFindExpr)
 	}
 	return entities, nil
 }
+
 func (r *CategoryRepositoryBase) FindIter(ctx context.Context, fe *CategoryFindExpr) (*CategoryIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -1820,8 +1823,10 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 		return nil, err
 	}
 	defer rows.Close()
-	var entities []*PackageEntity
-	var props []interface{}
+	var (
+		entities []*PackageEntity
+		props    []interface{}
+	)
 	for rows.Next() {
 		var ent PackageEntity
 		if props, err = ent.Props(); err != nil {
@@ -1851,6 +1856,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 	}
 	return entities, nil
 }
+
 func (r *PackageRepositoryBase) FindIter(ctx context.Context, fe *PackageFindExpr) (*PackageIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -3173,8 +3179,10 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 		return nil, err
 	}
 	defer rows.Close()
-	var entities []*NewsEntity
-	var props []interface{}
+	var (
+		entities []*NewsEntity
+		props    []interface{}
+	)
 	for rows.Next() {
 		var ent NewsEntity
 		if props, err = ent.Props(); err != nil {
@@ -3196,6 +3204,7 @@ func (r *NewsRepositoryBase) Find(ctx context.Context, fe *NewsFindExpr) ([]*New
 	}
 	return entities, nil
 }
+
 func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*NewsIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -5373,8 +5382,10 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 		return nil, err
 	}
 	defer rows.Close()
-	var entities []*CommentEntity
-	var props []interface{}
+	var (
+		entities []*CommentEntity
+		props    []interface{}
+	)
 	for rows.Next() {
 		var ent CommentEntity
 		if props, err = ent.Props(); err != nil {
@@ -5411,6 +5422,7 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 	}
 	return entities, nil
 }
+
 func (r *CommentRepositoryBase) FindIter(ctx context.Context, fe *CommentFindExpr) (*CommentIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
@@ -7668,8 +7680,10 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 		return nil, err
 	}
 	defer rows.Close()
-	var entities []*CompleteEntity
-	var props []interface{}
+	var (
+		entities []*CompleteEntity
+		props    []interface{}
+	)
 	for rows.Next() {
 		var ent CompleteEntity
 		if props, err = ent.Props(); err != nil {
@@ -7691,6 +7705,7 @@ func (r *CompleteRepositoryBase) Find(ctx context.Context, fe *CompleteFindExpr)
 	}
 	return entities, nil
 }
+
 func (r *CompleteRepositoryBase) FindIter(ctx context.Context, fe *CompleteFindExpr) (*CompleteIterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
