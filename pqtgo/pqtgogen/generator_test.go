@@ -656,6 +656,7 @@ var expectedSimple = `package example
     			}
     			return &ent, nil
     		}
+
     		func (r *UserRepositoryBase) FindOneByName(ctx context.Context, userName string) (*UserEntity, error) {
     			find := NewComposer(2)
     			find.WriteString("SELECT ")

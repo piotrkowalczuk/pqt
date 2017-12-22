@@ -131,5 +131,64 @@ func (r *T2RepositoryBase) FindQuery(fe *T2FindExpr) (string, []interface{}, err
 
 	return buf.String(), comp.Args(), nil
 }`)
+}
 
+func TestGenerator_RepositoryFindOneByPrimaryKey(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	g := &gogen.Generator{}
+	g.Repository(t1)
+	g.RepositoryFindOneByPrimaryKey(t1)
+	assertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}`)
+
+	t1.AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(pqt.NewColumn("age", pqt.TypeInteger()))
+
+	g.Reset()
+	g.Repository(t1)
+	g.RepositoryFindOneByPrimaryKey(t1)
+	assertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T1RepositoryBase) FindOneByID(ctx context.Context, pk int64) (*T1Entity, error) {
+	find := NewComposer(2)
+	find.WriteString("SELECT ")
+	if len(r.Columns) == 0 {
+		find.WriteString("age, id")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
+	find.WriteString(" FROM ")
+	find.WriteString(TableT1)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableT1ColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	var (
+		ent T1Entity
+	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if r.Log != nil {
+		r.Log(err, TableT1, "find by primary key", find.String(), find.Args()...)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &ent, nil
+}`)
 }

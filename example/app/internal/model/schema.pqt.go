@@ -758,6 +758,7 @@ func (r *CategoryRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Ca
 	}
 	return &ent, nil
 }
+
 func (r *CategoryRepositoryBase) UpdateOneByIDQuery(pk int64, p *CategoryPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
@@ -1898,6 +1899,7 @@ func (r *PackageRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*Pac
 	}
 	return &ent, nil
 }
+
 func (r *PackageRepositoryBase) UpdateOneByIDQuery(pk int64, p *PackagePatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
@@ -3241,6 +3243,7 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 	}
 	return &ent, nil
 }
+
 func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
 	find := NewComposer(11)
 	find.WriteString("SELECT ")

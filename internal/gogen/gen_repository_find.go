@@ -3,6 +3,7 @@ package gogen
 import (
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
@@ -190,4 +191,71 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 
 	return buf.String(), comp.Args(), nil
 }`)
+}
+
+func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+	pk, ok := t.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
+		entityName,
+		formatter.Public("FindOneBy", pk.Name),
+		g.columnType(pk, pqtgo.ModeMandatory),
+		entityName,
+	)
+	g.Printf(`
+		find := NewComposer(%d)
+		find.WriteString("SELECT ")
+		if len(r.%s) == 0 {
+			find.WriteString("`,
+		len(t.Columns), formatter.Public("columns"))
+	g.selectList(t, -1)
+	g.Printf(`")
+		} else {
+			find.WriteString(strings.Join(r.%s, ", "))
+		}`, formatter.Public("columns"))
+
+	g.Printf(`
+		find.WriteString(" FROM ")
+		find.WriteString(%s)
+		find.WriteString(" WHERE ")
+		find.WriteString(%s)
+		find.WriteString("=")
+		find.WritePlaceholder()
+		find.Add(pk)
+		var (
+			ent %sEntity
+		)`,
+		formatter.Public("table", t.Name),
+		formatter.Public("table", t.Name, "column", pk.Name),
+		entityName,
+	)
+
+	g.Printf(`
+		props, err := ent.%s(r.%s...)
+		if err != nil {
+			return nil, err
+		}
+		err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+		formatter.Public("props"),
+		formatter.Public("columns"),
+		formatter.Public("db"),
+	)
+	g.Printf(`
+		if r.%s != nil {
+			r.%s(err, Table%s, "find by primary key", find.String(), find.Args()...)
+		}
+		if err != nil {
+			return nil, err
+		}
+		return &ent, nil
+	}`,
+		formatter.Public("log"),
+		formatter.Public("log"),
+		entityName,
+	)
 }

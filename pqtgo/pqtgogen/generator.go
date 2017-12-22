@@ -472,70 +472,8 @@ func (g *Generator) generateRepositoryCount(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryFindOneByPrimaryKey(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-	pk, ok := t.PrimaryKey()
-	if !ok {
-		return
-	}
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
-		entityName,
-		g.Formatter.Identifier("FindOneBy", pk.Name),
-		g.columnType(pk, pqtgo.ModeMandatory),
-		entityName,
-	)
-	g.p.Printf(`
-		find := NewComposer(%d)
-		find.WriteString("SELECT ")
-		if len(r.%s) == 0 {
-			find.WriteString("`,
-		len(t.Columns), g.Formatter.Identifier("columns"))
-	g.selectList(t, -1)
-	g.p.Printf(`")
-		} else {
-			find.WriteString(strings.Join(r.%s, ", "))
-		}`, g.Formatter.Identifier("columns"))
-
-	g.p.Printf(`
-		find.WriteString(" FROM ")
-		find.WriteString(%s)
-		find.WriteString(" WHERE ")
-		find.WriteString(%s)
-		find.WriteString("=")
-		find.WritePlaceholder()
-		find.Add(pk)
-		var (
-			ent %sEntity
-		)`,
-		g.Formatter.Identifier("table", t.Name),
-		g.Formatter.Identifier("table", t.Name, "column", pk.Name),
-		entityName,
-	)
-
-	g.p.Printf(`
-		props, err := ent.%s(r.%s...)
-		if err != nil {
-			return nil, err
-		}
-		err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
-		g.Formatter.Identifier("props"),
-		g.Formatter.Identifier("columns"),
-		g.Formatter.Identifier("db"),
-	)
-	g.p.Printf(`
-		if r.%s != nil {
-			r.%s(err, Table%s, "find by primary key", find.String(), find.Args()...)
-		}
-		if err != nil {
-			return nil, err
-		}
-		return &ent, nil
-	}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
+	g.g.RepositoryFindOneByPrimaryKey(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryFindOneByUniqueConstraint(t *pqt.Table) {
