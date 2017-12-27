@@ -40,10 +40,6 @@ func main() {
         // DO NOT EDIT!
     `)
 	goGen := pqtgogen.Generator{
-		Formatter: &pqtgogen.Formatter{
-			Visibility: pqtgogen.Public,
-			Acronyms:   acronyms,
-		},
 		Pkg:     "model",
 		Version: version,
 		Plugins: []pqtgogen.Plugin{

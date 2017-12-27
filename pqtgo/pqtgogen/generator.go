@@ -9,8 +9,22 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/print"
 )
 
+type Component uint64
+
+const (
+	ComponentInsert Component = 1 << (64 - 1 - iota)
+	ComponentFind
+	ComponentUpdate
+	ComponentUpsert
+	ComponentCount
+	ComponentDelete
+	ComponentHelpers
+
+	ComponentRepository = ComponentInsert | ComponentFind | ComponentUpdate | ComponentUpsert | ComponentCount | ComponentDelete
+	ComponentAll        = ComponentRepository | ComponentHelpers
+)
+
 type Generator struct {
-	Formatter  *Formatter
 	Version    float64
 	Pkg        string
 	Imports    []string
@@ -53,244 +67,107 @@ func (g *Generator) generate(s *pqt.Schema) error {
 	}
 	g.p = &g.g.Printer
 
-	g.generatePackage()
-	g.generateImports(s)
+	g.g.Package(g.Pkg)
+	g.g.Imports(s, "github.com/m4rw3r/uuid")
 	if g.Components&ComponentRepository != 0 {
-		g.generateLogFunc(s)
+		g.g.Funcs()
+		g.g.NewLine()
 	}
 	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 || g.Components&ComponentHelpers != 0 {
-		g.generateInterfaces(s)
+		g.g.Interfaces()
+		g.g.NewLine()
 	}
 	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
-		g.generateJoinClause()
+		g.g.JoinClause()
+		g.g.NewLine()
 	}
 	for _, t := range s.Tables {
-		g.generateConstantsAndVariables(t)
-		g.generateEntity(t)
-		g.generateEntityProp(t)
-		g.generateEntityProps(t)
+		g.g.Constraints(t)
+		g.g.NewLine()
+		g.g.Columns(t)
+		g.g.NewLine()
+		g.g.Entity(t)
+		g.g.NewLine()
+		g.g.EntityProp(t)
+		g.g.NewLine()
+		g.g.EntityProps(t)
+		g.g.NewLine()
 		if g.Components&ComponentHelpers != 0 {
-			g.generateScanRows(t)
+			g.g.ScanRows(t)
+			g.g.NewLine()
 		}
 		if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
-			g.generateIterator(t)
-			g.generateCriteria(t)
-			g.generateFindExpr(t)
-			g.generateJoin(t)
+			g.g.Iterator(t)
+			g.g.NewLine()
+			g.g.Criteria(t)
+			g.g.NewLine()
+			g.g.Operand(t)
+			g.g.NewLine()
+			g.g.FindExpr(t)
+			g.g.NewLine()
+			g.g.Join(t)
+			g.g.NewLine()
 		}
 		if g.Components&ComponentCount != 0 {
-			g.generateCountExpr(t)
+			g.g.CountExpr(t)
+			g.g.NewLine()
 		}
 		if g.Components&ComponentUpdate != 0 || g.Components&ComponentUpsert != 0 {
-			g.generatePatch(t)
+			g.g.Patch(t)
+			g.g.NewLine()
 		}
 		if g.Components&ComponentRepository != 0 {
-			g.generateRepository(t)
+			g.g.Repository(t)
+			g.g.NewLine()
+
 			if g.Components&ComponentInsert != 0 {
-				g.generateRepositoryInsertQuery(t)
-				g.generateRepositoryInsert(t)
+				g.g.RepositoryInsertQuery(t)
+				g.g.NewLine()
+				g.g.RepositoryInsert(t)
+				g.g.NewLine()
 			}
 			if g.Components&ComponentFind != 0 {
-				g.generateWhereClause(t)
-				g.generateRepositoryFindQuery(t)
-				g.generateRepositoryFind(t)
-				g.generateRepositoryFindIter(t)
-				g.generateRepositoryFindOneByPrimaryKey(t)
-				g.generateRepositoryFindOneByUniqueConstraint(t)
+				g.g.WhereClause(t)
+				g.g.NewLine()
+				g.g.RepositoryFindQuery(t)
+				g.g.NewLine()
+				g.g.RepositoryFind(t)
+				g.g.NewLine()
+				g.g.RepositoryFindIter(t)
+				g.g.NewLine()
+				g.g.RepositoryFindOneByPrimaryKey(t)
+				g.g.NewLine()
+				g.g.RepositoryFindOneByUniqueConstraint(t)
+				g.g.NewLine()
 			}
 			if g.Components&ComponentUpdate != 0 {
-				g.generateRepositoryUpdateOneByPrimaryKeyQuery(t)
-				g.generateRepositoryUpdateOneByPrimaryKey(t)
-				g.generateRepositoryUpdateOneByUniqueConstraintQuery(t)
-				g.generateRepositoryUpdateOneByUniqueConstraint(t)
+				g.g.RepositoryUpdateOneByPrimaryKeyQuery(t)
+				g.g.NewLine()
+				g.g.RepositoryUpdateOneByPrimaryKey(t)
+				g.g.NewLine()
+				g.g.RepositoryUpdateOneByUniqueConstraintQuery(t)
+				g.g.NewLine()
+				g.g.RepositoryUpdateOneByUniqueConstraint(t)
+				g.g.NewLine()
 			}
 			if g.Components&ComponentUpsert != 0 {
-				g.generateRepositoryUpsertQuery(t)
-				g.generateRepositoryUpsert(t)
+				g.g.RepositoryUpsertQuery(t)
+				g.g.NewLine()
+				g.g.RepositoryUpsert(t)
+				g.g.NewLine()
 			}
 			if g.Components&ComponentCount != 0 {
-				g.generateRepositoryCount(t)
+				g.g.RepositoryCount(t)
+				g.g.NewLine()
 			}
 			if g.Components&ComponentDelete != 0 {
-				g.generateRepositoryDeleteOneByPrimaryKey(t)
+				g.g.RepositoryDeleteOneByPrimaryKey(t)
+				g.g.NewLine()
 			}
 		}
 	}
-	g.generateStatics(s)
-
-	return g.p.Err
-}
-
-func (g *Generator) generatePackage() {
-	g.g.Package(g.Pkg)
-}
-
-func (g *Generator) generateImports(s *pqt.Schema) {
-	g.g.Imports(s, "github.com/m4rw3r/uuid")
-}
-
-func (g *Generator) generateEntity(t *pqt.Table) {
-	g.g.Entity(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateFindExpr(t *pqt.Table) {
-	g.g.FindExpr(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateCountExpr(t *pqt.Table) {
-	g.g.CountExpr(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateCriteria(t *pqt.Table) {
-	g.g.Criteria(t)
-	g.g.NewLine()
-	g.g.Operand(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateJoin(t *pqt.Table) {
-	g.g.Join(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generatePatch(t *pqt.Table) {
-	g.g.Patch(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateIterator(t *pqt.Table) {
-	g.g.Iterator(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepository(t *pqt.Table) {
-	g.g.Repository(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateConstantsAndVariables(t *pqt.Table) {
-	g.g.Constraints(t)
-	g.g.NewLine()
-	g.g.Columns(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryInsertQuery(t *pqt.Table) {
-	g.g.RepositoryInsertQuery(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryInsert(t *pqt.Table) {
-	g.g.RepositoryInsert(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
-	g.g.RepositoryUpdateOneByPrimaryKeyQuery(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
-	g.g.RepositoryUpdateOneByPrimaryKey(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
-	g.g.RepositoryUpdateOneByUniqueConstraintQuery(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
-	g.g.RepositoryUpdateOneByUniqueConstraint(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryUpsertQuery(t *pqt.Table) {
-	g.g.RepositoryUpsertQuery(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryUpsert(t *pqt.Table) {
-	g.g.RepositoryUpsert(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateWhereClause(t *pqt.Table) {
-	g.g.WhereClause(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateJoinClause() {
-	g.g.JoinClause()
-}
-
-func (g *Generator) generateLogFunc(s *pqt.Schema) {
-	g.p.Printf(`
-	// %s represents function that can be passed into repository to log query result.
-	type LogFunc func(err error, ent, fnc, sql string, args ...interface{})`,
-		g.Formatter.Identifier("log", "func"),
-	)
-}
-
-func (g *Generator) generateInterfaces(s *pqt.Schema) {
-	g.g.Interfaces()
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryFindQuery(t *pqt.Table) {
-	g.g.RepositoryFindQuery(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryFind(t *pqt.Table) {
-	g.g.RepositoryFind(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryFindIter(t *pqt.Table) {
-	g.g.RepositoryFindIter(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryCount(t *pqt.Table) {
-	g.g.RepositoryCount(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryFindOneByPrimaryKey(t *pqt.Table) {
-	g.g.RepositoryFindOneByPrimaryKey(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryFindOneByUniqueConstraint(t *pqt.Table) {
-	g.g.RepositoryFindOneByUniqueConstraint(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(t *pqt.Table) {
-	g.g.RepositoryDeleteOneByPrimaryKey(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateEntityProp(t *pqt.Table) {
-	g.g.EntityProp(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateEntityProps(t *pqt.Table) {
-	g.g.EntityProps(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateScanRows(t *pqt.Table) {
-	g.g.ScanRows(t)
-	g.g.NewLine()
-}
-
-func (g *Generator) generateStatics(s *pqt.Schema) {
 	g.g.Statics(s)
 	g.g.NewLine()
+
+	return g.p.Err
 }

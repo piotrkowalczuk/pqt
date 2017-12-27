@@ -5,6 +5,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
 func TestGenerator_RepositoryDeleteOneByPrimaryKey(t *testing.T) {
@@ -16,7 +17,7 @@ func TestGenerator_RepositoryDeleteOneByPrimaryKey(t *testing.T) {
 	g.Reset()
 	g.Repository(t1)
 	g.RepositoryDeleteOneByPrimaryKey(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string

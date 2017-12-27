@@ -7,6 +7,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
@@ -15,7 +16,7 @@ func TestGenerator_RepositoryFindIter(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t1)
 	g.RepositoryFindIter(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -56,7 +57,7 @@ func TestGenerator_RepositoryFindQuery(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t2)
 	g.RepositoryFindQuery(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -171,7 +172,7 @@ func TestGenerator_RepositoryFindOneByPrimaryKey(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t1)
 	g.RepositoryFindOneByPrimaryKey(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -185,7 +186,7 @@ type T1RepositoryBase struct {
 	g.Reset()
 	g.Repository(t1)
 	g.RepositoryFindOneByPrimaryKey(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -235,7 +236,7 @@ func TestGenerator_RepositoryFind(t *testing.T) {
 	g.Reset()
 	g.Repository(t1)
 	g.RepositoryFind(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -298,7 +299,7 @@ func TestGenerator_RepositoryFindOneByUniqueConstraint(t *testing.T) {
 	g.Reset()
 	g.Repository(t1)
 	g.RepositoryFindOneByUniqueConstraint(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string

@@ -5,6 +5,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
 func TestGenerator_RepositoryUpdateOneByPrimaryKey(t *testing.T) {
@@ -16,7 +17,7 @@ func TestGenerator_RepositoryUpdateOneByPrimaryKey(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t2)
 	g.RepositoryUpdateOneByPrimaryKey(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -51,7 +52,7 @@ func TestGenerator_RepositoryUpdateOneByPrimaryKeyQuery(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t0) // Is here so output can be properly formatted
 	g.RepositoryUpdateOneByPrimaryKeyQuery(t0)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T0RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -68,7 +69,7 @@ type T0RepositoryBase struct {
 	g.Repository(t1) // Is here so output can be properly formatted
 	g.RepositoryUpdateOneByPrimaryKeyQuery(t1)
 
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -109,7 +110,7 @@ func TestGenerator_RepositoryUpdateOneByUniqueConstraintQuery(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t0) // Is here so output can be properly formatted
 	g.RepositoryUpdateOneByUniqueConstraintQuery(t0)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T0RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -134,7 +135,7 @@ type T0RepositoryBase struct {
 	g.Repository(t1) // Is here so output can be properly formatted
 	g.RepositoryUpdateOneByUniqueConstraintQuery(t1)
 
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -326,7 +327,7 @@ func TestGenerator_RepositoryUpdateOneByUniqueConstraint(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t0) // Is here so output can be properly formatted
 	g.RepositoryUpdateOneByUniqueConstraint(t0)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T0RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -351,7 +352,7 @@ type T0RepositoryBase struct {
 	g.Repository(t1) // Is here so output can be properly formatted
 	g.RepositoryUpdateOneByUniqueConstraint(t1)
 
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
 	Columns []string

@@ -87,7 +87,7 @@ func sqlSelector(c *pqt.Column, id string) string {
 		if i != 0 {
 			sel += ", "
 		}
-		sel += fmt.Sprint("t%d.")
+		sel += "t%d."
 		sel += c.Columns[i].Name
 	}
 	sel += ")"

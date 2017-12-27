@@ -2,40 +2,15 @@ package pqtgogen_test
 
 import (
 	"bytes"
-	"fmt"
 	"go/format"
-	"strings"
 	"testing"
 
-	"github.com/aryann/difflib"
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 	"github.com/piotrkowalczuk/pqt/pqtgo/pqtgogen"
 )
 
-func assertGoCode(t *testing.T, s1, s2 string) {
-	tmp1 := strings.Split(s1, "\n")
-	tmp2 := strings.Split(s2, "\n")
-	if s1 != s2 {
-		b := bytes.NewBuffer(nil)
-		for i, diff := range difflib.Diff(tmp1, tmp2) {
-			p := strings.Replace(diff.Payload, "\t", "\\t", -1)
-			switch diff.Delta {
-			case difflib.Common:
-				if testing.Verbose() {
-					fmt.Fprintf(b, "%20d %s %s\n", i, diff.Delta.String(), p)
-				}
-			case difflib.LeftOnly:
-				fmt.Fprintf(b, "\033[31m%20d %s %s\033[39m\n", i, diff.Delta.String(), p)
-			case difflib.RightOnly:
-				fmt.Fprintf(b, "\033[32m%20d %s %s\033[39m\n", i, diff.Delta.String(), p)
-			}
-		}
-		t.Errorf(b.String())
-	}
-}
-
-func TestGenerator_Generate(t *testing.T) {
+func TestGenerator(t *testing.T) {
 	cases := map[string]struct {
 		components pqtgogen.Component
 		schema     func() *pqt.Schema
@@ -72,7 +47,6 @@ func TestGenerator_Generate(t *testing.T) {
 				Version:    9.5,
 				Pkg:        "example",
 				Components: c.components,
-				Formatter:  &pqtgogen.Formatter{Acronyms: formatter.Acronyms},
 			}
 			s := c.schema()
 			buf, err := g.Generate(s)
@@ -82,10 +56,14 @@ func TestGenerator_Generate(t *testing.T) {
 
 			got := normalize(t, buf)
 			expected := normalize(t, []byte(c.expected))
-			assertGoCode(t, expected, got)
-			//if expected != got {
-			//	t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", expected, got)
-			//}
+			testutil.AssertGoCode(t, expected, got)
+
+			into := bytes.NewBuffer(nil)
+			err = g.GenerateTo(into, s)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			testutil.AssertGoCode(t, expected, into.String())
 		})
 	}
 }

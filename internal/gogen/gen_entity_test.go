@@ -6,6 +6,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
 func TestGenerator_Entity(t *testing.T) {
@@ -76,7 +77,7 @@ Dynamic int32}`,
 		t.Run(hint, func(t *testing.T) {
 			g := &gogen.Generator{}
 			g.Entity(c.table)
-			assertOutput(t, g.Printer, c.exp)
+			testutil.AssertOutput(t, g.Printer, c.exp)
 		})
 	}
 }
@@ -95,7 +96,7 @@ func TestGenerator_EntityProp(t *testing.T) {
 	g.Reset()
 	g.Entity(t1)
 	g.EntityProp(t1)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 // T1Entity ...
 type T1Entity struct {
 	// Age ...
@@ -161,7 +162,7 @@ func TestGenerator_EntityProps(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Entity(t2)
 	g.EntityProps(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 // T2Entity ...
 type T2Entity struct {
 	// Example ...

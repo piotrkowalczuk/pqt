@@ -5,6 +5,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
 func TestGenerator_RepositoryInsert(t *testing.T) {
@@ -14,7 +15,7 @@ func TestGenerator_RepositoryInsert(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Repository(t2)
 	g.RepositoryInsert(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -70,7 +71,7 @@ func TestGenerator_RepositoryInsertQuery(t *testing.T) {
 	g.Repository(t2) // Is here so output can be properly formatted
 	g.RepositoryInsertQuery(t2)
 
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string

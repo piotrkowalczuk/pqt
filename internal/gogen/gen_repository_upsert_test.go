@@ -5,6 +5,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
 func TestGenerator_RepositoryUpsert(t *testing.T) {
@@ -17,7 +18,7 @@ func TestGenerator_RepositoryUpsert(t *testing.T) {
 	g := &gogen.Generator{Version: 9.4}
 	g.Repository(t2)
 	g.RepositoryUpsert(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -28,7 +29,7 @@ type T2RepositoryBase struct {
 	g = &gogen.Generator{Version: 9.5}
 	g.Repository(t2)
 	g.RepositoryUpsert(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -85,7 +86,7 @@ func TestGenerator_RepositoryUpsertQuery(t *testing.T) {
 	g.Repository(t2) // Is here so output can be properly formatted
 	g.RepositoryUpsertQuery(t2)
 
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -96,7 +97,7 @@ type T2RepositoryBase struct {
 	g.Repository(t2) // Is here so output can be properly formatted
 	g.RepositoryUpsertQuery(t2)
 
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string

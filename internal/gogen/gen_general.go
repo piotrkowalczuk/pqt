@@ -523,8 +523,7 @@ func (g *Generator) JoinClause() {
 			return
 		}
 		return
-	}`,
-	)
+	}`)
 }
 
 func (g *Generator) ScanRows(t *pqt.Table) {
@@ -555,6 +554,12 @@ func (g *Generator) ScanRows(t *pqt.Table) {
 
 		return
 	}`)
+}
+
+func (g *Generator) Funcs() {
+	g.Print(`
+	// LogFunc represents function that can be passed into repository to log query result.
+	type LogFunc func(err error, ent, fnc, sql string, args ...interface{})`)
 }
 
 func (g *Generator) Interfaces() {

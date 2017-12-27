@@ -9,6 +9,7 @@ import (
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
+	"github.com/piotrkowalczuk/pqt/internal/testutil"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
@@ -30,7 +31,7 @@ func TestGenerator_Package(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			g := &gogen.Generator{}
 			g.Package(c.name)
-			assertOutput(t, g.Printer, c.exp)
+			testutil.AssertOutput(t, g.Printer, c.exp)
 		})
 	}
 }
@@ -63,7 +64,7 @@ func TestGenerator_Imports(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			g := &gogen.Generator{}
 			g.Imports(&c.schema, c.fixed...)
-			assertOutput(t, g.Printer, c.exp)
+			testutil.AssertOutput(t, g.Printer, c.exp)
 		})
 	}
 }
@@ -135,7 +136,7 @@ child, sibling, parent *ExampleCriteria
 		t.Run(hint, func(t *testing.T) {
 			g := &gogen.Generator{}
 			g.Criteria(c.table)
-			assertOutput(t, g.Printer, c.exp)
+			testutil.AssertOutput(t, g.Printer, c.exp)
 		})
 	}
 }
@@ -143,7 +144,7 @@ child, sibling, parent *ExampleCriteria
 func TestGenerator_Operand(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Operand(pqt.NewTable("example"))
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 func ExampleOperand(operator string, operands ...*ExampleCriteria) *ExampleCriteria {
 	if len(operands) == 0 {
 		return &ExampleCriteria{operator: operator}
@@ -179,7 +180,7 @@ func TestGenerator_Repository(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Repository(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
 	Columns []string
@@ -198,7 +199,7 @@ func TestGenerator_Columns(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Columns(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 const (
 	TableT2                  = "t2"
 	TableT2ColumnDescription = "description"
@@ -234,7 +235,7 @@ func TestGenerator_Constraints(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Constraints(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 const (
 	TableT2ConstraintPrimaryKey            = "constraints_test.t2_id_pkey"
 	TableT2ConstraintT1IDForeignKey        = "constraints_test.t2_t1_id_fkey"
@@ -250,7 +251,7 @@ func TestGenerator_FindExpr(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.FindExpr(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2FindExpr struct {
 	Where         *T2Criteria
 	Offset, Limit int64
@@ -268,7 +269,7 @@ func TestGenerator_CountExpr(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.CountExpr(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2CountExpr struct {
 	Where  *T2Criteria
 	JoinT1 *T1Join
@@ -281,7 +282,7 @@ func TestGenerator_Join(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Join(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 type T2Join struct {
 	On, Where *T2Criteria
 	Fetch     bool
@@ -362,7 +363,7 @@ type ExamplePatch struct {`)
 		t.Run(hint, func(t *testing.T) {
 			g := &gogen.Generator{}
 			g.Patch(c.table)
-			assertOutput(t, g.Printer, c.exp)
+			testutil.AssertOutput(t, g.Printer, c.exp)
 		})
 	}
 }
@@ -373,7 +374,7 @@ func TestGenerator_Iterator(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Iterator(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 // T2Iterator is not thread safe.
 type T2Iterator struct {
 	rows Rows
@@ -688,7 +689,7 @@ func _T1CriteriaWhereClause(comp *Composer, c *T1Criteria, id int) error {
 			g := &gogen.Generator{}
 			g.Criteria(t1)
 			g.WhereClause(t1)
-			assertOutput(t, g.Printer, c.exp)
+			testutil.AssertOutput(t, g.Printer, c.exp)
 		})
 	}
 
@@ -711,7 +712,7 @@ func TestGenerator_ScanRows(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Entity(t2)
 	g.ScanRows(t2)
-	assertOutput(t, g.Printer, `
+	testutil.AssertOutput(t, g.Printer, `
 // T2Entity ...
 type T2Entity struct {
 	// Example ...
@@ -741,6 +742,14 @@ func ScanT2Rows(rows Rows) (entities []*T2Entity, err error) {
 }`)
 }
 
+func TestGenerator_Funcs(t *testing.T) {
+	g := &gogen.Generator{}
+	g.Funcs()
+	_, err := format.Source(g.Bytes())
+	if err != nil {
+		t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), g.String())
+	}
+}
 func TestGenerator_Interfaces(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Interfaces()
