@@ -282,3 +282,104 @@ func (r *T1RepositoryBase) Find(ctx context.Context, fe *T1FindExpr) ([]*T1Entit
 	return entities, nil
 }`)
 }
+func TestGenerator_RepositoryFindOneByUniqueConstraint(t *testing.T) {
+	firstName := pqt.NewColumn("first_name", pqt.TypeText(), pqt.WithNotNull())
+	age := pqt.NewColumn("age", pqt.TypeIntegerBig(), pqt.WithNotNull())
+	lastName := pqt.NewColumn("last_name", pqt.TypeText(), pqt.WithNotNull())
+	t1 := pqt.NewTable("t1").
+		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
+		AddColumn(age).
+		AddColumn(firstName).
+		AddColumn(lastName).
+		AddUnique(firstName, lastName).
+		AddUniqueIndex("AgeIsGreaterThanZero", "age>0", firstName, lastName, age)
+
+	g := &gogen.Generator{}
+	g.Reset()
+	g.Repository(t1)
+	g.RepositoryFindOneByUniqueConstraint(t1)
+	assertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T1RepositoryBase) FindOneByFirstNameAndLastName(ctx context.Context, t1FirstName string, t1LastName string) (*T1Entity, error) {
+	find := NewComposer(4)
+	find.WriteString("SELECT ")
+	if len(r.Columns) == 0 {
+		find.WriteString("age, first_name, id, last_name")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
+	find.WriteString(" FROM ")
+	find.WriteString(TableT1)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableT1ColumnFirstName)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(t1FirstName)
+	find.WriteString(" AND ")
+	find.WriteString(TableT1ColumnLastName)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(t1LastName)
+
+	var (
+		ent T1Entity
+	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}
+
+func (r *T1RepositoryBase) FindOneByFirstNameAndLastNameAndAgeWhereAgeIsGreaterThanZero(ctx context.Context, t1FirstName string, t1LastName string, t1Age int64) (*T1Entity, error) {
+	find := NewComposer(4)
+	find.WriteString("SELECT ")
+	if len(r.Columns) == 0 {
+		find.WriteString("age, first_name, id, last_name")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
+	find.WriteString(" FROM ")
+	find.WriteString(TableT1)
+	find.WriteString(" WHERE age>0 AND ")
+	find.WriteString(TableT1ColumnFirstName)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(t1FirstName)
+	find.WriteString(" AND ")
+	find.WriteString(TableT1ColumnLastName)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(t1LastName)
+	find.WriteString(" AND ")
+	find.WriteString(TableT1ColumnAge)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(t1Age)
+
+	var (
+		ent T1Entity
+	)
+	props, err := ent.Props(r.Columns...)
+	if err != nil {
+		return nil, err
+	}
+	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ent, nil
+}`)
+}

@@ -390,6 +390,7 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 		}
 
 		g.Printf(`
+
 			func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
 			entityName,
 			formatter.Public(method...),
