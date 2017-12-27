@@ -67,79 +67,6 @@ func TestGenerator_Imports(t *testing.T) {
 	}
 }
 
-func TestGenerator_Entity(t *testing.T) {
-	table := func(c *pqt.Column) *pqt.Table {
-		t := pqt.NewTable("example")
-		if c != nil {
-			t.AddColumn(c)
-		}
-		return t
-	}
-	expected := func(columnName, columnType string) string {
-		return fmt.Sprintf("\n// ExampleEntity ...\ntype ExampleEntity struct{\n// %s ...\nA %s}", columnName, columnType)
-	}
-	cases := map[string]struct {
-		table *pqt.Table
-		exp   string
-	}{
-		"simple": {
-			table: table(nil),
-			exp:   "\n// ExampleEntity ...\ntype ExampleEntity struct{}",
-		},
-		"column-bool": {
-			table: table(pqt.NewColumn("a", pqt.TypeBool())),
-			exp:   expected("A", "sql.NullBool"),
-		},
-		"column-bool-not-null": {
-			table: table(pqt.NewColumn("a", pqt.TypeBool(), pqt.WithNotNull())),
-			exp:   expected("A", "bool"),
-		},
-		"column-integer": {
-			table: table(pqt.NewColumn("a", pqt.TypeInteger())),
-			exp:   expected("A", "*int32"),
-		},
-		"column-integer-not-null": {
-			table: table(pqt.NewColumn("a", pqt.TypeInteger(), pqt.WithNotNull())),
-			exp:   expected("A", "int32"),
-		},
-		"column-integer-big": {
-			table: table(pqt.NewColumn("a", pqt.TypeIntegerBig())),
-			exp:   expected("A", "sql.NullInt64"),
-		},
-		"column-integer-big-not-null": {
-			table: table(pqt.NewColumn("a", pqt.TypeIntegerBig(), pqt.WithNotNull())),
-			exp:   expected("A", "int64"),
-		},
-		"dynamic": {
-			table: func() *pqt.Table {
-				age := pqt.NewColumn("age", pqt.TypeInteger())
-
-				t := pqt.NewTable("example")
-				t.AddColumn(age)
-				t.AddColumn(pqt.NewDynamicColumn("dynamic", &pqt.Function{Type: pqt.TypeInteger()}, age))
-
-				return t
-			}(),
-			exp: `
-// ExampleEntity ...
-type ExampleEntity struct{
-// Age ...
-Age *int32
-// Dynamic ...
-// Dynamic is read only
-Dynamic int32}`,
-		},
-	}
-
-	for hint, c := range cases {
-		t.Run(hint, func(t *testing.T) {
-			g := &gogen.Generator{}
-			g.Entity(c.table)
-			assertOutput(t, g.Printer, c.exp)
-		})
-	}
-}
-
 func TestGenerator_Criteria(t *testing.T) {
 	table := func(c *pqt.Column) *pqt.Table {
 		t := pqt.NewTable("example")
@@ -772,4 +699,43 @@ func TestGenerator_JoinClause(t *testing.T) {
 	if g.Printer.String() == "" {
 		t.Error("output should not be empty")
 	}
+}
+
+func TestGenerator_ScanRows(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").
+		AddColumn(pqt.NewColumn("example", pqt.TypeText())).
+		AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Entity(t2)
+	g.ScanRows(t2)
+	assertOutput(t, g.Printer, `
+// T2Entity ...
+type T2Entity struct {
+	// Example ...
+	Example sql.NullString
+	// T1 ...
+	T1 *T1Entity
+}
+
+// ScanT2Rows helps to scan rows straight to the slice of entities.
+func ScanT2Rows(rows Rows) (entities []*T2Entity, err error) {
+	for rows.Next() {
+		var ent T2Entity
+		err = rows.Scan(
+			&ent.Example,
+		)
+		if err != nil {
+			return
+		}
+
+		entities = append(entities, &ent)
+	}
+	if err = rows.Err(); err != nil {
+		return
+	}
+
+	return
+}`)
 }

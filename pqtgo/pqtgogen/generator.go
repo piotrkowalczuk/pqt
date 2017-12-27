@@ -1,17 +1,12 @@
 package pqtgogen
 
 import (
-	"fmt"
 	"go/format"
 	"io"
-	"reflect"
-	"strings"
-	"text/template"
 
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/gogen"
 	"github.com/piotrkowalczuk/pqt/internal/print"
-	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 type Generator struct {
@@ -75,7 +70,7 @@ func (g *Generator) generate(s *pqt.Schema) error {
 		g.generateEntityProp(t)
 		g.generateEntityProps(t)
 		if g.Components&ComponentHelpers != 0 {
-			g.generateRepositoryScanRows(t)
+			g.generateScanRows(t)
 		}
 		if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
 			g.generateIterator(t)
@@ -254,37 +249,6 @@ func (g *Generator) generateInterfaces(s *pqt.Schema) {
 	}`)
 }
 
-func (g *Generator) selectList(t *pqt.Table, nb int) {
-	for i, c := range t.Columns {
-		if i != 0 {
-			g.p.Print(", ")
-		}
-		if c.IsDynamic {
-			g.p.Printf("%s(", c.Func.Name)
-			for i, arg := range c.Func.Args {
-				if arg.Type != c.Columns[i].Type {
-					fmt.Printf("wrong function (%s) argument type, expected %v but got %v\n", c.Func.Name, arg.Type, c.Columns[i].Type)
-				}
-				if i != 0 {
-					g.p.Print(", ")
-				}
-				if nb > -1 {
-					g.p.Printf("t%d.%s", nb, c.Columns[i].Name)
-				} else {
-					g.p.Printf("%s", c.Columns[i].Name)
-				}
-			}
-			g.p.Printf(") AS %s", c.Name)
-		} else {
-			if nb > -1 {
-				g.p.Printf("t%d.%s", nb, c.Name)
-			} else {
-				g.p.Printf("%s", c.Name)
-			}
-		}
-	}
-}
-
 func (g *Generator) generateRepositoryFindQuery(t *pqt.Table) {
 	g.g.RepositoryFindQuery(t)
 	g.g.NewLine()
@@ -321,68 +285,8 @@ func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(t *pqt.Table) {
 }
 
 func (g *Generator) generateEntityProp(t *pqt.Table) {
-	g.p.Printf(`
-		func (e *%sEntity) %s(cn string) (interface{}, bool) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier("prop"))
-	g.p.Println(`
-		switch cn {`)
-
-ColumnsLoop:
-	for _, c := range t.Columns {
-		g.p.Printf(`
-			case %s:`, g.Formatter.Identifier("table", t.Name, "column", c.Name))
-		for _, plugin := range g.Plugins {
-			if txt := plugin.ScanClause(c); txt != "" {
-				tmpl, err := template.New("root").Parse(fmt.Sprintf(`
-					return %s, true`, txt))
-				if err != nil {
-					panic(err)
-				}
-				if err = tmpl.Execute(g.p, map[string]interface{}{
-					"selector": fmt.Sprintf("e.%s", g.Formatter.Identifier(c.Name)),
-				}); err != nil {
-					panic(err)
-				}
-				g.p.Println("")
-				continue ColumnsLoop
-			}
-		}
-		switch {
-		case g.isArray(c, pqtgo.ModeDefault):
-			pn := g.Formatter.Identifier(c.Name)
-			switch g.columnType(c, pqtgo.ModeDefault) {
-			case "pq.Int64Array":
-				g.p.Printf(`if e.%s == nil { e.%s = []int64{} }`, pn, pn)
-			case "pq.StringArray":
-				g.p.Printf(`if e.%s == nil { e.%s = []string{} }`, pn, pn)
-			case "pq.Float64Array":
-				g.p.Printf(`if e.%s == nil { e.%s = []float64{} }`, pn, pn)
-			case "pq.BoolArray":
-				g.p.Printf(`if e.%s == nil { e.%s = []bool{} }`, pn, pn)
-			case "pq.ByteaArray":
-				g.p.Printf(`if e.%s == nil { e.%s = [][]byte{} }`, pn, pn)
-			}
-
-			g.p.Printf(`
-				return &e.%s, true`, g.Formatter.Identifier(c.Name))
-		case g.canBeNil(c, pqtgo.ModeDefault):
-			g.p.Printf(`
-				return e.%s, true`,
-				g.Formatter.Identifier(c.Name),
-			)
-		default:
-			g.p.Printf(`
-				return &e.%s, true`,
-				g.Formatter.Identifier(c.Name),
-			)
-		}
-	}
-
-	g.p.Print(`
-		default:`)
-	g.p.Print(`
-		return nil, false`)
-	g.p.Print("}\n}\n")
-
+	g.g.EntityProp(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateEntityProps(t *pqt.Table) {
@@ -408,99 +312,9 @@ func (g *Generator) generateEntityProps(t *pqt.Table) {
 		}`)
 }
 
-func (g *Generator) generateRepositoryScanRows(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-	funcName := g.Formatter.Identifier("scan", t.Name, "rows")
-	g.p.Printf(`
-		// %s helps to scan rows straight to the slice of entities.
-		func %s(rows Rows) (entities []*%sEntity, err error) {`, funcName, funcName, entityName)
-	g.p.Printf(`
-		for rows.Next() {
-			var ent %sEntity
-			err = rows.Scan(
-			`, entityName,
-	)
-	for _, c := range t.Columns {
-		g.p.Printf("&ent.%s,\n", g.Formatter.Identifier(c.Name))
-	}
-	g.p.Print(`)
-			if err != nil {
-				return
-			}
-
-			entities = append(entities, &ent)
-		}
-		if err = rows.Err(); err != nil {
-			return
-		}
-
-		return
-	}`)
-}
-
-func (g *Generator) isArray(c *pqt.Column, m int32) bool {
-	if strings.HasPrefix(g.columnType(c, m), "[]") {
-		return true
-	}
-
-	return g.isType(c, m, "pq.StringArray", "pq.Int64Array", "pq.BoolArray", "pq.Float64Array", "pq.ByteaArray", "pq.GenericArray")
-}
-
-func (g *Generator) canBeNil(c *pqt.Column, m int32) bool {
-	if tp, ok := c.Type.(pqt.MappableType); ok {
-		for _, mapto := range tp.Mapping {
-			if ct, ok := mapto.(pqtgo.CustomType); ok {
-				switch m {
-				case pqtgo.ModeMandatory:
-					return ct.TypeOf(pqtgo.ModeMandatory).Kind() == reflect.Ptr || ct.TypeOf(pqtgo.ModeMandatory).Kind() == reflect.Map
-				case pqtgo.ModeOptional:
-					return ct.TypeOf(pqtgo.ModeOptional).Kind() == reflect.Ptr || ct.TypeOf(pqtgo.ModeOptional).Kind() == reflect.Map
-				case pqtgo.ModeCriteria:
-					return ct.TypeOf(pqtgo.ModeCriteria).Kind() == reflect.Ptr || ct.TypeOf(pqtgo.ModeCriteria).Kind() == reflect.Map
-				default:
-					return false
-				}
-			}
-		}
-	}
-	if g.columnType(c, m) == "interface{}" {
-		return true
-	}
-	if strings.HasPrefix(g.columnType(c, m), "*") {
-		return true
-	}
-	if g.isArray(c, m) {
-		return true
-	}
-	if g.isType(c, m,
-		"pq.StringArray",
-		"ByteaArray",
-		"pq.BoolArray",
-		"pq.Int64Array",
-		"pq.Float64Array",
-	) {
-		return true
-	}
-	return false
-}
-
-func (g *Generator) columnType(c *pqt.Column, m int32) string {
-	m = columnMode(c, m)
-	for _, plugin := range g.Plugins {
-		if txt := plugin.PropertyType(c, m); txt != "" {
-			return txt
-		}
-	}
-	return g.Formatter.Type(c.Type, m)
-}
-
-func (g *Generator) isType(c *pqt.Column, m int32, types ...string) bool {
-	for _, t := range types {
-		if g.columnType(c, m) == t {
-			return true
-		}
-	}
-	return false
+func (g *Generator) generateScanRows(t *pqt.Table) {
+	g.g.ScanRows(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateStatics(s *pqt.Schema) {
@@ -947,27 +761,4 @@ func (c *Composer) Args() []interface{} {
 			g.p.Print("\n\n")
 		}
 	}
-}
-
-func (g *Generator) uniqueConstraints(t *pqt.Table) []*pqt.Constraint {
-	var unique []*pqt.Constraint
-	for _, c := range t.Constraints {
-		if c.Type == pqt.ConstraintTypeUnique || c.Type == pqt.ConstraintTypeUniqueIndex {
-			unique = append(unique, c)
-		}
-	}
-	if len(unique) < 1 {
-		return nil
-	}
-	return unique
-}
-
-func joinableRelationships(t *pqt.Table) (rels []*pqt.Relationship) {
-	for _, r := range t.OwnedRelationships {
-		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
-			continue
-		}
-		rels = append(rels, r)
-	}
-	return
 }

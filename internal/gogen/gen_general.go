@@ -55,32 +55,6 @@ func (g *Generator) Imports(s *pqt.Schema, fixed ...string) {
 	g.Println(")")
 }
 
-func (g *Generator) Entity(t *pqt.Table) {
-	g.Printf(`
-// %sEntity ...`, formatter.Public(t.Name))
-	g.Printf(`
-type %sEntity struct{`, formatter.Public(t.Name))
-	for prop := range g.entityPropertiesGenerator(t) {
-		g.Printf(`
-// %s ...`, formatter.Public(prop.Name))
-		if prop.ReadOnly {
-			g.Printf(`
-// %s is read only`, formatter.Public(prop.Name))
-		}
-		if prop.Tags != "" {
-			g.Printf(`
-%s %s %s`, formatter.Public(prop.Name), prop.Type, prop.Tags)
-		} else {
-			g.Printf(`
-%s %s`,
-				formatter.Public(prop.Name),
-				prop.Type,
-			)
-		}
-	}
-	g.Print(`}`)
-}
-
 func (g *Generator) Criteria(t *pqt.Table) {
 	tableName := formatter.Public(t.Name)
 
@@ -551,4 +525,34 @@ func (g *Generator) JoinClause() {
 		return
 	}`,
 	)
+}
+
+func (g *Generator) ScanRows(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+	funcName := formatter.Public("scan", t.Name, "rows")
+	g.Printf(`
+		// %s helps to scan rows straight to the slice of entities.
+		func %s(rows Rows) (entities []*%sEntity, err error) {`, funcName, funcName, entityName)
+	g.Printf(`
+		for rows.Next() {
+			var ent %sEntity
+			err = rows.Scan(
+			`, entityName,
+	)
+	for _, c := range t.Columns {
+		g.Printf("&ent.%s,\n", formatter.Public(c.Name))
+	}
+	g.Print(`)
+			if err != nil {
+				return
+			}
+
+			entities = append(entities, &ent)
+		}
+		if err = rows.Err(); err != nil {
+			return
+		}
+
+		return
+	}`)
 }

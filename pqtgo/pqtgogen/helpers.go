@@ -126,17 +126,6 @@ var keywords = map[string]string{
 	"var":         "va",
 }
 
-func or(s1, s2 string) string {
-	if s1 == "" {
-		return s2
-	}
-	return s1
-}
-
-func columnForeignName(c *pqt.Column) string {
-	return c.Table.Name + "_" + c.Name
-}
-
 func snake(s string, private bool, acronyms map[string]string) string {
 	var parts []string
 	parts1 := strings.Split(s, "_")
@@ -194,17 +183,4 @@ func generateCustomType(t pqtgo.CustomType, m int32) string {
 		goType(t.TypeOf(pqtgo.ModeCriteria)),
 		m,
 	)
-}
-
-func columnMode(c *pqt.Column, m int32) int32 {
-	switch m {
-	case pqtgo.ModeCriteria:
-	case pqtgo.ModeMandatory:
-	case pqtgo.ModeOptional:
-	default:
-		if c.NotNull || c.PrimaryKey {
-			m = pqtgo.ModeMandatory
-		}
-	}
-	return m
 }
