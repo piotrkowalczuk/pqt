@@ -741,6 +741,15 @@ func ScanT2Rows(rows Rows) (entities []*T2Entity, err error) {
 }`)
 }
 
+func TestGenerator_Interfaces(t *testing.T) {
+	g := &gogen.Generator{}
+	g.Interfaces()
+	_, err := format.Source(g.Bytes())
+	if err != nil {
+		t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), g.String())
+	}
+}
+
 func TestGenerator_Statics(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Statics(pqt.NewSchema("example"))

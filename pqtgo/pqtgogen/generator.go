@@ -236,17 +236,8 @@ func (g *Generator) generateLogFunc(s *pqt.Schema) {
 }
 
 func (g *Generator) generateInterfaces(s *pqt.Schema) {
-	g.p.Print(`
-	// Rows ...
-	type Rows interface {
-		io.Closer
-		ColumnTypes() ([]*sql.ColumnType, error)
-		Columns() ([]string, error)
-		Err() error
-		Next() bool
-		NextResultSet() bool
-		Scan(dest ...interface{}) error
-	}`)
+	g.g.Interfaces()
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryFindQuery(t *pqt.Table) {
@@ -301,4 +292,5 @@ func (g *Generator) generateScanRows(t *pqt.Table) {
 
 func (g *Generator) generateStatics(s *pqt.Schema) {
 	g.g.Statics(s)
+	g.g.NewLine()
 }

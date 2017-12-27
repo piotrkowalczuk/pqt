@@ -557,6 +557,20 @@ func (g *Generator) ScanRows(t *pqt.Table) {
 	}`)
 }
 
+func (g *Generator) Interfaces() {
+	g.Print(`
+	// Rows ...
+	type Rows interface {
+		io.Closer
+		ColumnTypes() ([]*sql.ColumnType, error)
+		Columns() ([]string, error)
+		Err() error
+		Next() bool
+		NextResultSet() bool
+		Scan(dst ...interface{}) error
+	}`)
+}
+
 func (g *Generator) Statics(s *pqt.Schema) {
 	g.Print(`
 const (

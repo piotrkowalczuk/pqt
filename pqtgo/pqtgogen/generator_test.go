@@ -115,7 +115,7 @@ var expectedSimple = `package example
     			Err() error
     			Next() bool
     			NextResultSet() bool
-    			Scan(dest ...interface{}) error
+    			Scan(dst ...interface{}) error
     		}
 
     		func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {
