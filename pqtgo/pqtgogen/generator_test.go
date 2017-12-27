@@ -691,6 +691,7 @@ var expectedSimple = `package example
 
     			return &ent, nil
     		}
+
     		func (r *UserRepositoryBase) UpdateOneByIDQuery(pk int64, p *UserPatch) (string, []interface{}, error) {
     			buf := bytes.NewBufferString("UPDATE ")
     			buf.WriteString(r.Table)

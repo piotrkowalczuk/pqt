@@ -1,6 +1,8 @@
 package gogen
 
 import (
+	"fmt"
+
 	"github.com/piotrkowalczuk/pqt"
 	"github.com/piotrkowalczuk/pqt/internal/formatter"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
@@ -364,4 +366,92 @@ func (g *Generator) RepositoryFind(t *pqt.Table) {
 		formatter.Public("log"),
 		entityName,
 	)
+}
+
+func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
+	entityName := formatter.Public(t.Name)
+
+	for _, u := range uniqueConstraints(t) {
+		method := []string{"FindOneBy"}
+		arguments := ""
+
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", formatter.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+		}
+
+		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
+			method = append(method, "Where")
+			method = append(method, u.MethodSuffix)
+		}
+
+		g.Printf(`
+			func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
+			entityName,
+			formatter.Public(method...),
+			arguments,
+			entityName,
+		)
+		g.Printf(`
+			find := NewComposer(%d)
+			find.WriteString("SELECT ")
+					if len(r.%s) == 0 {
+			find.WriteString("`,
+			len(t.Columns), formatter.Public("columns"))
+		g.selectList(t, -1)
+		g.Printf(`")
+		} else {
+			find.WriteString(strings.Join(r.%s, ", "))
+		}`, formatter.Public("columns"))
+
+		partialClause := ""
+		if len(u.Where) > 0 {
+			partialClause = fmt.Sprintf("%s AND ", u.Where)
+		}
+
+		g.Printf(`
+			find.WriteString(" FROM ")
+			find.WriteString(%s)
+			find.WriteString(" WHERE %s")`,
+			formatter.Public("table", t.Name),
+			partialClause,
+		)
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				g.Print(`find.WriteString(" AND ")`)
+			}
+			g.Printf(`
+		find.WriteString(%s)
+		find.WriteString("=")
+		find.WritePlaceholder()
+		find.Add(%s)
+		`, formatter.Public("table", t.Name, "column", c.Name), formatter.Private(columnForeignName(c)))
+		}
+
+		g.Printf(`
+			var (
+				ent %sEntity
+			)
+			props, err := ent.%s(r.%s...)
+			if err != nil {
+				return nil, err
+			}
+			err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+			entityName,
+			formatter.Public("props"),
+			formatter.Public("columns"),
+			formatter.Public("db"),
+		)
+		g.Print(`
+			if err != nil {
+				return nil, err
+			}
+
+			return &ent, nil
+		}`)
+	}
 }

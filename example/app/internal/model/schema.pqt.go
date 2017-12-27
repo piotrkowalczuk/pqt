@@ -3323,6 +3323,7 @@ func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitl
 
 	return &ent, nil
 }
+
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
