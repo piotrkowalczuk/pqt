@@ -151,3 +151,37 @@ func (e *T1Entity) Prop(cn string) (interface{}, bool) {
 	}
 }`)
 }
+
+func TestGenerator_EntityProps(t *testing.T) {
+	t1 := pqt.NewTable("t1")
+	t2 := pqt.NewTable("t2").
+		AddColumn(pqt.NewColumn("example", pqt.TypeText())).
+		AddRelationship(pqt.ManyToOne(t1))
+
+	g := &gogen.Generator{}
+	g.Entity(t2)
+	g.EntityProps(t2)
+	assertOutput(t, g.Printer, `
+// T2Entity ...
+type T2Entity struct {
+	// Example ...
+	Example sql.NullString
+	// T1 ...
+	T1 *T1Entity
+}
+
+func (e *T2Entity) Props(cns ...string) ([]interface{}, error) {
+	if len(cns) == 0 {
+		cns = TableT2Columns
+	}
+	res := make([]interface{}, 0, len(cns))
+	for _, cn := range cns {
+		if prop, ok := e.Prop(cn); ok {
+			res = append(res, prop)
+		} else {
+			return nil, fmt.Errorf("unexpected column provided: %s", cn)
+		}
+	}
+	return res, nil
+}`)
+}

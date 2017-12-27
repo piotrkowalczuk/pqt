@@ -290,26 +290,8 @@ func (g *Generator) generateEntityProp(t *pqt.Table) {
 }
 
 func (g *Generator) generateEntityProps(t *pqt.Table) {
-	g.p.Printf(`
-		func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {`, g.Formatter.Identifier(t.Name), g.Formatter.Identifier("props"))
-	g.p.Printf(`
-		if len(cns) == 0 {
-			cns = %s
-		}
-		res := make([]interface{}, 0, len(cns))
-		for _, cn := range cns {
-			if prop, ok := e.%s(cn); ok {
-				res = append(res, prop)
-			} else {
-				return nil, fmt.Errorf("unexpected column provided: %%s", cn)
-			}
-		}
-		return res, nil`,
-		g.Formatter.Identifier("table", t.Name, "columns"),
-		g.Formatter.Identifier("prop"),
-	)
-	g.p.Print(`
-		}`)
+	g.g.EntityProps(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateScanRows(t *pqt.Table) {

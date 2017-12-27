@@ -3288,6 +3288,7 @@ func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle strin
 
 	return &ent, nil
 }
+
 func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
 	find := NewComposer(11)
 	find.WriteString("SELECT ")
