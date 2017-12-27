@@ -71,16 +71,14 @@ func Type(t pqt.Type, m int32) string {
 		for _, mt := range tt.Mapping {
 			return Type(mt, m)
 		}
-		return ""
 	case pqtgo.BuiltinType:
 		return generateTypeBuiltin(tt, m)
 	case pqt.BaseType:
 		return generateTypeBase(tt, m)
 	case pqtgo.CustomType:
 		return generateCustomType(tt, m)
-	default:
-		return ""
 	}
+	return ""
 }
 
 func snake(s string, private bool, acronyms map[string]string) string {

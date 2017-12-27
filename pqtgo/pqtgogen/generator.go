@@ -316,42 +316,8 @@ func (g *Generator) generateRepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryDeleteOneByPrimaryKey(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-	pk, ok := t.PrimaryKey()
-	if !ok {
-		return
-	}
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (int64, error) {`,
-		entityName,
-		g.Formatter.Identifier("DeleteOneBy", pk.Name),
-		g.columnType(pk, pqtgo.ModeMandatory),
-	)
-	g.p.Printf(`
-		find := NewComposer(%d)
-		find.WriteString("DELETE FROM ")
-		find.WriteString(%s)
-		find.WriteString(" WHERE ")
-		find.WriteString(%s)
-		find.WriteString("=")
-		find.WritePlaceholder()
-		find.Add(pk)`, len(t.Columns),
-		g.Formatter.Identifier("table", t.Name),
-		g.Formatter.Identifier("table", t.Name, "column", pk.Name),
-	)
-
-	g.p.Printf(`
-		res, err := r.%s.ExecContext(ctx, find.String(), find.Args()...)`,
-		g.Formatter.Identifier("db"),
-	)
-	g.p.Print(`
-		if err != nil {
-				return 0, err
-			}
-
-		return res.RowsAffected()
-	}`)
+	g.g.RepositoryDeleteOneByPrimaryKey(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateEntityProp(t *pqt.Table) {
