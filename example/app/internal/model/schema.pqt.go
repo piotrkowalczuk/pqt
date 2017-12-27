@@ -1208,6 +1208,7 @@ func (r *CategoryRepositoryBase) Count(ctx context.Context, c *CategoryCountExpr
 	}
 	return count, nil
 }
+
 func (r *CategoryRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
 	find := NewComposer(6)
 	find.WriteString("DELETE FROM ")
@@ -2299,6 +2300,7 @@ func (r *PackageRepositoryBase) Count(ctx context.Context, c *PackageCountExpr) 
 	}
 	return count, nil
 }
+
 func (r *PackageRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
 	find := NewComposer(5)
 	find.WriteString("DELETE FROM ")
@@ -4611,6 +4613,7 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCountExpr) (int64
 	}
 	return count, nil
 }
+
 func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
 	find := NewComposer(11)
 	find.WriteString("DELETE FROM ")

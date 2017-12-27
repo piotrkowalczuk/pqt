@@ -517,7 +517,6 @@ ColumnsLoop:
 	closeBrace(g, 1)
 }
 
-
 func (g *Generator) JoinClause() {
 	g.Print(`
 	func joinClause(comp *Composer, jt JoinType, on string) (ok bool, err error) {

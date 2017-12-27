@@ -935,6 +935,7 @@ var expectedSimple = `package example
     			}
     			return count, nil
     		}
+
     		func (r *UserRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
     			find := NewComposer(2)
     			find.WriteString("DELETE FROM ")

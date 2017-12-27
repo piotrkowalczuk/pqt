@@ -301,48 +301,8 @@ func (g *Generator) generateRepositoryFindIter(t *pqt.Table) {
 }
 
 func (g *Generator) generateRepositoryCount(t *pqt.Table) {
-	entityName := g.Formatter.Identifier(t.Name)
-
-	g.p.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCountExpr) (int64, error) {`, entityName, g.Formatter.Identifier("count"), entityName)
-	g.p.Printf(`
-		query, args, err := r.%sQuery(&%sFindExpr{
-			%s: c.%s,
-			%s: []string{"COUNT(*)"},
-		`,
-		g.Formatter.Identifier("find"),
-		g.Formatter.Identifier(entityName),
-		g.Formatter.Identifier("where"),
-		g.Formatter.Identifier("where"),
-		g.Formatter.Identifier("columns"),
-	)
-	for _, r := range joinableRelationships(t) {
-		g.p.Printf(`
-		%s: c.%s,`, g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)), g.Formatter.Identifier("join", or(r.InversedName, r.InversedTable.Name)))
-	}
-	g.p.Printf(`
-		})
-		if err != nil {
-			return 0, err
-		}
-		var count int64
-		err = r.%s.QueryRowContext(ctx, query, args...).Scan(&count)`,
-		g.Formatter.Identifier("db"),
-	)
-
-	g.p.Printf(`
-		if r.%s != nil {
-			r.%s(err, Table%s, "count", query, args...)
-		}
-		if err != nil {
-			return 0, err
-		}
-		return count, nil
-	}`,
-		g.Formatter.Identifier("log"),
-		g.Formatter.Identifier("log"),
-		entityName,
-	)
+	g.g.RepositoryCount(t)
+	g.g.NewLine()
 }
 
 func (g *Generator) generateRepositoryFindOneByPrimaryKey(t *pqt.Table) {
