@@ -13,19 +13,44 @@ import (
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
 
+func assertNewsEntity(t *testing.T, exp, got *model.NewsEntity) {
+	if exp.Title != got.Title {
+		t.Errorf("wrong title, expected %s but got %s", exp.Title, got.Title)
+	}
+	if exp.Lead != got.Lead {
+		t.Errorf("wrong lead, expected %s but got %s", exp.Lead, got.Lead)
+	}
+	if exp.Content != got.Content {
+		t.Errorf("wrong content, expected %s but got %s", exp.Content, got.Content)
+	}
+	if !exp.UpdatedAt.Valid && got.UpdatedAt.Valid {
+		t.Error("updated at expected to be invalid")
+	}
+	if got.CreatedAt.IsZero() {
+		t.Error("created at should not be zero value")
+	}
+	if exp.ViewsDistribution.Valid {
+		if !got.ViewsDistribution.Valid {
+			t.Error("views distribution should be valid")
+		}
+	}
+}
+
 var testNewsInsertData = map[string]struct {
-	entity model.NewsEntity
+	entity *model.NewsEntity
 	query  string
+	assert func(*testing.T, *model.NewsEntity, *model.NewsEntity)
 }{
 	"minimum": {
-		entity: model.NewsEntity{
+		entity: &model.NewsEntity{
 			Title:   "title - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.news (content, continue, score, title, version) VALUES ($1, $2, $3, $4, $5) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query:  "INSERT INTO example.news (content, continue, score, title, version) VALUES ($1, $2, $3, $4, $5) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		assert: assertNewsEntity,
 	},
 	"full": {
-		entity: model.NewsEntity{
+		entity: &model.NewsEntity{
 			Title: "title - full",
 			Lead: sql.NullString{
 				Valid:  true,
@@ -45,7 +70,8 @@ var testNewsInsertData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, version, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query:  "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, version, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		assert: assertNewsEntity,
 	},
 }
 
@@ -62,66 +88,12 @@ func BenchmarkNewsRepositoryBase_InsertQuery(b *testing.B) {
 	for hint, given := range testNewsInsertData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.news.InsertQuery(&given.entity, true)
+				query, args, err := s.news.InsertQuery(given.entity, true)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
 				benchQuery = query
 				benchArgs = args
-			}
-		})
-	}
-}
-
-func TestNewsRepositoryBase_InsertQuery(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testNewsInsertData {
-		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.news.InsertQuery(&given.entity, true)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.query != query {
-				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
-			}
-		})
-	}
-}
-
-func TestNewsRepositoryBase_Insert(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testNewsInsertData {
-		t.Run(hint, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			got, err := s.news.Insert(ctx, &given.entity)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.entity.Title != got.Title {
-				t.Errorf("wrong title, expected %s but got %s", given.entity.Title, got.Title)
-			}
-			if given.entity.Lead != got.Lead {
-				t.Errorf("wrong lead, expected %s but got %s", given.entity.Lead, got.Lead)
-			}
-			if given.entity.Content != got.Content {
-				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
-			}
-			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
-				t.Error("updated at expected to be invalid")
-			}
-			if got.CreatedAt.IsZero() {
-				t.Error("created at should not be zero value")
-			}
-			if given.entity.ViewsDistribution.Valid {
-				if !got.ViewsDistribution.Valid {
-					t.Error("views distribution should be valid")
-				}
 			}
 		})
 	}
@@ -486,7 +458,7 @@ func TestNewsRepositoryBase_UpdateOneByID(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			inserted, err := s.news.Insert(ctx, &given.entity)
+			inserted, err := s.news.Insert(ctx, given.entity)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}

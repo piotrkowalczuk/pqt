@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	fuzz "github.com/google/gofuzz"
 	"github.com/lib/pq"
 )
 
@@ -145,6 +146,27 @@ func (e *CategoryEntity) Props(cns ...string) ([]interface{}, error) {
 		}
 	}
 	return res, nil
+}
+
+func GenerateCategoryEntity(n int) <-chan *CategoryEntity {
+	res := make(chan *CategoryEntity)
+	go func() {
+		f := fuzz.New().MaxDepth(2).Funcs(func(b *[]byte, c fuzz.Continue) {
+			//if cap(*b) <=20 {
+			copy(*b, []byte(c.RandString()))
+			return
+			//}
+		})
+
+		for i := 0; i < n; i++ {
+			var ent CategoryEntity
+			f.Fuzz(&ent)
+			res <- &ent
+		}
+		close(res)
+	}()
+
+	return res
 }
 
 // ScanCategoryRows helps to scan rows straight to the slice of entities.
@@ -1297,6 +1319,27 @@ func (e *PackageEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+func GeneratePackageEntity(n int) <-chan *PackageEntity {
+	res := make(chan *PackageEntity)
+	go func() {
+		f := fuzz.New().MaxDepth(2).Funcs(func(b *[]byte, c fuzz.Continue) {
+			//if cap(*b) <=20 {
+			copy(*b, []byte(c.RandString()))
+			return
+			//}
+		})
+
+		for i := 0; i < n; i++ {
+			var ent PackageEntity
+			f.Fuzz(&ent)
+			res <- &ent
+		}
+		close(res)
+	}()
+
+	return res
+}
+
 // ScanPackageRows helps to scan rows straight to the slice of entities.
 func ScanPackageRows(rows Rows) (entities []*PackageEntity, err error) {
 	for rows.Next() {
@@ -2426,6 +2469,27 @@ func (e *NewsEntity) Props(cns ...string) ([]interface{}, error) {
 		}
 	}
 	return res, nil
+}
+
+func GenerateNewsEntity(n int) <-chan *NewsEntity {
+	res := make(chan *NewsEntity)
+	go func() {
+		f := fuzz.New().MaxDepth(2).Funcs(func(b *[]byte, c fuzz.Continue) {
+			//if cap(*b) <=20 {
+			copy(*b, []byte(c.RandString()))
+			return
+			//}
+		})
+
+		for i := 0; i < n; i++ {
+			var ent NewsEntity
+			f.Fuzz(&ent)
+			res <- &ent
+		}
+		close(res)
+	}()
+
+	return res
 }
 
 // ScanNewsRows helps to scan rows straight to the slice of entities.
@@ -4727,6 +4791,27 @@ func (e *CommentEntity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }
 
+func GenerateCommentEntity(n int) <-chan *CommentEntity {
+	res := make(chan *CommentEntity)
+	go func() {
+		f := fuzz.New().MaxDepth(2).Funcs(func(b *[]byte, c fuzz.Continue) {
+			//if cap(*b) <=20 {
+			copy(*b, []byte(c.RandString()))
+			return
+			//}
+		})
+
+		for i := 0; i < n; i++ {
+			var ent CommentEntity
+			f.Fuzz(&ent)
+			res <- &ent
+		}
+		close(res)
+	}()
+
+	return res
+}
+
 // ScanCommentRows helps to scan rows straight to the slice of entities.
 func ScanCommentRows(rows Rows) (entities []*CommentEntity, err error) {
 	for rows.Next() {
@@ -5993,6 +6078,27 @@ func (e *CompleteEntity) Props(cns ...string) ([]interface{}, error) {
 		}
 	}
 	return res, nil
+}
+
+func GenerateCompleteEntity(n int) <-chan *CompleteEntity {
+	res := make(chan *CompleteEntity)
+	go func() {
+		f := fuzz.New().MaxDepth(2).Funcs(func(b *[]byte, c fuzz.Continue) {
+			//if cap(*b) <=20 {
+			copy(*b, []byte(c.RandString()))
+			return
+			//}
+		})
+
+		for i := 0; i < n; i++ {
+			var ent CompleteEntity
+			f.Fuzz(&ent)
+			res <- &ent
+		}
+		close(res)
+	}()
+
+	return res
 }
 
 // ScanCompleteRows helps to scan rows straight to the slice of entities.

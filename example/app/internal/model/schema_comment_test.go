@@ -13,6 +13,17 @@ import (
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
 
+func assertCommentEntity(t *testing.T, exp, got *model.CommentEntity) {
+	t.Helper()
+
+	if exp.Content != got.Content {
+		t.Errorf("wrong content, expected %s but got %s", exp.Content, got.Content)
+	}
+	if got.ID.Valid && got.ID.Int64 < 1 {
+		t.Error("wrong id, should be greater then zero")
+	}
+}
+
 var testCommentFindData = map[string]struct {
 	expr  model.CommentFindExpr
 	query string
@@ -253,17 +264,18 @@ func populateComment(t testing.TB, r *model.CommentRepositoryBase, nb int) {
 }
 
 var testCommentInsertData = map[string]struct {
-	entity model.CommentEntity
+	entity *model.CommentEntity
 	query  string
+	assert func(*testing.T, *model.CommentEntity, *model.CommentEntity)
 }{
 	"minimum": {
-		entity: model.CommentEntity{
+		entity: &model.CommentEntity{
 			Content: "content - minimum",
 		},
 		query: "INSERT INTO example.comment (content, news_id, news_title) VALUES ($1, $2, $3) RETURNING content, created_at, id, multiply(id, id) AS id_multiply, news_id, news_title, now() AS right_now, updated_at",
 	},
 	"full": {
-		entity: model.CommentEntity{
+		entity: &model.CommentEntity{
 			Content:   "content - full",
 			CreatedAt: time.Now(),
 			UpdatedAt: pq.NullTime{
@@ -283,7 +295,7 @@ func BenchmarkCommentRepositoryBase_InsertQuery(b *testing.B) {
 	for hint, given := range testCommentInsertData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.comment.InsertQuery(&given.entity, true)
+				query, args, err := s.comment.InsertQuery(given.entity, true)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
@@ -294,59 +306,42 @@ func BenchmarkCommentRepositoryBase_InsertQuery(b *testing.B) {
 	}
 }
 
-func TestCommentRepositoryBase_InsertQuery(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testCommentInsertData {
-		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.comment.InsertQuery(&given.entity, true)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.query != query {
-				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
-			}
-		})
-	}
-}
-
-func TestCommentRepositoryBase_Insert(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	parent, ok := testNewsInsertData["minimum"]
-	if !ok {
-		t.Fatalf("given news insert data does not exists")
-	}
-	news, err := s.news.Insert(ctx, &parent.entity)
-	if err != nil {
-		t.Fatalf("unexpected error: %s", err.Error())
-	}
-
-	for hint, given := range testCommentInsertData {
-		t.Run(hint, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			given.entity.NewsID = news.ID
-			given.entity.NewsTitle = news.Title
-			got, err := s.comment.Insert(ctx, &given.entity)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.entity.Content != got.Content {
-				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
-			}
-			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
-				t.Error("updated at expected to be invalid")
-			}
-			if got.CreatedAt.IsZero() {
-				t.Error("created at should not be zero value")
-			}
-		})
-	}
-}
+//func TestCommentRepositoryBase_Insert(t *testing.T) {
+//	s := setup(t)
+//	defer s.teardown(t)
+//
+//	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//	defer cancel()
+//
+//	parent, ok := testNewsInsertData["minimum"]
+//	if !ok {
+//		t.Fatalf("given news insert data does not exists")
+//	}
+//	news, err := s.news.Insert(ctx, parent.entity)
+//	if err != nil {
+//		t.Fatalf("unexpected error: %s", err.Error())
+//	}
+//
+//	for hint, given := range testCommentInsertData {
+//		t.Run(hint, func(t *testing.T) {
+//			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+//			defer cancel()
+//
+//			given.entity.NewsID = news.ID
+//			given.entity.NewsTitle = news.Title
+//			got, err := s.comment.Insert(ctx, given.entity)
+//			if err != nil {
+//				t.Fatalf("unexpected error: %s", err.Error())
+//			}
+//			if given.entity.Content != got.Content {
+//				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
+//			}
+//			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
+//				t.Error("updated at expected to be invalid")
+//			}
+//			if got.CreatedAt.IsZero() {
+//				t.Error("created at should not be zero value")
+//			}
+//		})
+//	}
+//}

@@ -12,18 +12,35 @@ import (
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
 
+func assertPackageEntity(t *testing.T, exp, got *model.PackageEntity) {
+	if exp.Break != got.Break {
+		t.Errorf("wrong break, expected %s but got %s", exp.Break, got.Break)
+	}
+	if exp.CategoryID != got.CategoryID {
+		t.Errorf("wrong category id, expected %s but got %s", exp.CategoryID, got.CategoryID)
+	}
+	if !exp.UpdatedAt.Valid && got.UpdatedAt.Valid {
+		t.Error("updated at expected to be invalid")
+	}
+	if got.CreatedAt.IsZero() {
+		t.Error("created at should not be zero value")
+	}
+}
+
 var testPackageInsertData = map[string]struct {
-	entity model.PackageEntity
+	entity *model.PackageEntity
 	query  string
+	assert func(*testing.T, *model.PackageEntity, *model.PackageEntity)
 }{
 	"minimum": {
-		entity: model.PackageEntity{
+		entity: &model.PackageEntity{
 			Break: sql.NullString{String: "break - minimum", Valid: true},
 		},
-		query: "INSERT INTO example.package (break) VALUES ($1) RETURNING " + strings.Join(model.TablePackageColumns, ", "),
+		query:  "INSERT INTO example.package (break) VALUES ($1) RETURNING " + strings.Join(model.TablePackageColumns, ", "),
+		assert: assertPackageEntity,
 	},
 	"full": {
-		entity: model.PackageEntity{
+		entity: &model.PackageEntity{
 			Break:      sql.NullString{String: "break - minimum", Valid: true},
 			CreatedAt:  time.Now(),
 			CategoryID: sql.NullInt64{Int64: 100, Valid: true},
@@ -32,7 +49,8 @@ var testPackageInsertData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.package (break, category_id, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING " + strings.Join(model.TablePackageColumns, ", "),
+		query:  "INSERT INTO example.package (break, category_id, created_at, updated_at) VALUES ($1, $2, $3, $4) RETURNING " + strings.Join(model.TablePackageColumns, ", "),
+		assert: assertPackageEntity,
 	},
 }
 
@@ -44,7 +62,7 @@ func BenchmarkPackageRepositoryBase_InsertQuery(b *testing.B) {
 	for hint, given := range testPackageInsertData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.pkg.InsertQuery(&given.entity, true)
+				query, args, err := s.pkg.InsertQuery(given.entity, true)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
@@ -55,61 +73,10 @@ func BenchmarkPackageRepositoryBase_InsertQuery(b *testing.B) {
 	}
 }
 
-func TestPackageRepositoryBase_InsertQuery(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testPackageInsertData {
-		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.pkg.InsertQuery(&given.entity, true)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.query != query {
-				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
-			}
-		})
-	}
-}
-
-func TestPackageRepositoryBase_Insert(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testPackageInsertData {
-		t.Run(hint, func(t *testing.T) {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-
-			category, err := s.category.Insert(ctx, &model.CategoryEntity{Content: "content"})
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			given.entity.CategoryID = sql.NullInt64{Int64: category.ID, Valid: true}
-
-			got, err := s.pkg.Insert(ctx, &given.entity)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.entity.Break != got.Break {
-				t.Errorf("wrong break, expected %s but got %s", given.entity.Break, got.Break)
-			}
-			if given.entity.CategoryID != got.CategoryID {
-				t.Errorf("wrong category id, expected %s but got %s", given.entity.CategoryID, got.CategoryID)
-			}
-			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
-				t.Error("updated at expected to be invalid")
-			}
-			if got.CreatedAt.IsZero() {
-				t.Error("created at should not be zero value")
-			}
-		})
-	}
-}
-
 var testPackageFindData = map[string]struct {
-	expr  model.PackageFindExpr
-	query string
+	expr   model.PackageFindExpr
+	query  string
+	assert func(*testing.T, *model.PackageEntity, *model.PackageEntity)
 }{
 	"minimum": {
 		expr: model.PackageFindExpr{
@@ -117,7 +84,8 @@ var testPackageFindData = map[string]struct {
 				Break: sql.NullString{String: "break - minimum", Valid: true},
 			},
 		},
-		query: "SELECT " + join(model.TablePackageColumns, 0) + " FROM example.package AS t0 WHERE t0.break=$1",
+		query:  "SELECT " + join(model.TablePackageColumns, 0) + " FROM example.package AS t0 WHERE t0.break=$1",
+		assert: assertPackageEntity,
 	},
 	"logical-condition": {
 		expr: model.PackageFindExpr{
@@ -393,7 +361,7 @@ func TestPackageRepositoryBase_UpdateOneByID(t *testing.T) {
 			}
 			given.entity.CategoryID = sql.NullInt64{Int64: category.ID, Valid: true}
 
-			inserted, err := s.pkg.Insert(ctx, &given.entity)
+			inserted, err := s.pkg.Insert(ctx, given.entity)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}

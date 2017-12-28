@@ -101,7 +101,7 @@ ColumnsLoop:
 
 func (g *Generator) EntityProps(t *pqt.Table) {
 	g.Printf(`
-		func (e *%sEntity) %s(cns ...string) ([]interface{}, error) {`, formatter.Public(t.Name), formatter.Public("props"))
+		func (e *%sEntity) Props(cns ...string) ([]interface{}, error) {`, formatter.Public(t.Name))
 	g.Printf(`
 		if len(cns) == 0 {
 			cns = %s
@@ -120,4 +120,32 @@ func (g *Generator) EntityProps(t *pqt.Table) {
 	)
 	g.Print(`
 		}`)
+}
+
+func (g *Generator) EntityGenerate(t *pqt.Table) {
+	name := formatter.Public(t.Name)
+
+	g.Printf(`
+func Generate%sEntity(n int) <-chan *%sEntity {
+	res := make(chan *%sEntity)`, name, name, name)
+	g.Printf(`
+	go func() {
+		f := fuzz.New().MaxDepth(2).Funcs(func(b *[]byte, c fuzz.Continue) {
+			//if cap(*b) <=20 {
+				copy(*b, []byte(c.RandString()))
+				return
+			//}
+		})
+
+		for i:=0;i<n;i++{
+			var ent %sEntity
+			f.Fuzz(&ent)`, name)
+	g.Print(`
+res <- &ent
+		}
+		close(res)
+	}()
+
+	return res
+}`)
 }

@@ -116,6 +116,26 @@ func (s *suite) teardown(t testing.TB) {
 	}
 }
 
+func (s *suite) GetNews() *model.NewsRepositoryBase {
+	return s.news
+}
+
+func (s *suite) GetCategory() *model.CategoryRepositoryBase {
+	return s.category
+}
+
+func (s *suite) GetComment() *model.CommentRepositoryBase {
+	return s.comment
+}
+
+func (s *suite) GetPackage() *model.PackageRepositoryBase {
+	return s.pkg
+}
+
+func (s *suite) GetComplete() *model.CompleteRepositoryBase {
+	return s.complete
+}
+
 func populateNews(t testing.TB, r *model.NewsRepositoryBase, nb int) {
 	for i := 1; i <= nb; i++ {
 		_, err := r.Insert(context.Background(), &model.NewsEntity{

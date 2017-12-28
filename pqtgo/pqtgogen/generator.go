@@ -40,6 +40,17 @@ func (g *Generator) Generate(s *pqt.Schema) ([]byte, error) {
 	if err := g.generate(s); err != nil {
 		return nil, err
 	}
+	defer g.p.Reset()
+
+	return format.Source(g.p.Bytes())
+}
+
+// Generate ...
+func (g *Generator) GenerateTests(s *pqt.Schema) ([]byte, error) {
+	if err := g.generateTests(s); err != nil {
+		return nil, err
+	}
+	defer g.p.Reset()
 
 	return format.Source(g.p.Bytes())
 }
@@ -54,6 +65,24 @@ func (g *Generator) GenerateTo(w io.Writer, s *pqt.Schema) error {
 	if err != nil {
 		return err
 	}
+	g.p.Reset()
+
+	_, err = w.Write(buf)
+	return err
+}
+
+// GenerateTo ...
+func (g *Generator) GenerateTestsTo(w io.Writer, s *pqt.Schema) error {
+	if err := g.generateTests(s); err != nil {
+		return err
+	}
+
+	buf, err := format.Source(g.p.Bytes())
+	if err != nil {
+		return err
+	}
+	g.p.Reset()
+
 	_, err = w.Write(buf)
 	return err
 }
@@ -91,6 +120,8 @@ func (g *Generator) generate(s *pqt.Schema) error {
 		g.g.EntityProp(t)
 		g.g.NewLine()
 		g.g.EntityProps(t)
+		g.g.NewLine()
+		g.g.EntityGenerate(t)
 		g.g.NewLine()
 		if g.Components&ComponentHelpers != 0 {
 			g.g.ScanRows(t)
@@ -168,6 +199,73 @@ func (g *Generator) generate(s *pqt.Schema) error {
 	}
 	g.g.Statics(s)
 	g.g.NewLine()
+
+	return g.p.Err
+}
+
+func (g *Generator) generateTests(s *pqt.Schema) error {
+	g.g = &gogen.Generator{
+		Version: g.Version,
+	}
+	for _, p := range g.Plugins {
+		g.g.Plugins = append(g.g.Plugins, p)
+	}
+	g.p = &g.g.Printer
+
+	g.g.Package(g.Pkg + "_test")
+	g.g.Imports(s,
+		"testing",
+		"github.com/m4rw3r/uuid",
+		"github.com/google/gofuzz",
+	)
+	if g.Components&ComponentRepository != 0 {
+
+	}
+	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 || g.Components&ComponentHelpers != 0 {
+
+	}
+	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
+
+	}
+	for _, t := range s.Tables {
+
+		if g.Components&ComponentHelpers != 0 {
+
+		}
+		if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 {
+
+		}
+		if g.Components&ComponentCount != 0 {
+
+		}
+		if g.Components&ComponentUpdate != 0 || g.Components&ComponentUpsert != 0 {
+
+		}
+		if g.Components&ComponentRepository != 0 {
+
+			if g.Components&ComponentInsert != 0 {
+				g.g.TestRepositoryInsertQuery(t)
+				g.g.NewLine()
+				g.g.TestRepositoryInsert(t)
+				g.g.NewLine()
+			}
+			if g.Components&ComponentFind != 0 {
+
+			}
+			if g.Components&ComponentUpdate != 0 {
+
+			}
+			if g.Components&ComponentUpsert != 0 {
+
+			}
+			if g.Components&ComponentCount != 0 {
+
+			}
+			if g.Components&ComponentDelete != 0 {
+
+			}
+		}
+	}
 
 	return g.p.Err
 }

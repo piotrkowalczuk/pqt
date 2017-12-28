@@ -12,19 +12,36 @@ import (
 	"github.com/piotrkowalczuk/pqt/example/app/internal/model"
 )
 
+func assertCategoryEntity(t *testing.T, given, got *model.CategoryEntity) {
+	if given.Name != got.Name {
+		t.Errorf("wrong name, expected %s but got %s", given.Name, got.Name)
+	}
+	if given.Content != got.Content {
+		t.Errorf("wrong content, expected %s but got %s", given.Content, got.Content)
+	}
+	if !given.UpdatedAt.Valid && got.UpdatedAt.Valid {
+		t.Error("updated at expected to be invalid")
+	}
+	if got.CreatedAt.IsZero() {
+		t.Error("created at should not be zero value")
+	}
+}
+
 var testCategoryInsertData = map[string]struct {
-	entity model.CategoryEntity
+	entity *model.CategoryEntity
 	query  string
+	assert func(*testing.T, *model.CategoryEntity, *model.CategoryEntity)
 }{
 	"minimum": {
-		entity: model.CategoryEntity{
+		entity: &model.CategoryEntity{
 			Name:    "name - minimum",
 			Content: "content - minimum",
 		},
-		query: "INSERT INTO example.category (content, name) VALUES ($1, $2) RETURNING content, created_at, id, name, parent_id, updated_at",
+		query:  "INSERT INTO example.category (content, name) VALUES ($1, $2) RETURNING content, created_at, id, name, parent_id, updated_at",
+		assert: assertCategoryEntity,
 	},
 	"full": {
-		entity: model.CategoryEntity{
+		entity: &model.CategoryEntity{
 			Name:      "name - full",
 			Content:   "content - full",
 			CreatedAt: time.Now(),
@@ -33,7 +50,8 @@ var testCategoryInsertData = map[string]struct {
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.category (content, created_at, name, updated_at) VALUES ($1, $2, $3, $4) RETURNING content, created_at, id, name, parent_id, updated_at",
+		query:  "INSERT INTO example.category (content, created_at, name, updated_at) VALUES ($1, $2, $3, $4) RETURNING content, created_at, id, name, parent_id, updated_at",
+		assert: assertCategoryEntity,
 	},
 }
 
@@ -45,56 +63,12 @@ func BenchmarkCategoryRepositoryBase_InsertQuery(b *testing.B) {
 	for hint, given := range testCategoryInsertData {
 		b.Run(hint, func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
-				query, args, err := s.category.InsertQuery(&given.entity, true)
+				query, args, err := s.category.InsertQuery(given.entity, true)
 				if err != nil {
 					b.Fatalf("unexpected error: %s", err.Error())
 				}
 				benchQuery = query
 				benchArgs = args
-			}
-		})
-	}
-}
-
-func TestCategoryRepositoryBase_InsertQuery(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testCategoryInsertData {
-		t.Run(hint, func(t *testing.T) {
-			query, _, err := s.category.InsertQuery(&given.entity, true)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.query != query {
-				t.Errorf("wrong output, expected:\n	%s\nbut got:\n	%s", given.query, query)
-			}
-		})
-	}
-}
-
-func TestCategoryRepositoryBase_Insert(t *testing.T) {
-	s := setup(t)
-	defer s.teardown(t)
-
-	for hint, given := range testCategoryInsertData {
-		t.Run(hint, func(t *testing.T) {
-			ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-			got, err := s.category.Insert(ctx, &given.entity)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err.Error())
-			}
-			if given.entity.Name != got.Name {
-				t.Errorf("wrong name, expected %s but got %s", given.entity.Name, got.Name)
-			}
-			if given.entity.Content != got.Content {
-				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
-			}
-			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
-				t.Error("updated at expected to be invalid")
-			}
-			if got.CreatedAt.IsZero() {
-				t.Error("created at should not be zero value")
 			}
 		})
 	}
