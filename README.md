@@ -18,22 +18,22 @@ In comparison to other currently available libraries instead of pushing struct t
 	- `<table-name>Criteria` - object that can be passed to the `Find` method, it allows to create complex queries
 		- `<table-name>Or` - utility function that joins `Criteria` using logical `OR` operator
 		- `<table-name>And` - utility function that joins `Criteria` using logical `AND` operator
-	- `<table-name>Patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing cri
+	- `<table-name>Patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing entity
 	- `<table-name>Iterator` - interface used by `FindIter` methods as a result, implementation is `<table-name>Rows` - it wraps `sql.Rows`
 	- `constants`:
 		- `complete names`
 		- `column names`
 		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `ErrorConstraint` helper function
 	- `<table-name>Repository` - data access layer that expose API to manipulate entities:
-		- `Count` - returns number of entities for given cri
-		- `Find` - returns collection of entities that match given cri
+		- `Count` - returns number of entities for given entity
+		- `Find` - returns collection of entities that match given entity
 		- `FindIter` - works like `Find` but returns `iterator`
-		- `Insert` - saves given cri into the database
-		- `FindOneBy<primary-key>` - retrieves single cri, search by primary key
-		- `FindOneBy<unique-key>` - retrieves single cri, search by unique key
-		- `UpdateOneBy<primary-key>` - modifies single cri, search by primary key
-		- `UpdateOneBy<unique-key>` - modifies single cri, search by unique key
-		- `DeleteOneBy<primary-key>` - modifies single cri, search by primary key
+		- `Insert` - saves given entity into the database
+		- `FindOneBy<primary-key>` - retrieves single entity, search by primary key
+		- `FindOneBy<unique-key>` - retrieves single entity, search by unique key
+		- `UpdateOneBy<primary-key>` - modifies single entity, search by primary key
+		- `UpdateOneBy<unique-key>` - modifies single entity, search by unique key
+		- `DeleteOneBy<primary-key>` - deletes single entity, search by primary key
 	- `Scan<Entity>Rows` - helper function that scans `*sql.Rows` into `[]*<table-name>Entity`
 - __schema definition__ - allow to programmatically define database schema, that includes:
 	- `schemas`
