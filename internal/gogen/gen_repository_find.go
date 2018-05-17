@@ -58,11 +58,15 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 		} else {
 			buf.WriteString(strings.Join(fe.%s, ", "))
 		}`, formatter.Public("columns"))
+	// Generate select clause for joinable tables if needed.
 	for nb, r := range joinableRelationships(t) {
+		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
+
 		g.Printf(`
-			if fe.%s != nil && fe.%s.%s {`,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			if fe.%s != nil && fe.%s.Kind.Actionable() && fe.%s.%s {`,
+			joinPropertyName,
+			joinPropertyName,
+			joinPropertyName,
 			formatter.Public("fetch"),
 		)
 		g.Print(`
@@ -75,20 +79,24 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 		buf.WriteString(" FROM ")
 		buf.WriteString(r.%s)
 		buf.WriteString(" AS t0")`, formatter.Public("table"))
+	// Generate JOIN clause for joinable tables if needed.
 	for nb, r := range joinableRelationships(t) {
 		oc := r.OwnerColumns
 		ic := r.InversedColumns
+		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
+
 		if len(oc) != len(ic) {
 			panic("number of owned and inversed foreign key columns is not equal")
 		}
 
 		g.Printf(`
-			if fe.%s != nil {`,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			if fe.%s != nil && fe.%s.Kind.Actionable() {`,
+			joinPropertyName,
+			joinPropertyName,
 		)
 		g.Printf(`
 			joinClause(comp, fe.%s.%s, "%s AS t%d ON `,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
 			formatter.Public("kind"),
 			r.InversedTable.FullName(),
 			nb+1,
@@ -109,10 +117,10 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 				return "", nil, err
 			}
 		}`,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
 			formatter.Public("on"),
 			formatter.Public(r.InversedTable.Name),
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
 			formatter.Public("on"),
 			nb+1,
 		)
@@ -136,17 +144,19 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 	)
 
 	for nb, r := range joinableRelationships(t) {
+		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
 		g.Printf(`
-		if fe.%s != nil && fe.%s.%s != nil {
+		if fe.%s != nil && fe.%s.Kind.Actionable() && fe.%s.%s != nil {
 			if err := %sCriteriaWhereClause(comp, fe.%s.%s, %d); err != nil {
 				return "", nil, err
 			}
 		}`,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
+			joinPropertyName,
+			joinPropertyName,
 			formatter.Public("where"),
 			formatter.Public(r.InversedTable.Name),
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
 			formatter.Public("where"),
 			nb+1,
 		)

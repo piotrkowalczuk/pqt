@@ -1369,7 +1369,7 @@ func (i *PackageIterator) Package() (*PackageEntity, error) {
 		return nil, err
 	}
 	var prop []interface{}
-	if i.expr.JoinCategory != nil && i.expr.JoinCategory.Fetch {
+	if i.expr.JoinCategory != nil && i.expr.JoinCategory.Kind.Actionable() && i.expr.JoinCategory.Fetch {
 		ent.Category = &CategoryEntity{}
 		if prop, err = ent.Category.Props(); err != nil {
 			return nil, err
@@ -1718,13 +1718,13 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 	} else {
 		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
-	if fe.JoinCategory != nil && fe.JoinCategory.Fetch {
+	if fe.JoinCategory != nil && fe.JoinCategory.Kind.Actionable() && fe.JoinCategory.Fetch {
 		buf.WriteString(", t1.content, t1.created_at, t1.id, t1.name, t1.parent_id, t1.updated_at")
 	}
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
 	buf.WriteString(" AS t0")
-	if fe.JoinCategory != nil {
+	if fe.JoinCategory != nil && fe.JoinCategory.Kind.Actionable() {
 		joinClause(comp, fe.JoinCategory.Kind, "example.category AS t1 ON t0.category_id=t1.id")
 		if fe.JoinCategory.On != nil {
 			comp.Dirty = true
@@ -1742,7 +1742,7 @@ func (r *PackageRepositoryBase) FindQuery(fe *PackageFindExpr) (string, []interf
 			return "", nil, err
 		}
 	}
-	if fe.JoinCategory != nil && fe.JoinCategory.Where != nil {
+	if fe.JoinCategory != nil && fe.JoinCategory.Kind.Actionable() && fe.JoinCategory.Where != nil {
 		if err := CategoryCriteriaWhereClause(comp, fe.JoinCategory.Where, 1); err != nil {
 			return "", nil, err
 		}
@@ -1834,7 +1834,7 @@ func (r *PackageRepositoryBase) Find(ctx context.Context, fe *PackageFindExpr) (
 			return nil, err
 		}
 		var prop []interface{}
-		if fe.JoinCategory != nil && fe.JoinCategory.Fetch {
+		if fe.JoinCategory != nil && fe.JoinCategory.Kind.Actionable() && fe.JoinCategory.Fetch {
 			ent.Category = &CategoryEntity{}
 			if prop, err = ent.Category.Props(); err != nil {
 				return nil, err
@@ -4802,14 +4802,14 @@ func (i *CommentIterator) Comment() (*CommentEntity, error) {
 		return nil, err
 	}
 	var prop []interface{}
-	if i.expr.JoinNewsByTitle != nil && i.expr.JoinNewsByTitle.Fetch {
+	if i.expr.JoinNewsByTitle != nil && i.expr.JoinNewsByTitle.Kind.Actionable() && i.expr.JoinNewsByTitle.Fetch {
 		ent.NewsByTitle = &NewsEntity{}
 		if prop, err = ent.NewsByTitle.Props(); err != nil {
 			return nil, err
 		}
 		props = append(props, prop...)
 	}
-	if i.expr.JoinNewsByID != nil && i.expr.JoinNewsByID.Fetch {
+	if i.expr.JoinNewsByID != nil && i.expr.JoinNewsByID.Kind.Actionable() && i.expr.JoinNewsByID.Fetch {
 		ent.NewsByID = &NewsEntity{}
 		if prop, err = ent.NewsByID.Props(); err != nil {
 			return nil, err
@@ -5264,16 +5264,16 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 	} else {
 		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
-	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Fetch {
+	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Kind.Actionable() && fe.JoinNewsByTitle.Fetch {
 		buf.WriteString(", t1.content, t1.continue, t1.created_at, t1.id, t1.lead, t1.meta_data, t1.score, t1.title, t1.updated_at, t1.version, t1.views_distribution")
 	}
-	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Fetch {
+	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Kind.Actionable() && fe.JoinNewsByID.Fetch {
 		buf.WriteString(", t2.content, t2.continue, t2.created_at, t2.id, t2.lead, t2.meta_data, t2.score, t2.title, t2.updated_at, t2.version, t2.views_distribution")
 	}
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
 	buf.WriteString(" AS t0")
-	if fe.JoinNewsByTitle != nil {
+	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Kind.Actionable() {
 		joinClause(comp, fe.JoinNewsByTitle.Kind, "example.news AS t1 ON t0.news_title=t1.title")
 		if fe.JoinNewsByTitle.On != nil {
 			comp.Dirty = true
@@ -5282,7 +5282,7 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 			}
 		}
 	}
-	if fe.JoinNewsByID != nil {
+	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Kind.Actionable() {
 		joinClause(comp, fe.JoinNewsByID.Kind, "example.news AS t2 ON t0.news_id=t2.id")
 		if fe.JoinNewsByID.On != nil {
 			comp.Dirty = true
@@ -5300,12 +5300,12 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 			return "", nil, err
 		}
 	}
-	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Where != nil {
+	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Kind.Actionable() && fe.JoinNewsByTitle.Where != nil {
 		if err := NewsCriteriaWhereClause(comp, fe.JoinNewsByTitle.Where, 1); err != nil {
 			return "", nil, err
 		}
 	}
-	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Where != nil {
+	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Kind.Actionable() && fe.JoinNewsByID.Where != nil {
 		if err := NewsCriteriaWhereClause(comp, fe.JoinNewsByID.Where, 2); err != nil {
 			return "", nil, err
 		}
@@ -5397,14 +5397,14 @@ func (r *CommentRepositoryBase) Find(ctx context.Context, fe *CommentFindExpr) (
 			return nil, err
 		}
 		var prop []interface{}
-		if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Fetch {
+		if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Kind.Actionable() && fe.JoinNewsByTitle.Fetch {
 			ent.NewsByTitle = &NewsEntity{}
 			if prop, err = ent.NewsByTitle.Props(); err != nil {
 				return nil, err
 			}
 			props = append(props, prop...)
 		}
-		if fe.JoinNewsByID != nil && fe.JoinNewsByID.Fetch {
+		if fe.JoinNewsByID != nil && fe.JoinNewsByID.Kind.Actionable() && fe.JoinNewsByID.Fetch {
 			ent.NewsByID = &NewsEntity{}
 			if prop, err = ent.NewsByID.Props(); err != nil {
 				return nil, err
@@ -9120,6 +9120,15 @@ func (jt JoinType) String() string {
 		return "CROSS JOIN"
 	default:
 		return ""
+	}
+}
+
+func (jt JoinType) Actionable() bool {
+	switch jt {
+	case JoinInner, JoinLeft, JoinRight, JoinCross:
+		return true
+	default:
+		return false
 	}
 }
 

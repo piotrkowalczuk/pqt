@@ -423,7 +423,7 @@ func (i *T2Iterator) T2() (*T2Entity, error) {
 		return nil, err
 	}
 	var prop []interface{}
-	if i.expr.JoinT1 != nil && i.expr.JoinT1.Fetch {
+	if i.expr.JoinT1 != nil && i.expr.JoinT1.Kind.Actionable() && i.expr.JoinT1.Fetch {
 		ent.T1 = &T1Entity{}
 		if prop, err = ent.T1.Props(); err != nil {
 			return nil, err

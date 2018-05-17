@@ -107,7 +107,7 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 				t.Errorf("wrong title, expected %s but got %s", given.entity.Title, got.Title)
 			}
 			if given.entity.Lead != got.Lead {
-				t.Errorf("wrong lead, expected %s but got %s", given.entity.Lead, got.Lead)
+				t.Errorf("wrong lead, expected %v but got %v", given.entity.Lead, got.Lead)
 			}
 			if given.entity.Content != got.Content {
 				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
@@ -280,7 +280,7 @@ func TestNewsRepositoryBase_Find(t *testing.T) {
 	}
 
 	if len(got) != expected {
-		t.Errorf("wrong output, expected %d but got %d", expected, got)
+		t.Errorf("wrong output, expected %d but got %v", expected, got)
 	}
 }
 
@@ -313,7 +313,7 @@ func TestNewsRepositoryBase_FindIter(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if len(got) != expected {
-		t.Errorf("wrong output, expected %d but got %d", expected, got)
+		t.Errorf("wrong output, expected %d but got %v", expected, got)
 	}
 }
 
@@ -504,7 +504,7 @@ func TestNewsRepositoryBase_UpdateOneByID(t *testing.T) {
 			}
 			if given.entity.Lead.Valid {
 				if !strings.Contains(got.Lead.String, "(edited)") {
-					t.Errorf("wrong lead, should contains 'edited' but got %s", got.Lead)
+					t.Errorf("wrong lead, should contains 'edited' but got %v", got.Lead)
 				}
 			}
 			if !got.UpdatedAt.Valid {

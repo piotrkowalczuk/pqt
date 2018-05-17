@@ -92,10 +92,10 @@ func TestPackageRepositoryBase_Insert(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
 			if given.entity.Break != got.Break {
-				t.Errorf("wrong break, expected %s but got %s", given.entity.Break, got.Break)
+				t.Errorf("wrong break, expected %v but got %v", given.entity.Break, got.Break)
 			}
 			if given.entity.CategoryID != got.CategoryID {
-				t.Errorf("wrong category id, expected %s but got %s", given.entity.CategoryID, got.CategoryID)
+				t.Errorf("wrong category id, expected %v but got %v", given.entity.CategoryID, got.CategoryID)
 			}
 			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
 				t.Error("updated at expected to be invalid")
@@ -245,7 +245,7 @@ func TestPackageRepositoryBase_Find(t *testing.T) {
 	}
 
 	if len(got) != expected {
-		t.Errorf("wrong output, expected %d but got %d", expected, got)
+		t.Errorf("wrong output, expected %d but got %v", expected, got)
 	}
 }
 
@@ -273,7 +273,7 @@ func TestPackageRepositoryBase_FindIter(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if len(got) != expected {
-		t.Errorf("wrong output, expected %d but got %d", expected, got)
+		t.Errorf("wrong output, expected %d but got %v", expected, got)
 	}
 }
 
@@ -413,7 +413,7 @@ func TestPackageRepositoryBase_UpdateOneByID(t *testing.T) {
 
 			if given.entity.Break.Valid {
 				if !strings.Contains(got.Break.String, "(edited)") {
-					t.Errorf("wrong break, should contains 'edited' but got %s", got.Break)
+					t.Errorf("wrong break, should contains 'edited' but got %v", got.Break)
 				}
 			}
 			if !got.UpdatedAt.Valid {

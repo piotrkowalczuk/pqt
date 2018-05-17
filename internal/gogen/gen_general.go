@@ -604,6 +604,15 @@ func (jt JoinType) String() string {
 	}
 }
 
+func (jt JoinType) Actionable() bool {
+	switch jt {
+	case JoinInner, JoinLeft, JoinRight, JoinCross:
+		return true
+	default:
+		return false
+	}
+}
+
 // ErrorConstraint returns the error constraint of err if it was produced by the pq library.
 // Otherwise, it returns empty string.
 func ErrorConstraint(err error) string {

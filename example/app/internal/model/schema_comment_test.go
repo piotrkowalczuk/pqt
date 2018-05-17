@@ -215,7 +215,7 @@ func TestCommentRepositoryBase_FindIter(t *testing.T) {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
 	if len(got) != expected {
-		t.Errorf("wrong output, expected %d but got %d", expected, got)
+		t.Errorf("wrong output, expected %d but got %v", expected, got)
 	}
 }
 
