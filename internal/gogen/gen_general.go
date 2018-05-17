@@ -579,11 +579,11 @@ func (g *Generator) Interfaces() {
 func (g *Generator) Statics(s *pqt.Schema) {
 	g.Print(`
 const (
-	JoinDoNot = iota
-	JoinInner
+	JoinInner = iota
 	JoinLeft
 	JoinRight
 	JoinCross
+	JoinDoNot
 )
 
 type JoinType int
@@ -604,7 +604,7 @@ func (jt JoinType) String() string {
 	}
 }
 
-// Actionable returns true if JoinType is one of the known type exept JoinDoNot.
+// Actionable returns true if JoinType is one of the known type except JoinDoNot.
 func (jt JoinType) Actionable() bool {
 	switch jt {
 	case JoinInner, JoinLeft, JoinRight, JoinCross:

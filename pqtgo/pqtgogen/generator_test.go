@@ -1579,11 +1579,11 @@ var expectedSimple = `package example
     		}
 
     		const (
-    			JoinDoNot = iota
-    			JoinInner
+    			JoinInner = iota
     			JoinLeft
     			JoinRight
     			JoinCross
+    			JoinDoNot
     		)
 
     		type JoinType int
@@ -1604,6 +1604,7 @@ var expectedSimple = `package example
     			}
     		}
 
+			// Actionable returns true if JoinType is one of the known type except JoinDoNot.
 			func (jt JoinType) Actionable() bool {
 				switch jt {
 				case JoinInner, JoinLeft, JoinRight, JoinCross:
