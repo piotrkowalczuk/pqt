@@ -604,6 +604,7 @@ func (jt JoinType) String() string {
 	}
 }
 
+// Actionable returns true if JoinType is one of the known type exept JoinDoNot.
 func (jt JoinType) Actionable() bool {
 	switch jt {
 	case JoinInner, JoinLeft, JoinRight, JoinCross:
