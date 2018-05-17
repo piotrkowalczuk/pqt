@@ -73,13 +73,13 @@ func (r *T2RepositoryBase) FindQuery(fe *T2FindExpr) (string, []interface{}, err
 	} else {
 		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
-	if fe.JoinT1 != nil && fe.JoinT1.Fetch {
+	if fe.JoinT1 != nil && fe.JoinT1.Kind.Actionable() && fe.JoinT1.Fetch {
 		buf.WriteString(", t1.age, t1.id")
 	}
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
 	buf.WriteString(" AS t0")
-	if fe.JoinT1 != nil {
+	if fe.JoinT1 != nil && fe.JoinT1.Kind.Actionable(){
 		joinClause(comp, fe.JoinT1.Kind, "t1 AS t1 ON t0.t1_id=t1.id")
 		if fe.JoinT1.On != nil {
 			comp.Dirty = true
@@ -97,7 +97,7 @@ func (r *T2RepositoryBase) FindQuery(fe *T2FindExpr) (string, []interface{}, err
 			return "", nil, err
 		}
 	}
-	if fe.JoinT1 != nil && fe.JoinT1.Where != nil {
+	if fe.JoinT1 != nil && fe.JoinT1.Kind.Actionable() && fe.JoinT1.Where != nil {
 		if err := T1CriteriaWhereClause(comp, fe.JoinT1.Where, 1); err != nil {
 			return "", nil, err
 		}

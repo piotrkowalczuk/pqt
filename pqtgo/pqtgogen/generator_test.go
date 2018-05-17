@@ -1048,14 +1048,14 @@ var expectedSimple = `package example
     				return nil, err
     			}
     			var prop []interface{}
-    			if i.expr.JoinUser != nil && i.expr.JoinUser.Fetch {
+    			if i.expr.JoinUser != nil && i.expr.JoinUser.Kind.Actionable() && i.expr.JoinUser.Fetch {
     				ent.User = &UserEntity{}
     				if prop, err = ent.User.Props(); err != nil {
     					return nil, err
     				}
     				props = append(props, prop...)
     			}
-    			if i.expr.JoinWpis != nil && i.expr.JoinWpis.Fetch {
+    			if i.expr.JoinWpis != nil && i.expr.JoinWpis.Kind.Actionable() && i.expr.JoinWpis.Fetch {
     				ent.Wpis = &PostEntity{}
     				if prop, err = ent.Wpis.Props(); err != nil {
     					return nil, err
@@ -1274,16 +1274,16 @@ var expectedSimple = `package example
     			} else {
     				buf.WriteString(strings.Join(fe.Columns, ", "))
     			}
-    			if fe.JoinUser != nil && fe.JoinUser.Fetch {
+    			if fe.JoinUser != nil && fe.JoinUser.Kind.Actionable() && fe.JoinUser.Fetch {
     				buf.WriteString(", t1.id, t1.name")
     			}
-    			if fe.JoinWpis != nil && fe.JoinWpis.Fetch {
+    			if fe.JoinWpis != nil && fe.JoinWpis.Kind.Actionable() && fe.JoinWpis.Fetch {
     				buf.WriteString(", t2.body")
     			}
     			buf.WriteString(" FROM ")
     			buf.WriteString(r.Table)
     			buf.WriteString(" AS t0")
-    			if fe.JoinUser != nil {
+    			if fe.JoinUser != nil && fe.JoinUser.Kind.Actionable()  {
     				joinClause(comp, fe.JoinUser.Kind, "example.user AS t1 ON t0.user_id=t1.id")
     				if fe.JoinUser.On != nil {
     					comp.Dirty = true
@@ -1292,7 +1292,7 @@ var expectedSimple = `package example
     					}
     				}
     			}
-    			if fe.JoinWpis != nil {
+    			if fe.JoinWpis != nil && fe.JoinWpis.Kind.Actionable()  {
     				joinClause(comp, fe.JoinWpis.Kind, "post AS t2 ON ")
     				if fe.JoinWpis.On != nil {
     					comp.Dirty = true
@@ -1310,12 +1310,12 @@ var expectedSimple = `package example
     					return "", nil, err
     				}
     			}
-    			if fe.JoinUser != nil && fe.JoinUser.Where != nil {
+    			if fe.JoinUser != nil && fe.JoinUser.Kind.Actionable() && fe.JoinUser.Where != nil {
     				if err := UserCriteriaWhereClause(comp, fe.JoinUser.Where, 1); err != nil {
     					return "", nil, err
     				}
     			}
-    			if fe.JoinWpis != nil && fe.JoinWpis.Where != nil {
+    			if fe.JoinWpis != nil && fe.JoinWpis.Kind.Actionable() && fe.JoinWpis.Where != nil {
     				if err := PostCriteriaWhereClause(comp, fe.JoinWpis.Where, 2); err != nil {
     					return "", nil, err
     				}
@@ -1407,14 +1407,14 @@ var expectedSimple = `package example
     					return nil, err
     				}
     				var prop []interface{}
-    				if fe.JoinUser != nil && fe.JoinUser.Fetch {
+    				if fe.JoinUser != nil && fe.JoinUser.Kind.Actionable() && fe.JoinUser.Fetch {
     					ent.User = &UserEntity{}
     					if prop, err = ent.User.Props(); err != nil {
     						return nil, err
     					}
     					props = append(props, prop...)
     				}
-    				if fe.JoinWpis != nil && fe.JoinWpis.Fetch {
+    				if fe.JoinWpis != nil && fe.JoinWpis.Kind.Actionable() && fe.JoinWpis.Fetch {
     					ent.Wpis = &PostEntity{}
     					if prop, err = ent.Wpis.Props(); err != nil {
     						return nil, err
@@ -1579,11 +1579,11 @@ var expectedSimple = `package example
     		}
 
     		const (
-    			JoinDoNot = iota
-    			JoinInner
+    			JoinInner = iota
     			JoinLeft
     			JoinRight
     			JoinCross
+    			JoinDoNot
     		)
 
     		type JoinType int
@@ -1603,6 +1603,16 @@ var expectedSimple = `package example
     				return ""
     			}
     		}
+
+			// Actionable returns true if JoinType is one of the known type except JoinDoNot.
+			func (jt JoinType) Actionable() bool {
+				switch jt {
+				case JoinInner, JoinLeft, JoinRight, JoinCross:
+					return true
+				default:
+					return false
+				}
+			}
 
     		// ErrorConstraint returns the error constraint of err if it was produced by the pq library.
     		// Otherwise, it returns empty string.

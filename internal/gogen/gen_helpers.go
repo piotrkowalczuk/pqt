@@ -288,11 +288,14 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 
 func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
 	for _, r := range joinableRelationships(t) {
+		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
+		nestedEntityPropertyName := formatter.Public(or(r.InversedName, r.InversedTable.Name))
+
 		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
 			continue
 		}
 		g.Printf(`
-			if %s.%s != nil && %s.%s.%s {
+			if %s.%s != nil && %s.%s.Kind.Actionable() && %s.%s.%s {
 				ent.%s = &%sEntity{}
 				if prop, err = ent.%s.%s(); err != nil {
 					return nil, err
@@ -300,13 +303,15 @@ func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
 				props = append(props, prop...)
 			}`,
 			sel,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
 			sel,
-			formatter.Public("join", or(r.InversedName, r.InversedTable.Name)),
+			joinPropertyName,
+			sel,
+			joinPropertyName,
 			formatter.Public("fetch"),
-			formatter.Public(or(r.InversedName, r.InversedTable.Name)),
+			nestedEntityPropertyName,
 			formatter.Public(r.InversedTable.Name),
-			formatter.Public(or(r.InversedName, r.InversedTable.Name)),
+			nestedEntityPropertyName,
 			formatter.Public("props"),
 		)
 	}
