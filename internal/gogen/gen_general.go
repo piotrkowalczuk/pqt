@@ -5,8 +5,8 @@ import (
 	"text/template"
 
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
 	"github.com/piotrkowalczuk/pqt/internal/print"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
@@ -56,14 +56,14 @@ func (g *Generator) Imports(s *pqt.Schema, fixed ...string) {
 }
 
 func (g *Generator) Criteria(t *pqt.Table) {
-	tableName := formatter.Public(t.Name)
+	tableName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
 type %sCriteria struct {`, tableName)
 	for _, c := range t.Columns {
 		if t := g.columnType(c, pqtgo.ModeCriteria); t != "<nil>" {
 			g.Printf(`
-%s %s`, formatter.Public(c.Name), t)
+%s %s`, pqtfmt.Public(c.Name), t)
 		}
 	}
 	g.Printf(`
@@ -73,7 +73,7 @@ type %sCriteria struct {`, tableName)
 }
 
 func (g *Generator) Operand(t *pqt.Table) {
-	tableName := formatter.Public(t.Name)
+	tableName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
 func %sOperand(operator string, operands ...*%sCriteria) *%sCriteria {
@@ -110,21 +110,21 @@ func %sAnd(operands ...*%sCriteria) *%sCriteria {
 func (g *Generator) Columns(t *pqt.Table) {
 	g.Printf(`
 const (
-%s = "%s"`, formatter.Public("table", t.Name), t.FullName())
+%s = "%s"`, pqtfmt.Public("table", t.Name), t.FullName())
 
 	for _, c := range t.Columns {
 		g.Printf(`
-%s = "%s"`, formatter.Public("table", t.Name, "column", c.Name), c.Name)
+%s = "%s"`, pqtfmt.Public("table", t.Name, "column", c.Name), c.Name)
 	}
 
 	g.Printf(`
 )
 
-var %s = []string{`, formatter.Public("table", t.Name, "columns"))
+var %s = []string{`, pqtfmt.Public("table", t.Name, "columns"))
 
 	for _, c := range t.Columns {
 		g.Printf(`
-%s,`, formatter.Public("table", t.Name, "column", c.Name))
+%s,`, pqtfmt.Public("table", t.Name, "column", c.Name))
 	}
 	g.Print(`
 }`)
@@ -139,22 +139,22 @@ const (`)
 		switch c.Type {
 		case pqt.ConstraintTypeCheck:
 			g.Printf(`
-%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Check"), c.String())
+%s = "%s"`, pqtfmt.Public("table", c.PrimaryTable.Name, "constraint", name, "Check"), c.String())
 		case pqt.ConstraintTypePrimaryKey:
 			g.Printf(`
-%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraintPrimaryKey"), c.String())
+%s = "%s"`, pqtfmt.Public("table", c.PrimaryTable.Name, "constraintPrimaryKey"), c.String())
 		case pqt.ConstraintTypeForeignKey:
 			g.Printf(`
-%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "ForeignKey"), c.String())
+%s = "%s"`, pqtfmt.Public("table", c.PrimaryTable.Name, "constraint", name, "ForeignKey"), c.String())
 		case pqt.ConstraintTypeExclusion:
 			g.Printf(`
-%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Exclusion"), c.String())
+%s = "%s"`, pqtfmt.Public("table", c.PrimaryTable.Name, "constraint", name, "Exclusion"), c.String())
 		case pqt.ConstraintTypeUnique:
 			g.Printf(`
-%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Unique"), c.String())
+%s = "%s"`, pqtfmt.Public("table", c.PrimaryTable.Name, "constraint", name, "Unique"), c.String())
 		case pqt.ConstraintTypeIndex:
 			g.Printf(`
-%s = "%s"`, formatter.Public("table", c.PrimaryTable.Name, "constraint", name, "Index"), c.String())
+%s = "%s"`, pqtfmt.Public("table", c.PrimaryTable.Name, "constraint", name, "Index"), c.String())
 		}
 	}
 	g.Printf(`
@@ -169,28 +169,28 @@ type %sRepositoryBase struct {
 	%s *sql.DB
 	%s LogFunc
 }`,
-		formatter.Public(t.Name),
-		formatter.Public("table"),
-		formatter.Public("columns"),
-		formatter.Public("db"),
-		formatter.Public("log"),
+		pqtfmt.Public(t.Name),
+		pqtfmt.Public("table"),
+		pqtfmt.Public("columns"),
+		pqtfmt.Public("db"),
+		pqtfmt.Public("log"),
 	)
 }
 
 func (g *Generator) FindExpr(t *pqt.Table) {
 	g.Printf(`
-type %sFindExpr struct {`, formatter.Public(t.Name))
+type %sFindExpr struct {`, pqtfmt.Public(t.Name))
 	g.Printf(`
-%s *%sCriteria`, formatter.Public("where"), formatter.Public(t.Name))
+%s *%sCriteria`, pqtfmt.Public("where"), pqtfmt.Public(t.Name))
 	g.Printf(`
-%s, %s int64`, formatter.Public("offset"), formatter.Public("limit"))
+%s, %s int64`, pqtfmt.Public("offset"), pqtfmt.Public("limit"))
 	g.Printf(`
-%s []string`, formatter.Public("columns"))
+%s []string`, pqtfmt.Public("columns"))
 	g.Printf(`
-%s []RowOrder`, formatter.Public("orderBy"))
+%s []RowOrder`, pqtfmt.Public("orderBy"))
 	for _, r := range joinableRelationships(t) {
 		g.Printf(`
-%s *%sJoin`, formatter.Public("join", or(r.InversedName, r.InversedTable.Name)), formatter.Public(r.InversedTable.Name))
+%s *%sJoin`, pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name)), pqtfmt.Public(r.InversedTable.Name))
 	}
 	g.Print(`
 }`)
@@ -198,12 +198,12 @@ type %sFindExpr struct {`, formatter.Public(t.Name))
 
 func (g *Generator) CountExpr(t *pqt.Table) {
 	g.Printf(`
-type %sCountExpr struct {`, formatter.Public(t.Name))
+type %sCountExpr struct {`, pqtfmt.Public(t.Name))
 	g.Printf(`
-%s *%sCriteria`, formatter.Public("where"), formatter.Public(t.Name))
+%s *%sCriteria`, pqtfmt.Public("where"), pqtfmt.Public(t.Name))
 	for _, r := range joinableRelationships(t) {
 		g.Printf(`
-%s *%sJoin`, formatter.Public("join", or(r.InversedName, r.InversedTable.Name)), formatter.Public(r.InversedTable.Name))
+%s *%sJoin`, pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name)), pqtfmt.Public(r.InversedTable.Name))
 	}
 	g.Print(`
 }`)
@@ -211,16 +211,16 @@ type %sCountExpr struct {`, formatter.Public(t.Name))
 
 func (g *Generator) Join(t *pqt.Table) {
 	g.Printf(`
-type %sJoin struct {`, formatter.Public(t.Name))
+type %sJoin struct {`, pqtfmt.Public(t.Name))
 	g.Printf(`
-%s, %s *%sCriteria`, formatter.Public("on"), formatter.Public("where"), formatter.Public(t.Name))
+%s, %s *%sCriteria`, pqtfmt.Public("on"), pqtfmt.Public("where"), pqtfmt.Public(t.Name))
 	g.Printf(`
-%s bool`, formatter.Public("fetch"))
+%s bool`, pqtfmt.Public("fetch"))
 	g.Printf(`
-%s JoinType`, formatter.Public("kind"))
+%s JoinType`, pqtfmt.Public("kind"))
 	for _, r := range joinableRelationships(t) {
 		g.Printf(`
-Join%s *%sJoin`, formatter.Public(or(r.InversedName, r.InversedTable.Name)), formatter.Public(r.InversedTable.Name))
+Join%s *%sJoin`, pqtfmt.Public(or(r.InversedName, r.InversedTable.Name)), pqtfmt.Public(r.InversedTable.Name))
 	}
 	g.Print(`
 }`)
@@ -228,7 +228,7 @@ Join%s *%sJoin`, formatter.Public(or(r.InversedName, r.InversedTable.Name)), for
 
 func (g *Generator) Patch(t *pqt.Table) {
 	g.Printf(`
-type %sPatch struct {`, formatter.Public(t.Name))
+type %sPatch struct {`, pqtfmt.Public(t.Name))
 
 ArgumentsLoop:
 	for _, c := range t.Columns {
@@ -239,7 +239,7 @@ ArgumentsLoop:
 		if t := g.columnType(c, pqtgo.ModeOptional); t != "<nil>" {
 			g.Printf(`
 %s %s`,
-				formatter.Public(c.Name),
+				pqtfmt.Public(c.Name),
 				t,
 			)
 		}
@@ -249,7 +249,7 @@ ArgumentsLoop:
 }
 
 func (g *Generator) Iterator(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 	g.Printf(`
 // %sIterator is not thread safe.
 type %sIterator struct {
@@ -258,7 +258,7 @@ type %sIterator struct {
 	expr *%sFindExpr
 }`, entityName,
 		entityName,
-		formatter.Public(t.Name))
+		pqtfmt.Public(t.Name))
 
 	g.Printf(`
 func (i *%sIterator) Next() bool {
@@ -306,12 +306,12 @@ func (i *%sIterator) %s() (*%sEntity, error) {
 		entityName,
 		entityName,
 		entityName,
-		formatter.Public(t.Name),
+		pqtfmt.Public(t.Name),
 		entityName,
-		formatter.Public(t.Name),
+		pqtfmt.Public(t.Name),
 		entityName,
 		entityName,
-		formatter.Public("props"))
+		pqtfmt.Public("props"))
 
 	if hasJoinableRelationships(t) {
 		g.Print(`
@@ -328,7 +328,7 @@ func (i *%sIterator) %s() (*%sEntity, error) {
 }
 
 func (g *Generator) WhereClause(t *pqt.Table) {
-	name := formatter.Public(t.Name)
+	name := pqtfmt.Public(t.Name)
 	fnName := fmt.Sprintf("%sCriteriaWhereClause", name)
 	g.Printf(`
 		func %s(comp *Composer, c *%sCriteria, id int) (error) {`, fnName, name)
@@ -391,7 +391,7 @@ ColumnsLoop:
 					panic(err)
 				}
 				if err = tmpl.Execute(g, map[string]interface{}{
-					"selector": fmt.Sprintf("c.%s", formatter.Public(c.Name)),
+					"selector": fmt.Sprintf("c.%s", pqtfmt.Public(c.Name)),
 					"column":   sqlSelector(c, "id"),
 					"composer": "comp",
 					"id":       "id",
@@ -408,17 +408,17 @@ ColumnsLoop:
 		if g.canBeNil(c, pqtgo.ModeCriteria) {
 			braces++
 			g.Printf(`
-				if c.%s != nil {`, formatter.Public(c.Name))
+				if c.%s != nil {`, pqtfmt.Public(c.Name))
 		}
 		if g.isNullable(c, pqtgo.ModeCriteria) {
 			braces++
 			g.Printf(`
-				if c.%s.Valid {`, formatter.Public(c.Name))
+				if c.%s.Valid {`, pqtfmt.Public(c.Name))
 		}
 		if g.isType(c, pqtgo.ModeCriteria, "time.Time") {
 			braces++
 			g.Printf(`
-				if !c.%s.IsZero() {`, formatter.Public(c.Name))
+				if !c.%s.IsZero() {`, pqtfmt.Public(c.Name))
 		}
 
 		g.Print(
@@ -454,7 +454,7 @@ ColumnsLoop:
 					if _, err := comp.WriteString(%s); err != nil {
 						return err
 					}`,
-					formatter.Public("table", c.Columns[i].Table.Name, "column", c.Columns[i].Name),
+					pqtfmt.Public("table", c.Columns[i].Table.Name, "column", c.Columns[i].Name),
 				)
 			}
 			g.Print(`
@@ -469,7 +469,7 @@ ColumnsLoop:
 				if _, err := comp.WriteString(%s); err != nil {
 					return err
 				}`,
-				formatter.Public("table", t.Name, "column", c.Name),
+				pqtfmt.Public("table", t.Name, "column", c.Name),
 			)
 		}
 
@@ -482,7 +482,7 @@ ColumnsLoop:
 			}
 			comp.Add(c.%s)
 			comp.Dirty=true`,
-			formatter.Public(c.Name),
+			pqtfmt.Public(c.Name),
 		)
 		closeBrace(g, braces)
 	}
@@ -527,8 +527,8 @@ func (g *Generator) JoinClause() {
 }
 
 func (g *Generator) ScanRows(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
-	funcName := formatter.Public("scan", t.Name, "rows")
+	entityName := pqtfmt.Public(t.Name)
+	funcName := pqtfmt.Public("scan", t.Name, "rows")
 	g.Printf(`
 		// %s helps to scan rows straight to the slice of entities.
 		func %s(rows Rows) (entities []*%sEntity, err error) {`, funcName, funcName, entityName)
@@ -539,7 +539,7 @@ func (g *Generator) ScanRows(t *pqt.Table) {
 			`, entityName,
 	)
 	for _, c := range t.Columns {
-		g.Printf("&ent.%s,\n", formatter.Public(c.Name))
+		g.Printf("&ent.%s,\n", pqtfmt.Public(c.Name))
 	}
 	g.Print(`)
 			if err != nil {

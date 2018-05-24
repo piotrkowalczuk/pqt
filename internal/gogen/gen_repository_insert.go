@@ -2,27 +2,27 @@ package gogen
 
 import (
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 )
 
 func (g *Generator) RepositoryInsert(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, formatter.Public("insert"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, pqtfmt.Public("insert"), entityName, entityName)
 	g.Printf(`
 			query, args, err := r.%sQuery(e, true)
 			if err != nil {
 				return nil, err
 			}
 			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
-		formatter.Public("insert"),
-		formatter.Public("db"),
+		pqtfmt.Public("insert"),
+		pqtfmt.Public("db"),
 	)
 
 	for _, c := range t.Columns {
 		g.Printf(`
-&e.%s,`, formatter.Public(c.Name))
+&e.%s,`, pqtfmt.Public(c.Name))
 	}
 	g.Printf(`
 )
@@ -34,23 +34,23 @@ func (g *Generator) RepositoryInsert(t *pqt.Table) {
 		}
 		return e, nil
 	}`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 }
 
 func (g *Generator) RepositoryInsertQuery(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %sQuery(e *%sEntity, read bool) (string, []interface{}, error) {`, entityName, formatter.Public("insert"), entityName)
+		func (r *%sRepositoryBase) %sQuery(e *%sEntity, read bool) (string, []interface{}, error) {`, entityName, pqtfmt.Public("insert"), entityName)
 	g.Printf(`
 		insert := NewComposer(%d)
 		columns := bytes.NewBuffer(nil)
 		buf := bytes.NewBufferString("INSERT INTO ")
 		buf.WriteString(r.%s)
-	`, len(t.Columns), formatter.Public("table"))
+	`, len(t.Columns), pqtfmt.Public("table"))
 
 	for _, c := range t.Columns {
 		if c.IsDynamic {
@@ -71,8 +71,8 @@ func (g *Generator) RepositoryInsertQuery(t *pqt.Table) {
 				if len(r.%s) > 0 {
 					buf.WriteString(strings.Join(r.%s, ", "))
 				} else {`,
-		formatter.Public("columns"),
-		formatter.Public("columns"),
+		pqtfmt.Public("columns"),
+		pqtfmt.Public("columns"),
 	)
 	g.Print(`
 		buf.WriteString("`)

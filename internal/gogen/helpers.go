@@ -8,7 +8,7 @@ import (
 	"runtime/debug"
 
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
@@ -79,7 +79,7 @@ func uniqueConstraints(t *pqt.Table) []*pqt.Constraint {
 
 func sqlSelector(c *pqt.Column, id string) string {
 	if !c.IsDynamic {
-		return formatter.Public("table", c.Table.Name, "column", c.Name)
+		return pqtfmt.Public("table", c.Table.Name, "column", c.Name)
 	}
 	sel := c.Func.Name
 	sel += "("

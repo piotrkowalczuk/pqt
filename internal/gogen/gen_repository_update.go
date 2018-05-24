@@ -4,24 +4,24 @@ import (
 	"fmt"
 
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 func (g *Generator) RepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
 	}
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, formatter.Public("updateOneBy", pk.Name), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (*%sEntity, error) {`, entityName, pqtfmt.Public("updateOneBy", pk.Name), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
 	g.Printf(`
 		query, args, err := r.%sQuery(pk, p)
 		if err != nil {
 			return nil, err
-		}`, formatter.Public("updateOneBy", pk.Name))
+		}`, pqtfmt.Public("updateOneBy", pk.Name))
 
 	g.Printf(`
 		var ent %sEntity
@@ -31,9 +31,9 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
 		}
 		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
 		entityName,
-		formatter.Public("props"),
-		formatter.Public("columns"),
-		formatter.Public("db"),
+		pqtfmt.Public("props"),
+		pqtfmt.Public("columns"),
+		pqtfmt.Public("db"),
 	)
 	g.Printf(`
 		if r.%s != nil {
@@ -44,14 +44,14 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
 		}
 		return &ent, nil
 	}`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 }
 
 func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
@@ -60,7 +60,7 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 	g.Printf(`
 		func (r *%sRepositoryBase) %sQuery(pk %s, p *%sPatch) (string, []interface{}, error) {`,
 		entityName,
-		formatter.Public("UpdateOneBy", pk.Name),
+		pqtfmt.Public("UpdateOneBy", pk.Name),
 		g.columnType(pk, pqtgo.ModeMandatory),
 		entityName,
 	)
@@ -68,7 +68,7 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 		buf := bytes.NewBufferString("UPDATE ")
 		buf.WriteString(r.%s)
 		update := NewComposer(%d)`,
-		formatter.Public("table"),
+		pqtfmt.Public("table"),
 		len(t.Columns),
 	)
 
@@ -95,9 +95,9 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 		if len(r.%s) > 0 {
 			buf.WriteString(strings.Join(r.%s, ", "))
 		} else {`,
-		formatter.Public("table", t.Name, "column", pk.Name),
-		formatter.Public("columns"),
-		formatter.Public("columns"),
+		pqtfmt.Public("table", t.Name, "column", pk.Name),
+		pqtfmt.Public("columns"),
+		pqtfmt.Public("columns"),
 	)
 
 	g.Print(`
@@ -111,7 +111,7 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKeyQuery(t *pqt.Table) {
 }
 
 func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	for i, u := range uniqueConstraints(t) {
 		if i > 0 {
@@ -126,7 +126,7 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 				arguments += ", "
 			}
 			method = append(method, c.Name)
-			arguments += fmt.Sprintf("%s %s", formatter.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+			arguments += fmt.Sprintf("%s %s", pqtfmt.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
 		}
 
 		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
@@ -139,7 +139,7 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 		g.Printf(`
 			func (r *%sRepositoryBase) %s(%s, p *%sPatch) (string, []interface{}, error) {`,
 			entityName,
-			formatter.Public(method...),
+			pqtfmt.Public(method...),
 			arguments,
 			entityName,
 		)
@@ -147,7 +147,7 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 		g.Printf(`
 			buf := bytes.NewBufferString("UPDATE ")
 			buf.WriteString(r.%s)
-			update := NewComposer(%d)`, formatter.Public("table"), len(u.PrimaryColumns))
+			update := NewComposer(%d)`, pqtfmt.Public("table"), len(u.PrimaryColumns))
 
 		for _, c := range t.Columns {
 			g.generateRepositorySetClause(c, "update")
@@ -171,8 +171,8 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 				update.WriteString("=")
 				update.WritePlaceholder()
 				update.Add(%s)`,
-				formatter.Public("table", t.Name, "column", c.Name),
-				formatter.Private(columnForeignName(c)),
+				pqtfmt.Public("table", t.Name, "column", c.Name),
+				pqtfmt.Private(columnForeignName(c)),
 			)
 		}
 		g.Printf(`
@@ -181,8 +181,8 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 			if len(r.%s) > 0 {
 				buf.WriteString(strings.Join(r.%s, ", "))
 			} else {`,
-			formatter.Public("columns"),
-			formatter.Public("columns"),
+			pqtfmt.Public("columns"),
+			pqtfmt.Public("columns"),
 		)
 
 		g.Print(`
@@ -202,7 +202,7 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraintQuery(t *pqt.Table) {
 }
 
 func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 	for i, u := range uniqueConstraints(t) {
 		if i > 0 {
 			g.NewLine()
@@ -218,8 +218,8 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
 				arguments2 += ", "
 			}
 			method = append(method, c.Name)
-			arguments += fmt.Sprintf("%s %s", formatter.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
-			arguments2 += formatter.Private(columnForeignName(c))
+			arguments += fmt.Sprintf("%s %s", pqtfmt.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+			arguments2 += pqtfmt.Private(columnForeignName(c))
 		}
 
 		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
@@ -230,7 +230,7 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
 		g.Printf(`
 			func (r *%sRepositoryBase) %s(ctx context.Context, %s, p *%sPatch) (*%sEntity, error) {`,
 			entityName,
-			formatter.Public(method...),
+			pqtfmt.Public(method...),
 			arguments,
 			entityName,
 			entityName,
@@ -241,7 +241,7 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
 			if err != nil {
 				return nil, err
 			}`,
-			formatter.Public(append(method, "query")...),
+			pqtfmt.Public(append(method, "query")...),
 			arguments2,
 		)
 		g.Printf(`
@@ -252,9 +252,9 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
 		}
 		err = r.%s.QueryRowContext(ctx, query, args...).Scan(props...)`,
 			entityName,
-			formatter.Public("props"),
-			formatter.Public("columns"),
-			formatter.Public("db"),
+			pqtfmt.Public("props"),
+			pqtfmt.Public("columns"),
+			pqtfmt.Public("db"),
 		)
 
 		g.Printf(`
@@ -266,8 +266,8 @@ func (g *Generator) RepositoryUpdateOneByUniqueConstraint(t *pqt.Table) {
 			}
 			return &ent, nil
 		}`,
-			formatter.Public("log"),
-			formatter.Public("log"),
+			pqtfmt.Public("log"),
+			pqtfmt.Public("log"),
 			entityName,
 		)
 	}

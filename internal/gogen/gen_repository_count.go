@@ -2,28 +2,28 @@ package gogen
 
 import (
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 )
 
 func (g *Generator) RepositoryCount(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCountExpr) (int64, error) {`, entityName, formatter.Public("count"), entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, c *%sCountExpr) (int64, error) {`, entityName, pqtfmt.Public("count"), entityName)
 	g.Printf(`
 		query, args, err := r.%sQuery(&%sFindExpr{
 			%s: c.%s,
 			%s: []string{"COUNT(*)"},
 		`,
-		formatter.Public("find"),
-		formatter.Public(entityName),
-		formatter.Public("where"),
-		formatter.Public("where"),
-		formatter.Public("columns"),
+		pqtfmt.Public("find"),
+		pqtfmt.Public(entityName),
+		pqtfmt.Public("where"),
+		pqtfmt.Public("where"),
+		pqtfmt.Public("columns"),
 	)
 	for _, r := range joinableRelationships(t) {
 		g.Printf(`
-		%s: c.%s,`, formatter.Public("join", or(r.InversedName, r.InversedTable.Name)), formatter.Public("join", or(r.InversedName, r.InversedTable.Name)))
+		%s: c.%s,`, pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name)), pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name)))
 	}
 	g.Printf(`
 		})
@@ -32,7 +32,7 @@ func (g *Generator) RepositoryCount(t *pqt.Table) {
 		}
 		var count int64
 		err = r.%s.QueryRowContext(ctx, query, args...).Scan(&count)`,
-		formatter.Public("db"),
+		pqtfmt.Public("db"),
 	)
 
 	g.Printf(`
@@ -44,8 +44,8 @@ func (g *Generator) RepositoryCount(t *pqt.Table) {
 		}
 		return count, nil
 	}`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 }

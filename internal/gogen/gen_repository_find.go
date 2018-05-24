@@ -4,23 +4,23 @@ import (
 	"fmt"
 
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
 func (g *Generator) RepositoryFindIter(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, formatter.Public("findIter"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, pqtfmt.Public("findIter"), entityName, entityName)
 	g.Printf(`
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
 				return nil, err
 			}
 			rows, err := r.%s.QueryContext(ctx, query, args...)`,
-		formatter.Public("find"),
-		formatter.Public("db"),
+		pqtfmt.Public("find"),
+		pqtfmt.Public("db"),
 	)
 
 	g.Printf(`
@@ -30,8 +30,8 @@ func (g *Generator) RepositoryFindIter(t *pqt.Table) {
 		if err != nil {
 			return nil, err
 		}`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 	g.Printf(`
@@ -40,34 +40,34 @@ func (g *Generator) RepositoryFindIter(t *pqt.Table) {
 				expr: fe,
 				cols: fe.Columns,
 		}, nil
-	}`, formatter.Public(t.Name))
+	}`, pqtfmt.Public(t.Name))
 }
 
 func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %sQuery(fe *%sFindExpr) (string, []interface{}, error) {`, entityName, formatter.Public("find"), entityName)
+		func (r *%sRepositoryBase) %sQuery(fe *%sFindExpr) (string, []interface{}, error) {`, entityName, pqtfmt.Public("find"), entityName)
 	g.Printf(`
 		comp := NewComposer(%d)
 		buf := bytes.NewBufferString("SELECT ")
 		if len(fe.%s) == 0 {
-		buf.WriteString("`, len(t.Columns), formatter.Public("columns"))
+		buf.WriteString("`, len(t.Columns), pqtfmt.Public("columns"))
 	g.selectList(t, 0)
 	g.Printf(`")
 		} else {
 			buf.WriteString(strings.Join(fe.%s, ", "))
-		}`, formatter.Public("columns"))
+		}`, pqtfmt.Public("columns"))
 	// Generate select clause for joinable tables if needed.
 	for nb, r := range joinableRelationships(t) {
-		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
+		joinPropertyName := pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name))
 
 		g.Printf(`
 			if fe.%s != nil && fe.%s.Kind.Actionable() && fe.%s.%s {`,
 			joinPropertyName,
 			joinPropertyName,
 			joinPropertyName,
-			formatter.Public("fetch"),
+			pqtfmt.Public("fetch"),
 		)
 		g.Print(`
 		buf.WriteString(", `)
@@ -78,12 +78,12 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 	g.Printf(`
 		buf.WriteString(" FROM ")
 		buf.WriteString(r.%s)
-		buf.WriteString(" AS t0")`, formatter.Public("table"))
+		buf.WriteString(" AS t0")`, pqtfmt.Public("table"))
 	// Generate JOIN clause for joinable tables if needed.
 	for nb, r := range joinableRelationships(t) {
 		oc := r.OwnerColumns
 		ic := r.InversedColumns
-		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
+		joinPropertyName := pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name))
 
 		if len(oc) != len(ic) {
 			panic("number of owned and inversed foreign key columns is not equal")
@@ -97,7 +97,7 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 		g.Printf(`
 			joinClause(comp, fe.%s.%s, "%s AS t%d ON `,
 			joinPropertyName,
-			formatter.Public("kind"),
+			pqtfmt.Public("kind"),
 			r.InversedTable.FullName(),
 			nb+1,
 		)
@@ -118,10 +118,10 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 			}
 		}`,
 			joinPropertyName,
-			formatter.Public("on"),
-			formatter.Public(r.InversedTable.Name),
+			pqtfmt.Public("on"),
+			pqtfmt.Public(r.InversedTable.Name),
 			joinPropertyName,
-			formatter.Public("on"),
+			pqtfmt.Public("on"),
 			nb+1,
 		)
 
@@ -138,13 +138,13 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 			return "", nil, err
 		}
 	}`,
-		formatter.Public("where"),
-		formatter.Public(t.Name),
-		formatter.Public("where"),
+		pqtfmt.Public("where"),
+		pqtfmt.Public(t.Name),
+		pqtfmt.Public("where"),
 	)
 
 	for nb, r := range joinableRelationships(t) {
-		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
+		joinPropertyName := pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name))
 		g.Printf(`
 		if fe.%s != nil && fe.%s.Kind.Actionable() && fe.%s.%s != nil {
 			if err := %sCriteriaWhereClause(comp, fe.%s.%s, %d); err != nil {
@@ -154,10 +154,10 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 			joinPropertyName,
 			joinPropertyName,
 			joinPropertyName,
-			formatter.Public("where"),
-			formatter.Public(r.InversedTable.Name),
+			pqtfmt.Public("where"),
+			pqtfmt.Public(r.InversedTable.Name),
 			joinPropertyName,
-			formatter.Public("where"),
+			pqtfmt.Public("where"),
 			nb+1,
 		)
 	}
@@ -224,13 +224,13 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 		comp.Add(fe.%s)
 	}
 `,
-		formatter.Public("orderBy"),
-		formatter.Public("orderBy"),
-		formatter.Public("table", t.Name, "columns"),
-		formatter.Public("offset"),
-		formatter.Public("offset"),
-		formatter.Public("limit"),
-		formatter.Public("limit"),
+		pqtfmt.Public("orderBy"),
+		pqtfmt.Public("orderBy"),
+		pqtfmt.Public("table", t.Name, "columns"),
+		pqtfmt.Public("offset"),
+		pqtfmt.Public("offset"),
+		pqtfmt.Public("limit"),
+		pqtfmt.Public("limit"),
 	)
 
 	g.Print(`
@@ -241,7 +241,7 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 }
 
 func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 	pk, ok := t.PrimaryKey()
 	if !ok {
 		return
@@ -250,7 +250,7 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 	g.Printf(`
 		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
 		entityName,
-		formatter.Public("FindOneBy", pk.Name),
+		pqtfmt.Public("FindOneBy", pk.Name),
 		g.columnType(pk, pqtgo.ModeMandatory),
 		entityName,
 	)
@@ -259,12 +259,12 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		find.WriteString("SELECT ")
 		if len(r.%s) == 0 {
 			find.WriteString("`,
-		len(t.Columns), formatter.Public("columns"))
+		len(t.Columns), pqtfmt.Public("columns"))
 	g.selectList(t, -1)
 	g.Printf(`")
 		} else {
 			find.WriteString(strings.Join(r.%s, ", "))
-		}`, formatter.Public("columns"))
+		}`, pqtfmt.Public("columns"))
 
 	g.Printf(`
 		find.WriteString(" FROM ")
@@ -277,8 +277,8 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		var (
 			ent %sEntity
 		)`,
-		formatter.Public("table", t.Name),
-		formatter.Public("table", t.Name, "column", pk.Name),
+		pqtfmt.Public("table", t.Name),
+		pqtfmt.Public("table", t.Name, "column", pk.Name),
 		entityName,
 	)
 
@@ -288,9 +288,9 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 			return nil, err
 		}
 		err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
-		formatter.Public("props"),
-		formatter.Public("columns"),
-		formatter.Public("db"),
+		pqtfmt.Public("props"),
+		pqtfmt.Public("columns"),
+		pqtfmt.Public("db"),
 	)
 	g.Printf(`
 		if r.%s != nil {
@@ -301,25 +301,25 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		}
 		return &ent, nil
 	}`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 }
 
 func (g *Generator) RepositoryFind(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, formatter.Public("find"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, pqtfmt.Public("find"), entityName, entityName)
 	g.Printf(`
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
 				return nil, err
 			}
 			rows, err := r.%s.QueryContext(ctx, query, args...)`,
-		formatter.Public("find"),
-		formatter.Public("db"),
+		pqtfmt.Public("find"),
+		pqtfmt.Public("db"),
 	)
 
 	g.Printf(`
@@ -330,8 +330,8 @@ func (g *Generator) RepositoryFind(t *pqt.Table) {
 			return nil, err
 		}
 		defer rows.Close()`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 
@@ -346,8 +346,8 @@ func (g *Generator) RepositoryFind(t *pqt.Table) {
 				return nil, err
 			}`,
 		entityName,
-		formatter.Public(t.Name),
-		formatter.Public("props"),
+		pqtfmt.Public(t.Name),
+		pqtfmt.Public("props"),
 	)
 	if hasJoinableRelationships(t) {
 		g.Print(`
@@ -372,14 +372,14 @@ func (g *Generator) RepositoryFind(t *pqt.Table) {
 		}
 		return entities, nil
 	}`,
-		formatter.Public("log"),
-		formatter.Public("log"),
+		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
 		entityName,
 	)
 }
 
 func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
-	entityName := formatter.Public(t.Name)
+	entityName := pqtfmt.Public(t.Name)
 
 	for _, u := range uniqueConstraints(t) {
 		method := []string{"FindOneBy"}
@@ -391,7 +391,7 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 				arguments += ", "
 			}
 			method = append(method, c.Name)
-			arguments += fmt.Sprintf("%s %s", formatter.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+			arguments += fmt.Sprintf("%s %s", pqtfmt.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
 		}
 
 		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
@@ -403,7 +403,7 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 
 			func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
 			entityName,
-			formatter.Public(method...),
+			pqtfmt.Public(method...),
 			arguments,
 			entityName,
 		)
@@ -412,12 +412,12 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 			find.WriteString("SELECT ")
 					if len(r.%s) == 0 {
 			find.WriteString("`,
-			len(t.Columns), formatter.Public("columns"))
+			len(t.Columns), pqtfmt.Public("columns"))
 		g.selectList(t, -1)
 		g.Printf(`")
 		} else {
 			find.WriteString(strings.Join(r.%s, ", "))
-		}`, formatter.Public("columns"))
+		}`, pqtfmt.Public("columns"))
 
 		partialClause := ""
 		if len(u.Where) > 0 {
@@ -428,7 +428,7 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 			find.WriteString(" FROM ")
 			find.WriteString(%s)
 			find.WriteString(" WHERE %s")`,
-			formatter.Public("table", t.Name),
+			pqtfmt.Public("table", t.Name),
 			partialClause,
 		)
 		for i, c := range u.PrimaryColumns {
@@ -440,7 +440,7 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 		find.WriteString("=")
 		find.WritePlaceholder()
 		find.Add(%s)
-		`, formatter.Public("table", t.Name, "column", c.Name), formatter.Private(columnForeignName(c)))
+		`, pqtfmt.Public("table", t.Name, "column", c.Name), pqtfmt.Private(columnForeignName(c)))
 		}
 
 		g.Printf(`
@@ -453,9 +453,9 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 			}
 			err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
 			entityName,
-			formatter.Public("props"),
-			formatter.Public("columns"),
-			formatter.Public("db"),
+			pqtfmt.Public("props"),
+			pqtfmt.Public("columns"),
+			pqtfmt.Public("db"),
 		)
 		g.Print(`
 			if err != nil {

@@ -1,4 +1,4 @@
-package formatter
+package pqtfmt
 
 import (
 	"go/types"

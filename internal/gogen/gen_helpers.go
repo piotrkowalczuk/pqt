@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/piotrkowalczuk/pqt"
-	"github.com/piotrkowalczuk/pqt/internal/formatter"
+	"github.com/piotrkowalczuk/pqt/pqtfmt"
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
@@ -26,7 +26,7 @@ func (g *Generator) columnType(c *pqt.Column, m int32) string {
 			return txt
 		}
 	}
-	res := formatter.Type(c.Type, m)
+	res := pqtfmt.Type(c.Type, m)
 	if res == "" {
 		res = "<nil>"
 	}
@@ -159,18 +159,18 @@ func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
 		if g.canBeNil(c, pqtgo.ModeDefault) {
 			g.Printf(`
 					if e.%s != nil {`,
-				formatter.Public(c.Name),
+				pqtfmt.Public(c.Name),
 			)
 			braces++
 		}
 		if g.isNullable(c, pqtgo.ModeDefault) {
 			g.Printf(`
-					if e.%s.Valid {`, formatter.Public(c.Name))
+					if e.%s.Valid {`, pqtfmt.Public(c.Name))
 			braces++
 		}
 		if g.isType(c, pqtgo.ModeDefault, "time.Time") {
 			g.Printf(`
-					if !e.%s.IsZero() {`, formatter.Public(c.Name))
+					if !e.%s.IsZero() {`, pqtfmt.Public(c.Name))
 			braces++
 		}
 		g.Printf(strings.Replace(`
@@ -192,8 +192,8 @@ func (g *Generator) generateRepositoryInsertClause(c *pqt.Column, sel string) {
 			}
 			{{SELECTOR}}.Add(e.%s)
 			{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
-			formatter.Public("table", c.Table.Name, "column", c.Name),
-			formatter.Public(c.Name),
+			pqtfmt.Public("table", c.Table.Name, "column", c.Name),
+			pqtfmt.Public(c.Name),
 		)
 
 		closeBrace(g, braces)
@@ -212,8 +212,8 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 				panic(err)
 			}
 			if err = tmpl.Execute(g, map[string]interface{}{
-				"selector": fmt.Sprintf("p.%s", formatter.Public(c.Name)),
-				"column":   formatter.Public("table", c.Table.Name, "column", c.Name),
+				"selector": fmt.Sprintf("p.%s", pqtfmt.Public(c.Name)),
+				"column":   pqtfmt.Public("table", c.Table.Name, "column", c.Name),
 				"composer": sel,
 			}); err != nil {
 				panic(err)
@@ -225,17 +225,17 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 	braces := 0
 	if g.canBeNil(c, pqtgo.ModeOptional) {
 		g.Printf(`
-			if p.%s != nil {`, formatter.Public(c.Name))
+			if p.%s != nil {`, pqtfmt.Public(c.Name))
 		braces++
 	}
 	if g.isNullable(c, pqtgo.ModeOptional) {
 		g.Printf(`
-			if p.%s.Valid {`, formatter.Public(c.Name))
+			if p.%s.Valid {`, pqtfmt.Public(c.Name))
 		braces++
 	}
 	if g.isType(c, pqtgo.ModeOptional, "time.Time") {
 		g.Printf(`
-			if !p.%s.IsZero() {`, formatter.Public(c.Name))
+			if !p.%s.IsZero() {`, pqtfmt.Public(c.Name))
 		braces++
 	}
 
@@ -257,8 +257,8 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 		{{SELECTOR}}.Add(p.%s)
 		{{SELECTOR}}.Dirty=true
 		`, "{{SELECTOR}}", sel, -1),
-		formatter.Public("table", c.Table.Name, "column", c.Name),
-		formatter.Public(c.Name),
+		pqtfmt.Public("table", c.Table.Name, "column", c.Name),
+		pqtfmt.Public(c.Name),
 	)
 
 	if d, ok := c.DefaultOn(pqt.EventUpdate); ok {
@@ -277,7 +277,7 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 						return "", nil, err
 					}
 				{{SELECTOR}}.Dirty=true`, "{{SELECTOR}}", sel, -1),
-				formatter.Public("table", c.Table.Name, "column", c.Name),
+				pqtfmt.Public("table", c.Table.Name, "column", c.Name),
 				d,
 			)
 		}
@@ -288,8 +288,8 @@ func (g *Generator) generateRepositorySetClause(c *pqt.Column, sel string) {
 
 func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
 	for _, r := range joinableRelationships(t) {
-		joinPropertyName := formatter.Public("join", or(r.InversedName, r.InversedTable.Name))
-		nestedEntityPropertyName := formatter.Public(or(r.InversedName, r.InversedTable.Name))
+		joinPropertyName := pqtfmt.Public("join", or(r.InversedName, r.InversedTable.Name))
+		nestedEntityPropertyName := pqtfmt.Public(or(r.InversedName, r.InversedTable.Name))
 
 		if r.Type == pqt.RelationshipTypeOneToMany || r.Type == pqt.RelationshipTypeManyToMany {
 			continue
@@ -308,11 +308,11 @@ func (g *Generator) scanJoinableRelationships(t *pqt.Table, sel string) {
 			joinPropertyName,
 			sel,
 			joinPropertyName,
-			formatter.Public("fetch"),
+			pqtfmt.Public("fetch"),
 			nestedEntityPropertyName,
-			formatter.Public(r.InversedTable.Name),
+			pqtfmt.Public(r.InversedTable.Name),
 			nestedEntityPropertyName,
-			formatter.Public("props"),
+			pqtfmt.Public("props"),
 		)
 	}
 }
@@ -325,29 +325,29 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 	go func(out chan structField) {
 		for _, c := range t.Columns {
 			if t := g.columnType(c, pqtgo.ModeDefault); t != "<nil>" {
-				out <- structField{Name: formatter.Public(c.Name), Type: t, ReadOnly: c.IsDynamic}
+				out <- structField{Name: pqtfmt.Public(c.Name), Type: t, ReadOnly: c.IsDynamic}
 			}
 		}
 
 		for _, r := range t.OwnedRelationships {
 			switch r.Type {
 			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.InversedTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", pqtfmt.Public(r.InversedTable.Name))}
 			case pqt.RelationshipTypeOneToOne:
-				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.InversedTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", pqtfmt.Public(r.InversedTable.Name))}
 			case pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.InversedTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.InversedName, r.InversedTable.Name)), Type: fmt.Sprintf("*%sEntity", pqtfmt.Public(r.InversedTable.Name))}
 			}
 		}
 
 		for _, r := range t.InversedRelationships {
 			switch r.Type {
 			case pqt.RelationshipTypeOneToMany:
-				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.OwnerTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", pqtfmt.Public(r.OwnerTable.Name))}
 			case pqt.RelationshipTypeOneToOne:
-				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", formatter.Public(r.OwnerTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.OwnerName, r.OwnerTable.Name)), Type: fmt.Sprintf("*%sEntity", pqtfmt.Public(r.OwnerTable.Name))}
 			case pqt.RelationshipTypeManyToOne:
-				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.OwnerTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", pqtfmt.Public(r.OwnerTable.Name))}
 			}
 		}
 
@@ -358,9 +358,9 @@ func (g *Generator) entityPropertiesGenerator(t *pqt.Table) chan structField {
 
 			switch {
 			case r.OwnerTable == t:
-				out <- structField{Name: formatter.Public(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.InversedTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.InversedName, r.InversedTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", pqtfmt.Public(r.InversedTable.Name))}
 			case r.InversedTable == t:
-				out <- structField{Name: formatter.Public(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", formatter.Public(r.OwnerTable.Name))}
+				out <- structField{Name: pqtfmt.Public(or(r.OwnerName, r.OwnerTable.Name+"s")), Type: fmt.Sprintf("[]*%sEntity", pqtfmt.Public(r.OwnerTable.Name))}
 			}
 		}
 
