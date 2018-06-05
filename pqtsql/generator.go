@@ -11,10 +11,11 @@ import (
 
 // Generator ...
 type Generator struct {
+	// Version represents version of Postgres database generated code will run against.
 	Version float64
 }
 
-// Generate ...
+// Generate generates code based on given schema.
 func (g *Generator) Generate(s *pqt.Schema) ([]byte, error) {
 	code, err := g.generate(s)
 	if err != nil {
@@ -24,7 +25,7 @@ func (g *Generator) Generate(s *pqt.Schema) ([]byte, error) {
 	return code.Bytes(), nil
 }
 
-// GenerateTo ...
+// GenerateTo works like Generate, but writes directly into io.Writer.
 func (g *Generator) GenerateTo(s *pqt.Schema, w io.Writer) error {
 	code, err := g.generate(s)
 	if err != nil {

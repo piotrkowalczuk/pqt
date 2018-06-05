@@ -226,8 +226,8 @@ func generateTypeBase(t pqt.Type, m int32) string {
 	}
 }
 
-func chooseType(tm, to, tc string, mode int32) string {
-	switch mode {
+func chooseType(tm, to, tc string, m int32) string {
+	switch m {
 	case pqtgo.ModeCriteria:
 		return tc
 	case pqtgo.ModeMandatory:

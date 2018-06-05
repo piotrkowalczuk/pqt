@@ -49,7 +49,7 @@ func main() {
 	}
 	sqlGen := &pqtsql.Generator{Version: version}
 
-	err = goGen.GenerateTo(file, sch)
+	err = goGen.GenerateTo(sch, file)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -7,15 +7,27 @@ import (
 )
 
 const (
+	// ModeDefault is a default mode.
+	// Modes allows to express context in what column/property is used in generated Go code.
+	// Main purpose of it is to define clear contract in what contexts each column/property can be generated.
 	ModeDefault = iota
+	// ModeMandatory is used when property is mandatory.
+	// It could be the case for insert statements when property corresponding column is not nullable.
 	ModeMandatory
+	// ModeOptional is mode used when property is optional in given context or in general.
+	// Example:
+	// 	Insert statement of optional property.
+	// 	Partial update statement of mandatory property.
 	ModeOptional
+	// ModeCriteria indicates that property is used in context of querying.
+	// For example during FindIter generation.
 	ModeCriteria
 )
 
-// BuiltinType ...
+// BuiltinType is simple alias for types.BasicKind.
 type BuiltinType types.BasicKind
 
+// String implements pqt Type interface.
 func (bt BuiltinType) String() string {
 	switch types.BasicKind(bt) {
 	case types.Bool:
@@ -55,12 +67,12 @@ func (bt BuiltinType) String() string {
 	}
 }
 
-// Fingerprint implements Type interface.
+// Fingerprint implements pqt Type interface.
 func (bt BuiltinType) Fingerprint() string {
 	return fmt.Sprintf("gobuiltin: %v", bt)
 }
 
-// CustomType ...
+// CustomType allows to create custom types from already existing types.
 type CustomType struct {
 	mandatory, optional, criteria                   interface{}
 	mandatoryTypeOf, optionalTypeOf, criteriaTypeOf reflect.Type
@@ -76,7 +88,7 @@ func (ct CustomType) Fingerprint() string {
 	return fmt.Sprintf("gocustomtype: %v", ct)
 }
 
-// TypeCustom ...
+// TypeCustom allocates new CustomType using given arguments for each context: mandatory, optional and criteria.
 func TypeCustom(m, o, c interface{}) CustomType {
 	var mandatoryTypeOf, optionalTypeOf, criteriaTypeOf reflect.Type
 	if m != nil {
@@ -99,7 +111,7 @@ func TypeCustom(m, o, c interface{}) CustomType {
 	}
 }
 
-// ValueOf ...
+// ValueOf returns type for given mode.
 func (ct CustomType) ValueOf(m int32) interface{} {
 	switch m {
 	case ModeMandatory:
@@ -113,7 +125,7 @@ func (ct CustomType) ValueOf(m int32) interface{} {
 	}
 }
 
-// TypeOf ...
+// TypeOf returns Go type of underlying pqt Type for given mode.
 func (ct CustomType) TypeOf(m int32) reflect.Type {
 	switch m {
 	case ModeMandatory:

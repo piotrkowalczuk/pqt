@@ -59,7 +59,7 @@ func TestGenerator(t *testing.T) {
 			testutil.AssertGoCode(t, expected, got)
 
 			into := bytes.NewBuffer(nil)
-			err = g.GenerateTo(into, s)
+			err = g.GenerateTo(s, into)
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}

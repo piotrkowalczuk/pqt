@@ -2,7 +2,7 @@ package pqt
 
 import "fmt"
 
-// Type ...
+// Type is a common interface that needs to be implemented so a type can be considered the Type in PQT sense.
 type Type interface {
 	fmt.Stringer
 	// Fingerprint returns unique identifier of the type. Two different types can have same SQL representation.
