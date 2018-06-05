@@ -36,11 +36,16 @@ const (
 
 // Generator ...
 type Generator struct {
-	// Version represents
-	Version    float64
-	Pkg        string
-	Imports    []string
-	Plugins    []Plugin
+	// Version represents Postgres database version code will run against.
+	Version float64
+	// Pkg is the name of package code is generated into.
+	// By default it's "main".
+	Pkg string
+	// Imports allow to pass additional import paths that will be added into generated code.
+	Imports []string
+	// Plugins that generator will use during generation.
+	Plugins []Plugin
+	// Components ...
 	Components Component
 
 	g *gogen.Generator
