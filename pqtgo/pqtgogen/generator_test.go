@@ -735,6 +735,64 @@ var expectedSimple = `package example
     			return &ent, nil
     		}
 
+		func (r *UserRepositoryBase) FetchAndUpdateOneByID(ctx context.Context, pk int64, p *UserPatch) (before, after *UserEntity, err error) {
+			find := NewComposer(2)
+			find.WriteString("SELECT ")
+			if len(r.Columns) == 0 {
+				find.WriteString("id, name")
+			} else {
+				find.WriteString(strings.Join(r.Columns, ", "))
+			}
+			find.WriteString(" FROM ")
+			find.WriteString(TableUser)
+			find.WriteString(" WHERE ")
+			find.WriteString(TableUserColumnID)
+			find.WriteString("=")
+			find.WritePlaceholder()
+			find.Add(pk)
+			find.WriteString(" FOR UPDATE")
+			query, args, err := r.UpdateOneByIDQuery(pk, p)
+			if err != nil {
+				return
+			}
+			var (
+				oldEnt, newEnt UserEntity
+			)
+			oldProps, err := oldEnt.Props(r.Columns...)
+			if err != nil {
+				return
+			}
+			newProps, err := newEnt.Props(r.Columns...)
+			if err != nil {
+				return
+			}
+			tx, err := r.DB.Begin()
+			if err != nil {
+				return
+			}
+			err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(oldProps...)
+			if r.Log != nil {
+				r.Log(err, TableUser, "find by primary key", find.String(), find.Args()...)
+			}
+			if err != nil {
+				tx.Rollback()
+				return
+			}
+			err = tx.QueryRowContext(ctx, query, args...).Scan(newProps...)
+			if r.Log != nil {
+				r.Log(err, TableUser, "update by primary key", query, args...)
+			}
+			if err != nil {
+				tx.Rollback()
+				return
+			}
+			err = tx.Commit()
+			if err != nil {
+				return
+			}
+			return &oldEnt, &newEnt, nil
+		}
+
     		func (r *UserRepositoryBase) UpdateOneByNameQuery(userName string, p *UserPatch) (string, []interface{}, error) {
     			buf := bytes.NewBufferString("UPDATE ")
     			buf.WriteString(r.Table)
