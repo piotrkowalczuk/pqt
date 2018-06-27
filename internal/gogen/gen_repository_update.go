@@ -50,7 +50,7 @@ func (g *Generator) RepositoryUpdateOneByPrimaryKey(t *pqt.Table) {
 	)
 }
 
-func (g *Generator) RepositoryFetchAndUpdateOneByPrimaryKey(t *pqt.Table) {
+func (g *Generator) RepositoryFindOneByPrimaryKeyAndUpdate(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 	pk, ok := t.PrimaryKey()
 	if !ok {
@@ -58,7 +58,7 @@ func (g *Generator) RepositoryFetchAndUpdateOneByPrimaryKey(t *pqt.Table) {
 	}
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (before, after *%sEntity, err error) {`, entityName, pqtfmt.Public("fetchAndUpdateOneBy", pk.Name), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s, p *%sPatch) (before, after *%sEntity, err error) {`, entityName, pqtfmt.Public("findOneBy", pk.Name, "AndUpdate"), g.columnType(pk, pqtgo.ModeMandatory), entityName, entityName)
 
 	g.Printf(`
 		find := NewComposer(%d)

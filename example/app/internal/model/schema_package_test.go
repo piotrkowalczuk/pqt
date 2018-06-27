@@ -426,7 +426,7 @@ func TestPackageRepositoryBase_UpdateOneByID(t *testing.T) {
 	}
 }
 
-func TestPackageRepositoryBase_FetchAndUpdateOneByID(t *testing.T) {
+func TestPackageRepositoryBase_FindOneByIDAndUpdate(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
 
@@ -451,7 +451,7 @@ func TestPackageRepositoryBase_FetchAndUpdateOneByID(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
 
-			was, got, err := s.pkg.FetchAndUpdateOneByID(ctx, inserted.ID, &model.PackagePatch{
+			was, got, err := s.pkg.FindOneByIDAndUpdate(ctx, inserted.ID, &model.PackagePatch{
 				Break:      sql.NullString{String: inserted.Break.String + " (edited)", Valid: inserted.Break.Valid},
 				CategoryID: sql.NullInt64{Int64: category.ID, Valid: true},
 			})

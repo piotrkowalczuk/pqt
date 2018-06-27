@@ -917,7 +917,7 @@ func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p 
 	return &ent, nil
 }
 
-func (r *CategoryRepositoryBase) FetchAndUpdateOneByID(ctx context.Context, pk int64, p *CategoryPatch) (before, after *CategoryEntity, err error) {
+func (r *CategoryRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *CategoryPatch) (before, after *CategoryEntity, err error) {
 	find := NewComposer(6)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
@@ -2102,7 +2102,7 @@ func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *
 	return &ent, nil
 }
 
-func (r *PackageRepositoryBase) FetchAndUpdateOneByID(ctx context.Context, pk int64, p *PackagePatch) (before, after *PackageEntity, err error) {
+func (r *PackageRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *PackagePatch) (before, after *PackageEntity, err error) {
 	find := NewComposer(5)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
@@ -3703,7 +3703,7 @@ func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *New
 	return &ent, nil
 }
 
-func (r *NewsRepositoryBase) FetchAndUpdateOneByID(ctx context.Context, pk int64, p *NewsPatch) (before, after *NewsEntity, err error) {
+func (r *NewsRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *NewsPatch) (before, after *NewsEntity, err error) {
 	find := NewComposer(11)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {

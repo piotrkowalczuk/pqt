@@ -162,7 +162,7 @@ func (g *Generator) generate(s *pqt.Schema) error {
 				g.g.NewLine()
 				g.g.RepositoryUpdateOneByPrimaryKey(t)
 				g.g.NewLine()
-				g.g.RepositoryFetchAndUpdateOneByPrimaryKey(t)
+				g.g.RepositoryFindOneByPrimaryKeyAndUpdate(t)
 				g.g.NewLine()
 				g.g.RepositoryUpdateOneByUniqueConstraintQuery(t)
 				g.g.NewLine()

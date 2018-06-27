@@ -520,7 +520,7 @@ func TestNewsRepositoryBase_UpdateOneByID(t *testing.T) {
 	}
 }
 
-func TestNewsRepositoryBase_FetchAndUpdateOneByID(t *testing.T) {
+func TestNewsRepositoryBase_FindOneByIDAndUpdate(t *testing.T) {
 	s := setup(t)
 	defer s.teardown(t)
 
@@ -534,7 +534,7 @@ func TestNewsRepositoryBase_FetchAndUpdateOneByID(t *testing.T) {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
 
-			was, got, err := s.news.FetchAndUpdateOneByID(ctx, inserted.ID, &model.NewsPatch{
+			was, got, err := s.news.FindOneByIDAndUpdate(ctx, inserted.ID, &model.NewsPatch{
 				Title:   sql.NullString{String: inserted.Title + " (edited)", Valid: true},
 				Lead:    sql.NullString{String: inserted.Lead.String + " (edited)", Valid: inserted.Lead.Valid},
 				Content: sql.NullString{String: inserted.Content + " (edited)", Valid: true},
