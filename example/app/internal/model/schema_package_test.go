@@ -426,6 +426,57 @@ func TestPackageRepositoryBase_UpdateOneByID(t *testing.T) {
 	}
 }
 
+func TestPackageRepositoryBase_FindOneByIDAndUpdate(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testPackageInsertData {
+		t.Run(hint, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			category, err := s.category.Insert(ctx, &model.CategoryEntity{Content: "content"})
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			given.entity.CategoryID = sql.NullInt64{Int64: category.ID, Valid: true}
+
+			inserted, err := s.pkg.Insert(ctx, &given.entity)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			category, err = s.category.Insert(ctx, &model.CategoryEntity{Content: "content"})
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			was, got, err := s.pkg.FindOneByIDAndUpdate(ctx, inserted.ID, &model.PackagePatch{
+				Break:      sql.NullString{String: inserted.Break.String + " (edited)", Valid: inserted.Break.Valid},
+				CategoryID: sql.NullInt64{Int64: category.ID, Valid: true},
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			if was.Break.String != given.entity.Break.String {
+				t.Errorf("wrong previous value for break, expected %v but got %v", given.entity.Break, was.Break)
+			}
+			if given.entity.Break.Valid {
+				if !strings.Contains(got.Break.String, "(edited)") {
+					t.Errorf("wrong break, should contains 'edited' but got %v", got.Break)
+				}
+			}
+			if !got.UpdatedAt.Valid {
+				t.Error("updated at expected to be valid")
+			}
+			if got.CreatedAt.IsZero() {
+				t.Error("created at should not be zero value")
+			}
+		})
+	}
+}
+
 var testPackageUpsertData = map[string]struct {
 	entity model.PackageEntity
 	patch  model.PackagePatch

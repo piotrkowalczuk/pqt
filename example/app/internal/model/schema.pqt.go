@@ -917,6 +917,64 @@ func (r *CategoryRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p 
 	return &ent, nil
 }
 
+func (r *CategoryRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *CategoryPatch) (before, after *CategoryEntity, err error) {
+	find := NewComposer(6)
+	find.WriteString("SELECT ")
+	if len(r.Columns) == 0 {
+		find.WriteString("content, created_at, id, name, parent_id, updated_at")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
+	find.WriteString(" FROM ")
+	find.WriteString(TableCategory)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableCategoryColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	find.WriteString(" FOR UPDATE")
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return
+	}
+	var (
+		oldEnt, newEnt CategoryEntity
+	)
+	oldProps, err := oldEnt.Props(r.Columns...)
+	if err != nil {
+		return
+	}
+	newProps, err := newEnt.Props(r.Columns...)
+	if err != nil {
+		return
+	}
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return
+	}
+	err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(oldProps...)
+	if r.Log != nil {
+		r.Log(err, TableCategory, "find by primary key", find.String(), find.Args()...)
+	}
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+	err = tx.QueryRowContext(ctx, query, args...).Scan(newProps...)
+	if r.Log != nil {
+		r.Log(err, TableCategory, "update by primary key", query, args...)
+	}
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		return
+	}
+	return &oldEnt, &newEnt, nil
+}
+
 func (r *CategoryRepositoryBase) UpsertQuery(e *CategoryEntity, p *CategoryPatch, inf ...string) (string, []interface{}, error) {
 	upsert := NewComposer(12)
 	columns := bytes.NewBuffer(nil)
@@ -2042,6 +2100,64 @@ func (r *PackageRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *
 		return nil, err
 	}
 	return &ent, nil
+}
+
+func (r *PackageRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *PackagePatch) (before, after *PackageEntity, err error) {
+	find := NewComposer(5)
+	find.WriteString("SELECT ")
+	if len(r.Columns) == 0 {
+		find.WriteString("break, category_id, created_at, id, updated_at")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
+	find.WriteString(" FROM ")
+	find.WriteString(TablePackage)
+	find.WriteString(" WHERE ")
+	find.WriteString(TablePackageColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	find.WriteString(" FOR UPDATE")
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return
+	}
+	var (
+		oldEnt, newEnt PackageEntity
+	)
+	oldProps, err := oldEnt.Props(r.Columns...)
+	if err != nil {
+		return
+	}
+	newProps, err := newEnt.Props(r.Columns...)
+	if err != nil {
+		return
+	}
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return
+	}
+	err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(oldProps...)
+	if r.Log != nil {
+		r.Log(err, TablePackage, "find by primary key", find.String(), find.Args()...)
+	}
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+	err = tx.QueryRowContext(ctx, query, args...).Scan(newProps...)
+	if r.Log != nil {
+		r.Log(err, TablePackage, "update by primary key", query, args...)
+	}
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		return
+	}
+	return &oldEnt, &newEnt, nil
 }
 
 func (r *PackageRepositoryBase) UpsertQuery(e *PackageEntity, p *PackagePatch, inf ...string) (string, []interface{}, error) {
@@ -3585,6 +3701,64 @@ func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *New
 		return nil, err
 	}
 	return &ent, nil
+}
+
+func (r *NewsRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *NewsPatch) (before, after *NewsEntity, err error) {
+	find := NewComposer(11)
+	find.WriteString("SELECT ")
+	if len(r.Columns) == 0 {
+		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+	} else {
+		find.WriteString(strings.Join(r.Columns, ", "))
+	}
+	find.WriteString(" FROM ")
+	find.WriteString(TableNews)
+	find.WriteString(" WHERE ")
+	find.WriteString(TableNewsColumnID)
+	find.WriteString("=")
+	find.WritePlaceholder()
+	find.Add(pk)
+	find.WriteString(" FOR UPDATE")
+	query, args, err := r.UpdateOneByIDQuery(pk, p)
+	if err != nil {
+		return
+	}
+	var (
+		oldEnt, newEnt NewsEntity
+	)
+	oldProps, err := oldEnt.Props(r.Columns...)
+	if err != nil {
+		return
+	}
+	newProps, err := newEnt.Props(r.Columns...)
+	if err != nil {
+		return
+	}
+	tx, err := r.DB.Begin()
+	if err != nil {
+		return
+	}
+	err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(oldProps...)
+	if r.Log != nil {
+		r.Log(err, TableNews, "find by primary key", find.String(), find.Args()...)
+	}
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+	err = tx.QueryRowContext(ctx, query, args...).Scan(newProps...)
+	if r.Log != nil {
+		r.Log(err, TableNews, "update by primary key", query, args...)
+	}
+	if err != nil {
+		tx.Rollback()
+		return
+	}
+	err = tx.Commit()
+	if err != nil {
+		return
+	}
+	return &oldEnt, &newEnt, nil
 }
 
 func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatch) (string, []interface{}, error) {

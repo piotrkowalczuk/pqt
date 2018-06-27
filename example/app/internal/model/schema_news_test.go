@@ -520,6 +520,52 @@ func TestNewsRepositoryBase_UpdateOneByID(t *testing.T) {
 	}
 }
 
+func TestNewsRepositoryBase_FindOneByIDAndUpdate(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	for hint, given := range testNewsInsertData {
+		t.Run(hint, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+
+			inserted, err := s.news.Insert(ctx, &given.entity)
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+
+			was, got, err := s.news.FindOneByIDAndUpdate(ctx, inserted.ID, &model.NewsPatch{
+				Title:   sql.NullString{String: inserted.Title + " (edited)", Valid: true},
+				Lead:    sql.NullString{String: inserted.Lead.String + " (edited)", Valid: inserted.Lead.Valid},
+				Content: sql.NullString{String: inserted.Content + " (edited)", Valid: true},
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			if was.Title != given.entity.Title || was.Lead != given.entity.Lead || was.Version != given.entity.Version {
+				t.Errorf("wrong previous value, expecte %v but got %v", given.entity, was)
+			}
+			if !strings.Contains(got.Title, "(edited)") {
+				t.Errorf("wrong title, should contains 'edited' but got %s", got.Title)
+			}
+			if given.entity.Lead.Valid {
+				if !strings.Contains(got.Lead.String, "(edited)") {
+					t.Errorf("wrong lead, should contains 'edited' but got %v", got.Lead)
+				}
+			}
+			if !got.UpdatedAt.Valid {
+				t.Error("updated at expected to be valid")
+			}
+			if got.CreatedAt.IsZero() {
+				t.Error("created at should not be zero value")
+			}
+			if given.entity.Version >= got.Version {
+				t.Errorf("new version should be higher than %d but got %d", given.entity.Version, got.Version)
+			}
+		})
+	}
+}
+
 var testNewsUpdateOneByTitleData = map[string]struct {
 	patch model.NewsPatch
 	query string
