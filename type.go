@@ -178,6 +178,11 @@ func TypeTimestampTZ() BaseType {
 	return BaseType{name: "TIMESTAMPTZ"}
 }
 
+// TypeDate is a date only (no time, no time zone).
+func TypeDate() BaseType {
+	return BaseType{name: "DATE"}
+}
+
 // TypeJSON is for storing JSON (JavaScript Object Notation) data, as specified in RFC 7159.
 // Such data can also be stored as text, but the JSON data types have the advantage of enforcing that each stored value is valid according to the JSON rules.
 func TypeJSON() BaseType {
