@@ -34,6 +34,9 @@ func TestTypeTimestamp(t *testing.T) {
 func TestTypeTimestampTZ(t *testing.T) {
 	assertType(t, "TIMESTAMPTZ", pqt.TypeTimestampTZ())
 }
+func TestTypeDate(t *testing.T) {
+	assertType(t, "DATE", pqt.TypeDate())
+}
 func TestTypeJSON(t *testing.T) {
 	assertType(t, "JSON", pqt.TypeJSON())
 }

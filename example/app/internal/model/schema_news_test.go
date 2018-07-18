@@ -40,12 +40,16 @@ var testNewsInsertData = map[string]struct {
 			Content:   "content - full",
 			Continue:  true,
 			CreatedAt: time.Now(),
+			Day: pq.NullTime{
+				Valid: true,
+				Time:  time.Date(2016, 1, 28, 0, 0, 0, 0, time.UTC),
+			},
 			UpdatedAt: pq.NullTime{
 				Valid: true,
 				Time:  time.Now(),
 			},
 		},
-		query: "INSERT INTO example.news (content, continue, created_at, lead, meta_data, score, title, updated_at, version, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
+		query: "INSERT INTO example.news (content, continue, created_at, day, lead, meta_data, score, title, updated_at, version, views_distribution) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING " + strings.Join(model.TableNewsColumns, ", "),
 	},
 }
 
@@ -100,6 +104,7 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			defer cancel()
 
 			got, err := s.news.Insert(ctx, &given.entity)
+
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
@@ -111,6 +116,11 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			}
 			if given.entity.Content != got.Content {
 				t.Errorf("wrong content, expected %s but got %s", given.entity.Content, got.Content)
+			}
+			if given.entity.Day.Valid {
+				if !given.entity.Day.Time.Equal(got.Day.Time) {
+					t.Errorf("wrong day, expected %s but got %s", given.entity.Day.Time, got.Day.Time)
+				}
 			}
 			if !given.entity.UpdatedAt.Valid && got.UpdatedAt.Valid {
 				t.Error("updated at expected to be invalid")
