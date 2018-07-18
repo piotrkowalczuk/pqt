@@ -197,7 +197,7 @@ func generateTypeBase(t pqt.Type, m int32) string {
 		return chooseType("int16", "*int16", "*int16", m)
 	case pqt.TypeSerialBig():
 		return chooseType("int64", "sql.NullInt64", "sql.NullInt64", m)
-	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ():
+	case pqt.TypeTimestamp(), pqt.TypeTimestampTZ(), pqt.TypeDate():
 		return chooseType("time.Time", "pq.NullTime", "pq.NullTime", m)
 	case pqt.TypeReal():
 		return chooseType("float32", "*float32", "*float32", m)

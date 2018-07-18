@@ -2445,6 +2445,7 @@ const (
 	TableNewsColumnContent           = "content"
 	TableNewsColumnContinue          = "continue"
 	TableNewsColumnCreatedAt         = "created_at"
+	TableNewsColumnDay               = "day"
 	TableNewsColumnID                = "id"
 	TableNewsColumnLead              = "lead"
 	TableNewsColumnMetaData          = "meta_data"
@@ -2459,6 +2460,7 @@ var TableNewsColumns = []string{
 	TableNewsColumnContent,
 	TableNewsColumnContinue,
 	TableNewsColumnCreatedAt,
+	TableNewsColumnDay,
 	TableNewsColumnID,
 	TableNewsColumnLead,
 	TableNewsColumnMetaData,
@@ -2477,6 +2479,8 @@ type NewsEntity struct {
 	Continue bool
 	// CreatedAt ...
 	CreatedAt time.Time
+	// Day ...
+	Day pq.NullTime
 	// ID ...
 	ID int64
 	// Lead ...
@@ -2508,6 +2512,8 @@ func (e *NewsEntity) Prop(cn string) (interface{}, bool) {
 		return &e.Continue, true
 	case TableNewsColumnCreatedAt:
 		return &e.CreatedAt, true
+	case TableNewsColumnDay:
+		return &e.Day, true
 	case TableNewsColumnID:
 		return &e.ID, true
 	case TableNewsColumnLead:
@@ -2552,6 +2558,7 @@ func ScanNewsRows(rows Rows) (entities []*NewsEntity, err error) {
 			&ent.Content,
 			&ent.Continue,
 			&ent.CreatedAt,
+			&ent.Day,
 			&ent.ID,
 			&ent.Lead,
 			&ent.MetaData,
@@ -2631,6 +2638,7 @@ type NewsCriteria struct {
 	Content                sql.NullString
 	Continue               sql.NullBool
 	CreatedAt              pq.NullTime
+	Day                    pq.NullTime
 	ID                     sql.NullInt64
 	Lead                   sql.NullString
 	MetaData               []byte
@@ -2692,6 +2700,7 @@ type NewsPatch struct {
 	Content           sql.NullString
 	Continue          sql.NullBool
 	CreatedAt         pq.NullTime
+	Day               pq.NullTime
 	Lead              sql.NullString
 	MetaData          []byte
 	Score             sql.NullFloat64
@@ -2709,7 +2718,7 @@ type NewsRepositoryBase struct {
 }
 
 func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []interface{}, error) {
-	insert := NewComposer(11)
+	insert := NewComposer(12)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
@@ -2770,6 +2779,27 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []in
 			return "", nil, err
 		}
 		insert.Add(e.CreatedAt)
+		insert.Dirty = true
+	}
+
+	if e.Day.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnDay); err != nil {
+			return "", nil, err
+		}
+		if insert.Dirty {
+			if _, err := insert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := insert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		insert.Add(e.Day)
 		insert.Dirty = true
 	}
 
@@ -2925,7 +2955,7 @@ func (r *NewsRepositoryBase) InsertQuery(e *NewsEntity, read bool) (string, []in
 			if len(r.Columns) > 0 {
 				buf.WriteString(strings.Join(r.Columns, ", "))
 			} else {
-				buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+				buf.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 			}
 		}
 	}
@@ -2941,6 +2971,7 @@ func (r *NewsRepositoryBase) Insert(ctx context.Context, e *NewsEntity) (*NewsEn
 		&e.Content,
 		&e.Continue,
 		&e.CreatedAt,
+		&e.Day,
 		&e.ID,
 		&e.Lead,
 		&e.MetaData,
@@ -3060,6 +3091,25 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 			return err
 		}
 		comp.Add(c.CreatedAt)
+		comp.Dirty = true
+	}
+	if c.Day.Valid {
+		if comp.Dirty {
+			comp.WriteString(" AND ")
+		}
+		if err := comp.WriteAlias(id); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString(TableNewsColumnDay); err != nil {
+			return err
+		}
+		if _, err := comp.WriteString("="); err != nil {
+			return err
+		}
+		if err := comp.WritePlaceholder(); err != nil {
+			return err
+		}
+		comp.Add(c.Day)
 		comp.Dirty = true
 	}
 	// id is an empty struct, ignore
@@ -3201,10 +3251,10 @@ func _NewsCriteriaWhereClause(comp *Composer, c *NewsCriteria, id int) error {
 }
 
 func (r *NewsRepositoryBase) FindQuery(fe *NewsFindExpr) (string, []interface{}, error) {
-	comp := NewComposer(11)
+	comp := NewComposer(12)
 	buf := bytes.NewBufferString("SELECT ")
 	if len(fe.Columns) == 0 {
-		buf.WriteString("t0.content, t0.continue, t0.created_at, t0.id, t0.lead, t0.meta_data, t0.score, t0.title, t0.updated_at, t0.version, t0.views_distribution")
+		buf.WriteString("t0.content, t0.continue, t0.created_at, t0.day, t0.id, t0.lead, t0.meta_data, t0.score, t0.title, t0.updated_at, t0.version, t0.views_distribution")
 	} else {
 		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
@@ -3343,10 +3393,10 @@ func (r *NewsRepositoryBase) FindIter(ctx context.Context, fe *NewsFindExpr) (*N
 }
 
 func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEntity, error) {
-	find := NewComposer(11)
+	find := NewComposer(12)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
-		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		find.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	} else {
 		find.WriteString(strings.Join(r.Columns, ", "))
 	}
@@ -3375,10 +3425,10 @@ func (r *NewsRepositoryBase) FindOneByID(ctx context.Context, pk int64) (*NewsEn
 }
 
 func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle string) (*NewsEntity, error) {
-	find := NewComposer(11)
+	find := NewComposer(12)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
-		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		find.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	} else {
 		find.WriteString(strings.Join(r.Columns, ", "))
 	}
@@ -3406,10 +3456,10 @@ func (r *NewsRepositoryBase) FindOneByTitle(ctx context.Context, newsTitle strin
 }
 
 func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitle string, newsLead string) (*NewsEntity, error) {
-	find := NewComposer(11)
+	find := NewComposer(12)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
-		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		find.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	} else {
 		find.WriteString(strings.Join(r.Columns, ", "))
 	}
@@ -3444,7 +3494,7 @@ func (r *NewsRepositoryBase) FindOneByTitleAndLead(ctx context.Context, newsTitl
 func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string, []interface{}, error) {
 	buf := bytes.NewBufferString("UPDATE ")
 	buf.WriteString(r.Table)
-	update := NewComposer(11)
+	update := NewComposer(12)
 	if p.Content.Valid {
 		if update.Dirty {
 			if _, err := update.WriteString(", "); err != nil {
@@ -3499,6 +3549,25 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 			return "", nil, err
 		}
 		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+	if p.Day.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnDay); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Day)
 		update.Dirty = true
 
 	}
@@ -3678,7 +3747,7 @@ func (r *NewsRepositoryBase) UpdateOneByIDQuery(pk int64, p *NewsPatch) (string,
 	if len(r.Columns) > 0 {
 		buf.WriteString(strings.Join(r.Columns, ", "))
 	} else {
-		buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		buf.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	}
 	return buf.String(), update.Args(), nil
 }
@@ -3704,10 +3773,10 @@ func (r *NewsRepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *New
 }
 
 func (r *NewsRepositoryBase) FindOneByIDAndUpdate(ctx context.Context, pk int64, p *NewsPatch) (before, after *NewsEntity, err error) {
-	find := NewComposer(11)
+	find := NewComposer(12)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
-		find.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		find.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	} else {
 		find.WriteString(strings.Join(r.Columns, ", "))
 	}
@@ -3819,6 +3888,25 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 			return "", nil, err
 		}
 		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+	if p.Day.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnDay); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Day)
 		update.Dirty = true
 
 	}
@@ -3996,7 +4084,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleQuery(newsTitle string, p *NewsPatc
 	if len(r.Columns) > 0 {
 		buf.WriteString(strings.Join(r.Columns, ", "))
 	} else {
-		buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		buf.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	}
 	return buf.String(), update.Args(), nil
 }
@@ -4059,6 +4147,25 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 			return "", nil, err
 		}
 		update.Add(p.CreatedAt)
+		update.Dirty = true
+
+	}
+	if p.Day.Valid {
+		if update.Dirty {
+			if _, err := update.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := update.WriteString(TableNewsColumnDay); err != nil {
+			return "", nil, err
+		}
+		if _, err := update.WriteString("="); err != nil {
+			return "", nil, err
+		}
+		if err := update.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		update.Add(p.Day)
 		update.Dirty = true
 
 	}
@@ -4241,7 +4348,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLeadQuery(newsTitle string, news
 	if len(r.Columns) > 0 {
 		buf.WriteString(strings.Join(r.Columns, ", "))
 	} else {
-		buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+		buf.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 	}
 	return buf.String(), update.Args(), nil
 }
@@ -4287,7 +4394,7 @@ func (r *NewsRepositoryBase) UpdateOneByTitleAndLead(ctx context.Context, newsTi
 }
 
 func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...string) (string, []interface{}, error) {
-	upsert := NewComposer(22)
+	upsert := NewComposer(24)
 	columns := bytes.NewBuffer(nil)
 	buf := bytes.NewBufferString("INSERT INTO ")
 	buf.WriteString(r.Table)
@@ -4348,6 +4455,27 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			return "", nil, err
 		}
 		upsert.Add(e.CreatedAt)
+		upsert.Dirty = true
+	}
+
+	if e.Day.Valid {
+		if columns.Len() > 0 {
+			if _, err := columns.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if _, err := columns.WriteString(TableNewsColumnDay); err != nil {
+			return "", nil, err
+		}
+		if upsert.Dirty {
+			if _, err := upsert.WriteString(", "); err != nil {
+				return "", nil, err
+			}
+		}
+		if err := upsert.WritePlaceholder(); err != nil {
+			return "", nil, err
+		}
+		upsert.Add(e.Day)
 		upsert.Dirty = true
 	}
 
@@ -4559,6 +4687,25 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 			upsert.Dirty = true
 
 		}
+		if p.Day.Valid {
+			if upsert.Dirty {
+				if _, err := upsert.WriteString(", "); err != nil {
+					return "", nil, err
+				}
+			}
+			if _, err := upsert.WriteString(TableNewsColumnDay); err != nil {
+				return "", nil, err
+			}
+			if _, err := upsert.WriteString("="); err != nil {
+				return "", nil, err
+			}
+			if err := upsert.WritePlaceholder(); err != nil {
+				return "", nil, err
+			}
+			upsert.Add(p.Day)
+			upsert.Dirty = true
+
+		}
 		if p.Lead.Valid {
 			if upsert.Dirty {
 				if _, err := upsert.WriteString(", "); err != nil {
@@ -4738,7 +4885,7 @@ func (r *NewsRepositoryBase) UpsertQuery(e *NewsEntity, p *NewsPatch, inf ...str
 		if len(r.Columns) > 0 {
 			buf.WriteString(strings.Join(r.Columns, ", "))
 		} else {
-			buf.WriteString("content, continue, created_at, id, lead, meta_data, score, title, updated_at, version, views_distribution")
+			buf.WriteString("content, continue, created_at, day, id, lead, meta_data, score, title, updated_at, version, views_distribution")
 		}
 	}
 	return buf.String(), upsert.Args(), nil
@@ -4753,6 +4900,7 @@ func (r *NewsRepositoryBase) Upsert(ctx context.Context, e *NewsEntity, p *NewsP
 		&e.Content,
 		&e.Continue,
 		&e.CreatedAt,
+		&e.Day,
 		&e.ID,
 		&e.Lead,
 		&e.MetaData,
@@ -4791,7 +4939,7 @@ func (r *NewsRepositoryBase) Count(ctx context.Context, c *NewsCountExpr) (int64
 }
 
 func (r *NewsRepositoryBase) DeleteOneByID(ctx context.Context, pk int64) (int64, error) {
-	find := NewComposer(11)
+	find := NewComposer(12)
 	find.WriteString("DELETE FROM ")
 	find.WriteString(TableNews)
 	find.WriteString(" WHERE ")
@@ -5439,10 +5587,10 @@ func (r *CommentRepositoryBase) FindQuery(fe *CommentFindExpr) (string, []interf
 		buf.WriteString(strings.Join(fe.Columns, ", "))
 	}
 	if fe.JoinNewsByTitle != nil && fe.JoinNewsByTitle.Kind.Actionable() && fe.JoinNewsByTitle.Fetch {
-		buf.WriteString(", t1.content, t1.continue, t1.created_at, t1.id, t1.lead, t1.meta_data, t1.score, t1.title, t1.updated_at, t1.version, t1.views_distribution")
+		buf.WriteString(", t1.content, t1.continue, t1.created_at, t1.day, t1.id, t1.lead, t1.meta_data, t1.score, t1.title, t1.updated_at, t1.version, t1.views_distribution")
 	}
 	if fe.JoinNewsByID != nil && fe.JoinNewsByID.Kind.Actionable() && fe.JoinNewsByID.Fetch {
-		buf.WriteString(", t2.content, t2.continue, t2.created_at, t2.id, t2.lead, t2.meta_data, t2.score, t2.title, t2.updated_at, t2.version, t2.views_distribution")
+		buf.WriteString(", t2.content, t2.continue, t2.created_at, t2.day, t2.id, t2.lead, t2.meta_data, t2.score, t2.title, t2.updated_at, t2.version, t2.views_distribution")
 	}
 	buf.WriteString(" FROM ")
 	buf.WriteString(r.Table)
@@ -9753,6 +9901,7 @@ CREATE TABLE IF NOT EXISTS example.news (
 	content TEXT NOT NULL,
 	continue BOOL DEFAULT false NOT NULL,
 	created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+	day DATE,
 	id BIGSERIAL,
 	lead TEXT,
 	meta_data JSONB,
