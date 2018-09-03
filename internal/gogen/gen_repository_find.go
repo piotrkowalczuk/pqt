@@ -8,29 +8,75 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
-func (g *Generator) RepositoryFindIter(t *pqt.Table) {
+func (g *Generator) RepositoryMethodFindIter(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {`, entityName, pqtfmt.Public("findIter"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {
+			return r.%s(ctx, nil, fe)
+		}`,
+		entityName,
+		pqtfmt.Public("findIter"),
+		entityName,
+		entityName,
+		pqtfmt.Private("findIter"),
+	)
+}
+
+func (g *Generator) RepositoryTxMethodFindIter(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBaseTx) %s(ctx context.Context, fe *%sFindExpr) (*%sIterator, error) {
+			return r.base.%s(ctx, r.tx, fe)
+		}`,
+		entityName,
+		pqtfmt.Public("findIter"),
+		entityName,
+		entityName,
+		pqtfmt.Private("findIter"),
+	)
+}
+
+func (g *Generator) RepositoryMethodPrivateFindIter(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, tx *sql.Tx, fe *%sFindExpr) (*%sIterator, error) {`,
+		entityName,
+		pqtfmt.Private("findIter"),
+		entityName,
+		entityName,
+	)
 	g.Printf(`
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
 				return nil, err
 			}
-			rows, err := r.%s.QueryContext(ctx, query, args...)`,
+			var rows *sql.Rows
+			if tx == nil {
+				rows, err = r.%s.QueryContext(ctx, query, args...)
+			} else {
+				rows, err = tx.QueryContext(ctx, query, args...)
+			}`,
 		pqtfmt.Public("find"),
 		pqtfmt.Public("db"),
 	)
 
 	g.Printf(`
 	 	if r.%s != nil {
-			r.%s(err, Table%s, "find iter", query, args...)
+			if tx == nil {
+				r.%s(err, Table%s, "find iter", query, args...)
+			} else {
+				r.%s(err, Table%s, "find iter tx", query, args...)
+			}
 		}
 		if err != nil {
 			return nil, err
 		}`,
 		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
+		entityName,
 		pqtfmt.Public("log"),
 		entityName,
 	)
@@ -43,7 +89,7 @@ func (g *Generator) RepositoryFindIter(t *pqt.Table) {
 	}`, pqtfmt.Public(t.Name))
 }
 
-func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
+func (g *Generator) RepositoryMethodFindQuery(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
@@ -240,7 +286,7 @@ func (g *Generator) RepositoryFindQuery(t *pqt.Table) {
 }`)
 }
 
-func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
+func (g *Generator) RepositoryMethodFindOneByPrimaryKey(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 	pk, ok := t.PrimaryKey()
 	if !ok {
@@ -248,9 +294,47 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 	}
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {`,
+		func (r *%sRepositoryBase) %s(ctx context.Context, pk %s) (*%sEntity, error) {
+			return r.%s(ctx, nil, pk)
+		}`,
 		entityName,
-		pqtfmt.Public("FindOneBy", pk.Name),
+		pqtfmt.Public("findOneBy", pk.Name),
+		g.columnType(pk, pqtgo.ModeMandatory),
+		entityName,
+		pqtfmt.Private("findOneBy", pk.Name),
+	)
+}
+
+func (g *Generator) RepositoryTxMethodFindOneByPrimaryKey(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+	pk, ok := t.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	g.Printf(`
+		func (r *%sRepositoryBaseTx) %s(ctx context.Context, pk %s) (*%sEntity, error) {
+			return r.base.%s(ctx, r.tx, pk)
+		}`,
+		entityName,
+		pqtfmt.Public("findOneBy", pk.Name),
+		g.columnType(pk, pqtgo.ModeMandatory),
+		entityName,
+		pqtfmt.Private("findOneBy", pk.Name),
+	)
+}
+
+func (g *Generator) RepositoryMethodPrivateFindOneByPrimaryKey(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+	pk, ok := t.PrimaryKey()
+	if !ok {
+		return
+	}
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, tx *sql.Tx, pk %s) (*%sEntity, error) {`,
+		entityName,
+		pqtfmt.Private("findOneBy", pk.Name),
 		g.columnType(pk, pqtgo.ModeMandatory),
 		entityName,
 	)
@@ -287,14 +371,22 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		if err != nil {
 			return nil, err
 		}
-		err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+		if tx == nil {
+			err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+		} else {
+			err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+		}`,
 		pqtfmt.Public("props"),
 		pqtfmt.Public("columns"),
 		pqtfmt.Public("db"),
 	)
 	g.Printf(`
 		if r.%s != nil {
-			r.%s(err, Table%s, "find by primary key", find.String(), find.Args()...)
+			if tx == nil {
+				r.%s(err, Table%s, "find by primary key", find.String(), find.Args()...)
+			} else {
+				r.%s(err, Table%s, "find by primary key tx", find.String(), find.Args()...)
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -304,10 +396,12 @@ func (g *Generator) RepositoryFindOneByPrimaryKey(t *pqt.Table) {
 		pqtfmt.Public("log"),
 		pqtfmt.Public("log"),
 		entityName,
+		pqtfmt.Public("log"),
+		entityName,
 	)
 }
 
-func (g *Generator) RepositoryFindOneByPrimaryKeyAndUpdate(t *pqt.Table) {
+func (g *Generator) RepositoryMethodFindOneByPrimaryKeyAndUpdate(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 	pk, ok := t.PrimaryKey()
 	if !ok {
@@ -410,30 +504,76 @@ func (g *Generator) RepositoryFindOneByPrimaryKeyAndUpdate(t *pqt.Table) {
 	}`)
 }
 
-func (g *Generator) RepositoryFind(t *pqt.Table) {
+func (g *Generator) RepositoryMethodFind(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {`, entityName, pqtfmt.Public("find"), entityName, entityName)
+		func (r *%sRepositoryBase) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {
+			return r.%s(ctx, nil, fe)
+		}`,
+		entityName,
+		pqtfmt.Public("find"),
+		entityName,
+		entityName,
+		pqtfmt.Private("find"),
+	)
+}
+
+func (g *Generator) RepositoryTxMethodFind(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBaseTx) %s(ctx context.Context, fe *%sFindExpr) ([]*%sEntity, error) {
+			return r.base.%s(ctx, r.tx, fe)
+		}`,
+		entityName,
+		pqtfmt.Public("find"),
+		entityName,
+		entityName,
+		pqtfmt.Private("find"),
+	)
+}
+
+func (g *Generator) RepositoryMethodPrivateFind(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, tx *sql.Tx, fe *%sFindExpr) ([]*%sEntity, error) {`,
+		entityName,
+		pqtfmt.Private("find"),
+		entityName,
+		entityName,
+	)
 	g.Printf(`
 			query, args, err := r.%sQuery(fe)
 			if err != nil {
 				return nil, err
 			}
-			rows, err := r.%s.QueryContext(ctx, query, args...)`,
+			var rows *sql.Rows
+			if tx == nil {
+				rows, err = r.%s.QueryContext(ctx, query, args...)
+			} else {
+				rows, err = tx.QueryContext(ctx, query, args...)
+			}`,
 		pqtfmt.Public("find"),
 		pqtfmt.Public("db"),
 	)
 
 	g.Printf(`
 		if r.%s != nil {
-			r.%s(err, Table%s, "find", query, args...)
+			if tx == nil {
+				r.%s(err, Table%s, "find", query, args...)
+			} else {
+				r.%s(err, Table%s, "find tx", query, args...)
+			}
 		}
 		if err != nil {
 			return nil, err
 		}
 		defer rows.Close()`,
 		pqtfmt.Public("log"),
+		pqtfmt.Public("log"),
+		entityName,
 		pqtfmt.Public("log"),
 		entityName,
 	)
@@ -481,11 +621,90 @@ func (g *Generator) RepositoryFind(t *pqt.Table) {
 	)
 }
 
-func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
+func (g *Generator) RepositoryMethodFindOneByUniqueConstraint(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	for _, u := range uniqueConstraints(t) {
-		method := []string{"FindOneBy"}
+		method := []string{pqtfmt.Public("findOneBy")}
+		arguments := ""
+		argumentsNameOnly := ""
+
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+				argumentsNameOnly += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", pqtfmt.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+			argumentsNameOnly += pqtfmt.Private(columnForeignName(c))
+		}
+
+		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
+			method = append(method, "Where")
+			method = append(method, u.MethodSuffix)
+		}
+
+		g.Printf(`
+			func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {
+				return r.%s(ctx, nil, %s)
+			}`,
+			entityName,
+			pqtfmt.Public(method...),
+			arguments,
+			entityName,
+			pqtfmt.Private(method...),
+			argumentsNameOnly,
+		)
+	}
+}
+
+func (g *Generator) RepositoryTxMethodFindOneByUniqueConstraint(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	for _, u := range uniqueConstraints(t) {
+		method := []string{pqtfmt.Public("findOneBy")}
+		arguments := ""
+		argumentsNameOnly := ""
+
+		for i, c := range u.PrimaryColumns {
+			if i != 0 {
+				method = append(method, "And")
+				arguments += ", "
+				argumentsNameOnly += ", "
+			}
+			method = append(method, c.Name)
+			arguments += fmt.Sprintf("%s %s", pqtfmt.Private(columnForeignName(c)), g.columnType(c, pqtgo.ModeMandatory))
+			argumentsNameOnly += pqtfmt.Private(columnForeignName(c))
+		}
+
+		if len(u.Where) > 0 && len(u.MethodSuffix) > 0 {
+			method = append(method, "Where")
+			method = append(method, u.MethodSuffix)
+		}
+
+		g.Printf(`
+			func (r *%sRepositoryBaseTx) %s(ctx context.Context, %s) (*%sEntity, error) {
+				return r.%s(ctx, r.tx, %s)
+			}`,
+			entityName,
+			pqtfmt.Public(method...),
+			arguments,
+			entityName,
+			pqtfmt.Private(method...),
+			argumentsNameOnly,
+		)
+	}
+}
+
+func (g *Generator) RepositoryMethodPrivateFindOneByUniqueConstraint(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	for i, u := range uniqueConstraints(t) {
+		if i > 0 {
+			g.NewLine()
+		}
+		method := []string{"findOneBy"}
 		arguments := ""
 
 		for i, c := range u.PrimaryColumns {
@@ -503,10 +722,9 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 		}
 
 		g.Printf(`
-
-			func (r *%sRepositoryBase) %s(ctx context.Context, %s) (*%sEntity, error) {`,
+			func (r *%sRepositoryBase) %s(ctx context.Context, tx *sql.Tx, %s) (*%sEntity, error) {`,
 			entityName,
-			pqtfmt.Public(method...),
+			pqtfmt.Private(method...),
 			arguments,
 			entityName,
 		)
@@ -554,7 +772,11 @@ func (g *Generator) RepositoryFindOneByUniqueConstraint(t *pqt.Table) {
 			if err != nil {
 				return nil, err
 			}
-			err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)`,
+			if tx == nil {
+				err = r.%s.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+			} else {
+				err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+			}`,
 			entityName,
 			pqtfmt.Public("props"),
 			pqtfmt.Public("columns"),

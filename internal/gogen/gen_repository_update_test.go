@@ -8,7 +8,7 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
-func TestGenerator_RepositoryUpdateOneByPrimaryKey(t *testing.T) {
+func TestGenerator_RepositoryUpdateOneByPrimaryKeyPrivate(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").
 		AddRelationship(pqt.ManyToOne(t1)).
@@ -16,7 +16,7 @@ func TestGenerator_RepositoryUpdateOneByPrimaryKey(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Repository(t2)
-	g.RepositoryUpdateOneByPrimaryKey(t2)
+	g.RepositoryMethodPrivateUpdateOneByPrimaryKey(t2)
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
@@ -25,7 +25,7 @@ type T2RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T2RepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *T2Patch) (*T2Entity, error) {
+func (r *T2RepositoryBase) updateOneByID(ctx context.Context, tx *sql.Tx, pk int64, p *T2Patch) (*T2Entity, error) {
 	query, args, err := r.UpdateOneByIDQuery(pk, p)
 	if err != nil {
 		return nil, err
@@ -35,9 +35,17 @@ func (r *T2RepositoryBase) UpdateOneByID(ctx context.Context, pk int64, p *T2Pat
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	if tx == nil {
+		err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+	} else {
+		err = tx.QueryRowContext(ctx, query, args...).Scan(props...)
+	}
 	if r.Log != nil {
-		r.Log(err, TableT2, "update by primary key", query, args...)
+		if tx == nil {
+			r.Log(err, TableT2, "update by primary key", query, args...)
+		} else {
+			r.Log(err, TableT2, "update by primary key tx", query, args...)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -51,7 +59,7 @@ func TestGenerator_RepositoryUpdateOneByPrimaryKeyQuery(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Repository(t0) // Is here so output can be properly formatted
-	g.RepositoryUpdateOneByPrimaryKeyQuery(t0)
+	g.RepositoryMethodUpdateOneByPrimaryKeyQuery(t0)
 	testutil.AssertOutput(t, g.Printer, `
 type T0RepositoryBase struct {
 	Table   string
@@ -67,7 +75,7 @@ type T0RepositoryBase struct {
 
 	g = &gogen.Generator{}
 	g.Repository(t1) // Is here so output can be properly formatted
-	g.RepositoryUpdateOneByPrimaryKeyQuery(t1)
+	g.RepositoryMethodUpdateOneByPrimaryKeyQuery(t1)
 
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
@@ -109,7 +117,7 @@ func TestGenerator_RepositoryUpdateOneByUniqueConstraintQuery(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Repository(t0) // Is here so output can be properly formatted
-	g.RepositoryUpdateOneByUniqueConstraintQuery(t0)
+	g.RepositoryMethodUpdateOneByUniqueConstraintQuery(t0)
 	testutil.AssertOutput(t, g.Printer, `
 type T0RepositoryBase struct {
 	Table   string
@@ -133,7 +141,7 @@ type T0RepositoryBase struct {
 
 	g = &gogen.Generator{}
 	g.Repository(t1) // Is here so output can be properly formatted
-	g.RepositoryUpdateOneByUniqueConstraintQuery(t1)
+	g.RepositoryMethodUpdateOneByUniqueConstraintQuery(t1)
 
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
@@ -321,12 +329,12 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(
 }`)
 }
 
-func TestGenerator_RepositoryUpdateOneByUniqueConstraint(t *testing.T) {
+func TestGenerator_RepositoryUpdateOneByUniqueConstraintPrivate(t *testing.T) {
 	t0 := pqt.NewTable("t0")
 
 	g := &gogen.Generator{}
 	g.Repository(t0) // Is here so output can be properly formatted
-	g.RepositoryUpdateOneByUniqueConstraint(t0)
+	g.RepositoryMethodPrivateUpdateOneByUniqueConstraint(t0)
 	testutil.AssertOutput(t, g.Printer, `
 type T0RepositoryBase struct {
 	Table   string
@@ -350,7 +358,7 @@ type T0RepositoryBase struct {
 
 	g = &gogen.Generator{}
 	g.Repository(t1) // Is here so output can be properly formatted
-	g.RepositoryUpdateOneByUniqueConstraint(t1)
+	g.RepositoryMethodPrivateUpdateOneByUniqueConstraint(t1)
 
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
@@ -360,7 +368,7 @@ type T1RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAge(ctx context.Context, t1FirstName string, t1LastName string, t1Age int64, p *T1Patch) (*T1Entity, error) {
+func (r *T1RepositoryBase) updateOneByFirstNameAndLastNameAndAge(ctx context.Context, tx *sql.Tx, t1FirstName string, t1LastName string, t1Age int64, p *T1Patch) (*T1Entity, error) {
 	query, args, err := r.UpdateOneByFirstNameAndLastNameAndAgeQuery(t1FirstName, t1LastName, t1Age, p)
 	if err != nil {
 		return nil, err
@@ -370,9 +378,20 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAge(ctx context.Con
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+
+	var row *sql.Row
+	if tx == nil {
+		row = r.DB.QueryRowContext(ctx, query, args...)
+	} else {
+		row = tx.QueryRowContext(ctx, query, args...)
+	}
+	err = row.Scan(props...)
 	if r.Log != nil {
-		r.Log(err, TableT1, "update one by unique", query, args...)
+		if tx == nil {
+			r.Log(err, TableT1, "update one by unique", query, args...)
+		} else {
+			r.Log(err, TableT1, "update one by unique tx", query, args...)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -380,7 +399,7 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameAndAge(ctx context.Con
 	return &ent, nil
 }
 
-func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSet(ctx context.Context, t1FirstName string, t1LastName string, p *T1Patch) (*T1Entity, error) {
+func (r *T1RepositoryBase) updateOneByFirstNameAndLastNameWhereAgeIsNotSet(ctx context.Context, tx *sql.Tx, t1FirstName string, t1LastName string, p *T1Patch) (*T1Entity, error) {
 	query, args, err := r.UpdateOneByFirstNameAndLastNameWhereAgeIsNotSetQuery(t1FirstName, t1LastName, p)
 	if err != nil {
 		return nil, err
@@ -390,9 +409,20 @@ func (r *T1RepositoryBase) UpdateOneByFirstNameAndLastNameWhereAgeIsNotSet(ctx c
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(props...)
+
+	var row *sql.Row
+	if tx == nil {
+		row = r.DB.QueryRowContext(ctx, query, args...)
+	} else {
+		row = tx.QueryRowContext(ctx, query, args...)
+	}
+	err = row.Scan(props...)
 	if r.Log != nil {
-		r.Log(err, TableT1, "update one by unique", query, args...)
+		if tx == nil {
+			r.Log(err, TableT1, "update one by unique", query, args...)
+		} else {
+			r.Log(err, TableT1, "update one by unique tx", query, args...)
+		}
 	}
 	if err != nil {
 		return nil, err

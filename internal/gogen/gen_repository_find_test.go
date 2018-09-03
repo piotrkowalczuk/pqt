@@ -11,11 +11,11 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
-func TestGenerator_RepositoryFindIter(t *testing.T) {
+func TestGenerator_RepositoryMethodPrivateFindIter(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	g := &gogen.Generator{}
 	g.Repository(t1)
-	g.RepositoryFindIter(t1)
+	g.RepositoryMethodPrivateFindIter(t1)
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
@@ -24,14 +24,23 @@ type T1RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T1RepositoryBase) FindIter(ctx context.Context, fe *T1FindExpr) (*T1Iterator, error) {
+func (r *T1RepositoryBase) findIter(ctx context.Context, tx *sql.Tx, fe *T1FindExpr) (*T1Iterator, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.DB.QueryContext(ctx, query, args...)
+	var rows *sql.Rows
+	if tx == nil {
+		rows, err = r.DB.QueryContext(ctx, query, args...)
+	} else {
+		rows, err = tx.QueryContext(ctx, query, args...)
+	}
 	if r.Log != nil {
-		r.Log(err, TableT1, "find iter", query, args...)
+		if tx == nil {
+			r.Log(err, TableT1, "find iter", query, args...)
+		} else {
+			r.Log(err, TableT1, "find iter tx", query, args...)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -56,7 +65,7 @@ func TestGenerator_RepositoryFindQuery(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Repository(t2)
-	g.RepositoryFindQuery(t2)
+	g.RepositoryMethodFindQuery(t2)
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
@@ -167,11 +176,11 @@ func (r *T2RepositoryBase) FindQuery(fe *T2FindExpr) (string, []interface{}, err
 }`)
 }
 
-func TestGenerator_RepositoryFindOneByPrimaryKey(t *testing.T) {
+func TestGenerator_RepositoryMethodPrivateFindOneByPrimaryKey(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	g := &gogen.Generator{}
 	g.Repository(t1)
-	g.RepositoryFindOneByPrimaryKey(t1)
+	g.RepositoryMethodPrivateFindOneByPrimaryKey(t1)
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
@@ -185,7 +194,7 @@ type T1RepositoryBase struct {
 
 	g.Reset()
 	g.Repository(t1)
-	g.RepositoryFindOneByPrimaryKey(t1)
+	g.RepositoryMethodPrivateFindOneByPrimaryKey(t1)
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
@@ -194,7 +203,7 @@ type T1RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T1RepositoryBase) FindOneByID(ctx context.Context, pk int64) (*T1Entity, error) {
+func (r *T1RepositoryBase) findOneByID(ctx context.Context, tx *sql.Tx, pk int64) (*T1Entity, error) {
 	find := NewComposer(2)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
@@ -216,9 +225,17 @@ func (r *T1RepositoryBase) FindOneByID(ctx context.Context, pk int64) (*T1Entity
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if tx == nil {
+		err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	} else {
+		err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	}
 	if r.Log != nil {
-		r.Log(err, TableT1, "find by primary key", find.String(), find.Args()...)
+		if tx == nil {
+			r.Log(err, TableT1, "find by primary key", find.String(), find.Args()...)
+		} else {
+			r.Log(err, TableT1, "find by primary key tx", find.String(), find.Args()...)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -227,7 +244,7 @@ func (r *T1RepositoryBase) FindOneByID(ctx context.Context, pk int64) (*T1Entity
 }`)
 }
 
-func TestGenerator_RepositoryFind(t *testing.T) {
+func TestGenerator_RepositoryMethodPrivateFind(t *testing.T) {
 	t1 := pqt.NewTable("t1").
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(pqt.NewColumn("age", pqt.TypeInteger()))
@@ -235,7 +252,7 @@ func TestGenerator_RepositoryFind(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Reset()
 	g.Repository(t1)
-	g.RepositoryFind(t1)
+	g.RepositoryMethodPrivateFind(t1)
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
@@ -244,14 +261,23 @@ type T1RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T1RepositoryBase) Find(ctx context.Context, fe *T1FindExpr) ([]*T1Entity, error) {
+func (r *T1RepositoryBase) find(ctx context.Context, tx *sql.Tx, fe *T1FindExpr) ([]*T1Entity, error) {
 	query, args, err := r.FindQuery(fe)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := r.DB.QueryContext(ctx, query, args...)
+	var rows *sql.Rows
+	if tx == nil {
+		rows, err = r.DB.QueryContext(ctx, query, args...)
+	} else {
+		rows, err = tx.QueryContext(ctx, query, args...)
+	}
 	if r.Log != nil {
-		r.Log(err, TableT1, "find", query, args...)
+		if tx == nil {
+			r.Log(err, TableT1, "find", query, args...)
+		} else {
+			r.Log(err, TableT1, "find tx", query, args...)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -283,7 +309,7 @@ func (r *T1RepositoryBase) Find(ctx context.Context, fe *T1FindExpr) ([]*T1Entit
 	return entities, nil
 }`)
 }
-func TestGenerator_RepositoryFindOneByUniqueConstraint(t *testing.T) {
+func TestGenerator_RepositoryMethodPrivateFindOneByUniqueConstraint(t *testing.T) {
 	firstName := pqt.NewColumn("first_name", pqt.TypeText(), pqt.WithNotNull())
 	age := pqt.NewColumn("age", pqt.TypeIntegerBig(), pqt.WithNotNull())
 	lastName := pqt.NewColumn("last_name", pqt.TypeText(), pqt.WithNotNull())
@@ -298,7 +324,7 @@ func TestGenerator_RepositoryFindOneByUniqueConstraint(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Reset()
 	g.Repository(t1)
-	g.RepositoryFindOneByUniqueConstraint(t1)
+	g.RepositoryMethodPrivateFindOneByUniqueConstraint(t1)
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
@@ -307,7 +333,7 @@ type T1RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T1RepositoryBase) FindOneByFirstNameAndLastName(ctx context.Context, t1FirstName string, t1LastName string) (*T1Entity, error) {
+func (r *T1RepositoryBase) findOneByFirstNameAndLastName(ctx context.Context, tx *sql.Tx, t1FirstName string, t1LastName string) (*T1Entity, error) {
 	find := NewComposer(4)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
@@ -335,7 +361,11 @@ func (r *T1RepositoryBase) FindOneByFirstNameAndLastName(ctx context.Context, t1
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if tx == nil {
+		err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	} else {
+		err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -343,7 +373,7 @@ func (r *T1RepositoryBase) FindOneByFirstNameAndLastName(ctx context.Context, t1
 	return &ent, nil
 }
 
-func (r *T1RepositoryBase) FindOneByFirstNameAndLastNameAndAgeWhereAgeIsGreaterThanZero(ctx context.Context, t1FirstName string, t1LastName string, t1Age int64) (*T1Entity, error) {
+func (r *T1RepositoryBase) findOneByFirstNameAndLastNameAndAgeWhereAgeIsGreaterThanZero(ctx context.Context, tx *sql.Tx, t1FirstName string, t1LastName string, t1Age int64) (*T1Entity, error) {
 	find := NewComposer(4)
 	find.WriteString("SELECT ")
 	if len(r.Columns) == 0 {
@@ -376,11 +406,54 @@ func (r *T1RepositoryBase) FindOneByFirstNameAndLastNameAndAgeWhereAgeIsGreaterT
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	if tx == nil {
+		err = r.DB.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	} else {
+		err = tx.QueryRowContext(ctx, find.String(), find.Args()...).Scan(props...)
+	}
 	if err != nil {
 		return nil, err
 	}
 
 	return &ent, nil
+}`)
+}
+
+func TestGenerator_RepositoryMethodFindOneByUniqueConstraint(t *testing.T) {
+	t1 := pqt.NewTable("t1").AddColumn(pqt.NewColumn("id", pqt.TypeInteger(), pqt.WithUnique()))
+	g := &gogen.Generator{}
+	g.Repository(t1)
+	g.RepositoryMethodFindOneByUniqueConstraint(t1)
+	testutil.AssertOutput(t, g.Printer, `
+type T1RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T1RepositoryBase) FindOneByID(ctx context.Context, t1ID int32) (*T1Entity, error) {
+	return r.findOneByID(ctx, nil, t1ID)
+}`)
+
+	g.Reset()
+	c1 := pqt.NewColumn("X", pqt.TypeInteger())
+	c2 := pqt.NewColumn("Y", pqt.TypeInteger())
+	t2 := pqt.NewTable("t2").
+		AddColumn(c1).
+		AddColumn(c2).
+		AddUnique(c1, c2)
+	g.Repository(t2)
+	g.RepositoryMethodFindOneByUniqueConstraint(t2)
+	testutil.AssertOutput(t, g.Printer, `
+type T2RepositoryBase struct {
+	Table   string
+	Columns []string
+	DB      *sql.DB
+	Log     LogFunc
+}
+
+func (r *T2RepositoryBase) FindOneByXAndY(ctx context.Context, t2X int32, t2Y int32) (*T2Entity, error) {
+	return r.findOneByXAndY(ctx, nil, t2X, t2Y)
 }`)
 }

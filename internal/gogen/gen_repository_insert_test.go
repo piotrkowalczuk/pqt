@@ -8,13 +8,13 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
-func TestGenerator_RepositoryInsert(t *testing.T) {
+func TestGenerator_RepositoryInsertPrivate(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").AddRelationship(pqt.ManyToOne(t1)).AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey()))
 
 	g := &gogen.Generator{}
 	g.Repository(t2)
-	g.RepositoryInsert(t2)
+	g.RepositoryMethodPrivateInsert(t2)
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
@@ -23,16 +23,27 @@ type T2RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T2RepositoryBase) Insert(ctx context.Context, e *T2Entity) (*T2Entity, error) {
+func (r *T2RepositoryBase) insert(ctx context.Context, tx *sql.Tx, e *T2Entity) (*T2Entity, error) {
 	query, args, err := r.InsertQuery(e, true)
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+
+	var row *sql.Row
+	if tx == nil {
+		row = r.DB.QueryRowContext(ctx, query, args...)
+	} else {
+		row = tx.QueryRowContext(ctx, query, args...)
+	}
+	err = row.Scan(
 		&e.ID,
 	)
 	if r.Log != nil {
-		r.Log(err, TableT2, "insert", query, args...)
+		if tx == nil {
+			r.Log(err, TableT2, "insert", query, args...)
+		} else {
+			r.Log(err, TableT2, "insert tx", query, args...)
+		}
 	}
 	if err != nil {
 		return nil, err
@@ -69,7 +80,7 @@ func TestGenerator_RepositoryInsertQuery(t *testing.T) {
 
 	g := &gogen.Generator{}
 	g.Repository(t2) // Is here so output can be properly formatted
-	g.RepositoryInsertQuery(t2)
+	g.RepositoryMethodInsertQuery(t2)
 
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {

@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"go/format"
+	"reflect"
 	"testing"
 	"time"
 
@@ -742,28 +743,163 @@ func ScanT2Rows(rows Rows) (entities []*T2Entity, err error) {
 }`)
 }
 
-func TestGenerator_Funcs(t *testing.T) {
-	g := &gogen.Generator{}
-	g.Funcs()
-	_, err := format.Source(g.Bytes())
-	if err != nil {
-		t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), g.String())
+func TestGenerator_withNoArgument(t *testing.T) {
+	cases := []string{
+		"Errors",
+		"Funcs",
+		"Interfaces",
+		"Statics",
+		"RunInTransaction",
+		"JoinClause",
 	}
-}
-func TestGenerator_Interfaces(t *testing.T) {
-	g := &gogen.Generator{}
-	g.Interfaces()
-	_, err := format.Source(g.Bytes())
-	if err != nil {
-		t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), g.String())
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			defer func() {
+				if val := recover(); val != nil {
+					t.Error(val)
+				}
+			}()
+			g := &gogen.Generator{}
+			_ = reflect.ValueOf(g).MethodByName(c).Call(nil)
+			assertSourceFormatting(t, g, true)
+		})
 	}
 }
 
-func TestGenerator_Statics(t *testing.T) {
-	g := &gogen.Generator{}
-	g.Statics(pqt.NewSchema("example"))
-	_, err := format.Source(g.Bytes())
-	if err != nil {
-		t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), g.String())
+func TestGenerator_withTableName(t *testing.T) {
+	cases := []string{
+		"Operand",
+		"RepositoryMethodTx",
+		"RepositoryMethodBeginTx",
+		"RepositoryMethodRunInTransaction",
+		"RepositoryMethodCount",
+		"RepositoryTxMethodCount",
+		"RepositoryMethodFindIter",
+		"RepositoryTxMethodFindIter",
+		"RepositoryMethodFind",
+		"RepositoryTxMethodFind",
+		"RepositoryMethodInsert",
+		"RepositoryTxMethodInsert",
+		"RepositoryTx",
+		"RepositoryTxMethodCommitMethod",
+		"RepositoryTxMethodRollbackMethod",
+		"RepositoryMethodUpsert",
+		"RepositoryTxMethodUpsert",
+	}
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			defer func() {
+				if val := recover(); val != nil {
+					t.Error(val)
+				}
+			}()
+			g := &gogen.Generator{}
+			_ = reflect.ValueOf(g).MethodByName(c).Call([]reflect.Value{
+				reflect.ValueOf(pqt.NewTable("example")),
+			})
+			assertSourceFormatting(t, g, true)
+		})
+	}
+}
+
+func TestGenerator_withPrimaryKey(t *testing.T) {
+	cases := []string{
+		"RepositoryMethodDeleteOneByPrimaryKey",
+		"RepositoryTxMethodDeleteOneByPrimaryKey",
+		"RepositoryMethodPrivateDeleteOneByPrimaryKey",
+		"RepositoryMethodUpdateOneByPrimaryKey",
+		"RepositoryTxMethodUpdateOneByPrimaryKey",
+		"RepositoryMethodFindOneByPrimaryKey",
+		"RepositoryTxMethodFindOneByPrimaryKey",
+		"RepositoryMethodPrivateUpdateOneByPrimaryKey",
+		"RepositoryMethodFindOneByPrimaryKeyAndUpdate",
+	}
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			defer func() {
+				if val := recover(); val != nil {
+					t.Error(val)
+				}
+			}()
+
+			g := &gogen.Generator{}
+
+			t1 := pqt.NewTable("example").AddColumn(pqt.NewColumn("id", pqt.TypeSerial(), pqt.WithPrimaryKey()))
+			_ = reflect.ValueOf(g).MethodByName(c).Call([]reflect.Value{
+				reflect.ValueOf(t1),
+			})
+			assertSourceFormatting(t, g, true)
+			g.Reset()
+
+			t2 := pqt.NewTable("example").AddColumn(pqt.NewColumn("id", pqt.TypeSerial()))
+			_ = reflect.ValueOf(g).MethodByName(c).Call([]reflect.Value{
+				reflect.ValueOf(t2),
+			})
+			assertSourceFormatting(t, g, false)
+		})
+	}
+}
+
+func TestGenerator_withUniqueConstraint(t *testing.T) {
+	cases := []string{
+		"RepositoryMethodFindOneByUniqueConstraint",
+		"RepositoryTxMethodFindOneByUniqueConstraint",
+		"RepositoryMethodUpdateOneByUniqueConstraint",
+		"RepositoryTxMethodUpdateOneByUniqueConstraint",
+	}
+
+	for _, c := range cases {
+		t.Run(c, func(t *testing.T) {
+			defer func() {
+				if val := recover(); val != nil {
+					t.Error(val)
+				}
+			}()
+
+			g := &gogen.Generator{}
+
+			t1 := pqt.NewTable("example").
+				AddColumn(pqt.NewColumn("id", pqt.TypeInteger(), pqt.WithUnique()))
+			_ = reflect.ValueOf(g).MethodByName(c).Call([]reflect.Value{
+				reflect.ValueOf(t1),
+			})
+			assertSourceFormatting(t, g, true)
+			g.Reset()
+
+			c1 := pqt.NewColumn("X", pqt.TypeInteger())
+			c2 := pqt.NewColumn("Y", pqt.TypeInteger())
+			c3 := pqt.NewColumn("W", pqt.TypeInteger())
+			t2 := pqt.NewTable("t2").
+				AddColumn(c1).
+				AddColumn(c2).
+				AddColumn(c3).
+				AddUnique(c1, c2).
+				AddUniqueIndex("XGreaterThanY", "x>y", c2, c3)
+			_ = reflect.ValueOf(g).MethodByName(c).Call([]reflect.Value{
+				reflect.ValueOf(t2),
+			})
+			assertSourceFormatting(t, g, true)
+		})
+	}
+}
+
+func assertSourceFormatting(t *testing.T, g *gogen.Generator, cantBeEmpty bool) {
+	t.Helper()
+
+	if cantBeEmpty {
+		buf, err := format.Source(g.Bytes())
+		if err != nil {
+			t.Fatalf("unexpected printer formatting error: %s\n\n%s", err.Error(), g.String())
+		}
+		if len(buf) == 0 {
+			t.Fatal("no single byte written")
+		}
+	} else {
+		if len(g.Bytes()) != 0 {
+			t.Fatalf("empty result expected, got %s:\n", string(g.Bytes()))
+		}
 	}
 }

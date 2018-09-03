@@ -5,7 +5,39 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtfmt"
 )
 
-func (g *Generator) RepositoryUpsert(t *pqt.Table) {
+func (g *Generator) RepositoryMethodUpsert(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {
+			return r.%s(ctx, nil, e, p, inf...)
+		}`,
+		entityName,
+		pqtfmt.Public("upsert"),
+		entityName,
+		entityName,
+		entityName,
+		pqtfmt.Private("upsert"),
+	)
+}
+
+func (g *Generator) RepositoryTxMethodUpsert(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBaseTx) %s(ctx context.Context, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {
+			return r.base.%s(ctx, r.tx, e, p, inf...)
+		}`,
+		entityName,
+		pqtfmt.Public("upsert"),
+		entityName,
+		entityName,
+		entityName,
+		pqtfmt.Private("upsert"),
+	)
+}
+
+func (g *Generator) RepositoryMethodPrivateUpsert(t *pqt.Table) {
 	if g.Version < 9.5 {
 		return
 	}
@@ -13,9 +45,9 @@ func (g *Generator) RepositoryUpsert(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
-		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`,
+		func (r *%sRepositoryBase) %s(ctx context.Context, tx *sql.Tx, e *%sEntity, p *%sPatch, inf ...string) (*%sEntity, error) {`,
 		entityName,
-		pqtfmt.Public("upsert"),
+		pqtfmt.Private("upsert"),
 		entityName,
 		entityName,
 		entityName,
@@ -25,7 +57,14 @@ func (g *Generator) RepositoryUpsert(t *pqt.Table) {
 			if err != nil {
 				return nil, err
 			}
-			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
+
+			var row *sql.Row
+			if tx == nil {
+				row = r.%s.QueryRowContext(ctx, query, args...)
+			} else {
+				row = tx.QueryRowContext(ctx, query, args...)
+			}
+			err = row.Scan(`,
 		pqtfmt.Public("upsert"),
 		pqtfmt.Public("db"),
 	)
@@ -37,7 +76,11 @@ func (g *Generator) RepositoryUpsert(t *pqt.Table) {
 	g.Printf(`
 	)
 		if r.%s != nil {
-			r.%s(err, Table%s, "upsert", query, args...)
+			if tx == nil {
+				r.%s(err, Table%s, "upsert", query, args...)
+			} else {
+				r.%s(err, Table%s, "upsert tx", query, args...)
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -47,10 +90,12 @@ func (g *Generator) RepositoryUpsert(t *pqt.Table) {
 		pqtfmt.Public("log"),
 		pqtfmt.Public("log"),
 		entityName,
+		pqtfmt.Public("log"),
+		entityName,
 	)
 }
 
-func (g *Generator) RepositoryUpsertQuery(t *pqt.Table) {
+func (g *Generator) RepositoryMethodUpsertQuery(t *pqt.Table) {
 	if g.Version < 9.5 {
 		return
 	}
