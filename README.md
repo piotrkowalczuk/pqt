@@ -40,20 +40,4 @@ $ make run
 
 ## Contribution
 
-Very welcome in general. Especially in fields like:
-
-## TODO
-
-* [x] Change `<entity-name>FindExpr.OrderBy` to slice.
-* [ ] Postgres types better support.
-* [x] Support for functions.
-* [x] Selective go/sql generation.
-* [x] Logical operations (`AND`, `OR`)
-* [ ] Refactor `WithXXX` functions to be prefixed by the type they return for example `TableWithIfNotExists` or `ColumnWithNotNull`.
-* [ ] Constraint.
-    * [x] Index
-    * [x] Unique
-    * [x] Primary Key
-    * [x] Foreign Key
-    * [x] Check
-    * [ ] Exclusion
+TODO
