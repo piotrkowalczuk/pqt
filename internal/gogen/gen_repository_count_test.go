@@ -8,7 +8,7 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
-func TestGenerator_RepositoryCount(t *testing.T) {
+func TestGenerator_RepositoryMethodPrivateCount(t *testing.T) {
 	t1 := pqt.NewTable("t1").
 		AddColumn(pqt.NewColumn("id", pqt.TypeSerialBig(), pqt.WithPrimaryKey())).
 		AddColumn(pqt.NewColumn("age", pqt.TypeInteger()))
@@ -16,7 +16,7 @@ func TestGenerator_RepositoryCount(t *testing.T) {
 	g := &gogen.Generator{}
 	g.Reset()
 	g.Repository(t1)
-	g.RepositoryCount(t1)
+	g.RepositoryMethodPrivateCount(t1)
 	testutil.AssertOutput(t, g.Printer, `
 type T1RepositoryBase struct {
 	Table   string
@@ -25,18 +25,26 @@ type T1RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T1RepositoryBase) Count(ctx context.Context, c *T1CountExpr) (int64, error) {
+func (r *T1RepositoryBase) count(ctx context.Context, tx *sql.Tx, exp *T1CountExpr) (int64, error) {
 	query, args, err := r.FindQuery(&T1FindExpr{
-		Where:   c.Where,
+		Where:   exp.Where,
 		Columns: []string{"COUNT(*)"},
 	})
 	if err != nil {
 		return 0, err
 	}
 	var count int64
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
+	if tx == nil {
+		err = r.DB.QueryRowContext(ctx, query, args...).Scan(&count)
+	} else {
+		err = tx.QueryRowContext(ctx, query, args...).Scan(&count)
+	}
 	if r.Log != nil {
-		r.Log(err, TableT1, "count", query, args...)
+		if tx == nil {
+			r.Log(err, TableT1, "count", query, args...)
+		} else {
+			r.Log(err, TableT1, "count tx", query, args...)
+		}
 	}
 	if err != nil {
 		return 0, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -104,7 +105,6 @@ func TestNewsRepositoryBase_Insert(t *testing.T) {
 			defer cancel()
 
 			got, err := s.news.Insert(ctx, &given.entity)
-
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err.Error())
 			}
@@ -755,4 +755,118 @@ func TestNewsRepositoryBase_UpsertQuery(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewsRepositoryBaseTx_Insert(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	defer cancel()
+	tx, err := s.news.BeginTx(ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+
+	var ids []int64
+	for hint, given := range testNewsInsertData {
+		t.Run(hint, func(t *testing.T) {
+			stmtCtx, stmtCancel := context.WithTimeout(ctx, 5*time.Second)
+			defer stmtCancel()
+			ent, err := tx.Insert(stmtCtx, &given.entity)
+			if err != nil {
+				if txErr := tx.Rollback(); txErr != nil {
+					t.Errorf("rollback unexpected error: %s", txErr)
+				}
+				t.Fatalf("unexpected error: %s", err.Error())
+			}
+			ids = append(ids, ent.ID)
+		})
+	}
+	if err := tx.Commit(); err != nil {
+		t.Fatalf("unexpected error: %s", err.Error())
+	}
+
+	for _, id := range ids {
+		if _, err := s.news.FindOneByID(ctx, id); err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		} else {
+			t.Logf("news with id %d found", id)
+		}
+	}
+}
+func TestNewsRepositoryBase_RunInTransaction(t *testing.T) {
+	s := setup(t)
+	defer s.teardown(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Second)
+	defer cancel()
+
+	var (
+		ids     []int64
+		success bool
+	)
+	err := s.news.RunInTransaction(ctx, func(rtx *model.NewsRepositoryBaseTx) error {
+		if !success {
+			success = true
+			return model.RetryTransaction
+		}
+
+		for _, given := range testNewsInsertData {
+			ent, err := rtx.Insert(context.TODO(), &given.entity)
+			if err != nil {
+				return err
+			}
+			ids = append(ids, ent.ID)
+		}
+		return nil
+	}, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range ids {
+		if _, err := s.news.FindOneByID(ctx, id); err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		} else {
+			t.Logf("news with id %d found", id)
+		}
+	}
+
+	err = s.news.RunInTransaction(ctx, func(rtx *model.NewsRepositoryBaseTx) error {
+		for _, id := range ids {
+			_, err := rtx.UpdateOneByID(context.TODO(), id, &model.NewsPatch{
+				Title: sql.NullString{
+					String: "updated",
+					Valid:  true,
+				}})
+			if err != nil {
+				return err
+			}
+			return io.EOF
+		}
+		return nil
+	}, 2)
+	if err != nil && err != io.EOF {
+		t.Fatal(err)
+	}
+	for _, id := range ids {
+		got, err := s.news.FindOneByID(ctx, id)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err.Error())
+		}
+		if got.Title == "updated" {
+			t.Errorf("entity %d should have title untouched", id)
+		}
+	}
+
+	defer func() {
+		if rec := recover(); rec == nil {
+			t.Error("panic expected, got nil")
+		}
+	}()
+
+	err = s.news.RunInTransaction(ctx, func(rtx *model.NewsRepositoryBaseTx) error {
+		panic("should not happen")
+		return nil
+	}, 2)
 }

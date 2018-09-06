@@ -1,55 +1,35 @@
 # pqt [![GoDoc](https://godoc.org/github.com/piotrkowalczuk/pqt?status.svg)](http://godoc.org/github.com/piotrkowalczuk/pqt)&nbsp;[![Build Status](https://travis-ci.org/piotrkowalczuk/pqt.svg?branch=master)](https://travis-ci.org/piotrkowalczuk/pqt)&nbsp;[![codecov.io](https://codecov.io/github/piotrkowalczuk/pqt/coverage.svg?branch=master)](https://codecov.io/github/piotrkowalczuk/pqt?branch=master)
 
-This package is a toolbox for postgres driven applications.
-It provides multiple tools to help to work with postgres efficiently.
-In comparison to other currently available libraries instead of pushing struct tags into anti pattern or parsing SQL, it allows to define schema programmatically.
-
-## Features:
-
-- __query builder__:
-	- `Composer` - builder like object that keeps buffer and arguments but also tracks positional parameters.
-- __json support__
-	- `JSONArrayInt64` - wrapper for []int64, it generates JSONB compatible array `[]` instead of `{}`
-	- `JSONArrayFloat64` - wrapper for []float64, it generates JSONB compatible array `[]` instead of `{}`
-	- `JSONArrayString` - wrapper for []string, it generates JSONB compatible array `[]` instead of `{}`
-- __sql generation__
-- __go generation__ - it includes:
-	- `<table-name>Entity` - struct that reflects single row within the database
-	- `<table-name>Criteria` - object that can be passed to the `Find` method, it allows to create complex queries
-		- `<table-name>Or` - utility function that joins `Criteria` using logical `OR` operator
-		- `<table-name>And` - utility function that joins `Criteria` using logical `AND` operator
-	- `<table-name>Patch` - structure used by `UpdateOneBy<primary-key>` methods to modify existing entity
-	- `<table-name>Iterator` - interface used by `FindIter` methods as a result, implementation is `<table-name>Rows` - it wraps `sql.Rows`
-	- `constants`:
-		- `complete names`
-		- `column names`
-		- `constraints` - library generates exact names of each constraint and corresponding constant that allow to easily handle query errors using `ErrorConstraint` helper function
-	- `<table-name>Repository` - data access layer that expose API to manipulate entities:
-		- `Count` - returns number of entities for given entity
-		- `Find` - returns collection of entities that match given entity
-		- `FindIter` - works like `Find` but returns `iterator`
-		- `Insert` - saves given entity into the database
-		- `FindOneBy<primary-key>` - retrieves single entity, search by primary key
-		- `FindOneBy<unique-key>` - retrieves single entity, search by unique key
-		- `UpdateOneBy<primary-key>` - modifies single entity, search by primary key
-		- `UpdateOneBy<unique-key>` - modifies single entity, search by unique key
-		- `DeleteOneBy<primary-key>` - deletes single entity, search by primary key
-	- `Scan<Entity>Rows` - helper function that scans `*sql.Rows` into `[]*<table-name>Entity`
-- __schema definition__ - allow to programmatically define database schema, that includes:
-	- `schemas`
-	- `tables`
-	- `columns`
-	- `constraints`
-	- `relationships`
-- __helper functions__
-    - `ErrorConstraint` - if possible extracts constraint from [pq.Error](https://godoc.org/github.com/lib/pq#Error) so it's easy to build switch statements using generated constraints.
+This package is a toolbox for Postgres driven applications.
+It provides multiple tools to help to work with Postgres efficiently.
+In comparison to other currently available libraries instead of pushing struct tags into anti-pattern or parsing SQL, it allows defining schema programmatically.
 
 ## Documentation
 
-* [wiki](https://github.com/piotrkowalczuk/pqt/wiki)
-* godoc [pqt](http://godoc.org/github.com/piotrkowalczuk/pqt)
-* godoc [pqtgo](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo)
-* godoc [pqtsql](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtsql)
+* wiki
+    * [Features](https://github.com/piotrkowalczuk/pqt/wiki/Features)
+    * [Entities](https://github.com/piotrkowalczuk/pqt/wiki/Entities)
+    * [Types](https://github.com/piotrkowalczuk/pqt/wiki/Types)
+    * [Repositories](https://github.com/piotrkowalczuk/pqt/wiki/Repositories)
+    * [Error Handling](https://github.com/piotrkowalczuk/pqt/wiki/Error-Handling)
+* godoc 
+    * [pqt](http://godoc.org/github.com/piotrkowalczuk/pqt)
+    * [pqtgo](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtgo)
+    * [pqtsql](http://godoc.org/github.com/piotrkowalczuk/pqt/pqtsql)
+
+## Example
+
+The package itself does not provide any command line application that would generate output out of given input. 
+Instead, it encourages to write local generation application next to the proper package. 
+A good example of how such an application could be structured can be found in [examples](https://github.com/piotrkowalczuk/pqt/tree/master/example).
+
+By default, the example is trying to connect to local `test` database on the default port.
+To run it simply call:
+
+```bash
+$ make gen // not necessary, since generated code is already part of the repo
+$ make run
+```
 
 ## Plugins 
 
@@ -57,20 +37,6 @@ In comparison to other currently available libraries instead of pushing struct t
 
 * [ntypespqt](github.com/piotrkowalczuk/ntypes)
 * [qtypespqt](github.com/piotrkowalczuk/qtypes)
-
-## Example
-
-Package itself do not provide any command line application that would generate output out of given input.
-Instead it encourage to write local generation application next to the proper package.
-Good example how such application could be structured can be found in [examples](https://github.com/piotrkowalczuk/pqt/tree/master/example).
-
-By default example is trying to connect to local `test` database on default port.
-To run it simply call:
-
-```bash
-$ make gen // not necessary, since generated code is already part of the repo
-$ make run
-```
 
 ## Contribution
 

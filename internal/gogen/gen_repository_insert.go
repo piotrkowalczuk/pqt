@@ -5,17 +5,48 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtfmt"
 )
 
-func (g *Generator) RepositoryInsert(t *pqt.Table) {
+func (g *Generator) RepositoryMethodInsert(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`
 		func (r *%sRepositoryBase) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, pqtfmt.Public("insert"), entityName, entityName)
 	g.Printf(`
+			return r.%s(ctx, nil, e)
+		}`,
+		pqtfmt.Private("insert"),
+	)
+}
+
+func (g *Generator) RepositoryTxMethodInsert(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBaseTx) %s(ctx context.Context, e *%sEntity) (*%sEntity, error) {`, entityName, pqtfmt.Public("insert"), entityName, entityName)
+	g.Printf(`
+			return r.base.%s(ctx, r.tx, e)
+		}`,
+		pqtfmt.Private("insert"),
+	)
+}
+
+func (g *Generator) RepositoryMethodPrivateInsert(t *pqt.Table) {
+	entityName := pqtfmt.Public(t.Name)
+
+	g.Printf(`
+		func (r *%sRepositoryBase) %s(ctx context.Context, tx *sql.Tx, e *%sEntity) (*%sEntity, error) {`, entityName, pqtfmt.Private("insert"), entityName, entityName)
+	g.Printf(`
 			query, args, err := r.%sQuery(e, true)
 			if err != nil {
 				return nil, err
 			}
-			err = r.%s.QueryRowContext(ctx, query, args...).Scan(`,
+
+			var row *sql.Row
+			if tx == nil {
+				row = r.%s.QueryRowContext(ctx, query, args...)
+			} else {
+				row = tx.QueryRowContext(ctx, query, args...)
+			}
+			err = row.Scan(`,
 		pqtfmt.Public("insert"),
 		pqtfmt.Public("db"),
 	)
@@ -27,7 +58,11 @@ func (g *Generator) RepositoryInsert(t *pqt.Table) {
 	g.Printf(`
 )
 		if r.%s != nil {
-			r.%s(err, Table%s, "insert", query, args...)
+			if tx == nil {
+				r.%s(err, Table%s, "insert", query, args...)
+			} else {
+				r.%s(err, Table%s, "insert tx", query, args...)
+			}
 		}
 		if err != nil {
 			return nil, err
@@ -37,10 +72,12 @@ func (g *Generator) RepositoryInsert(t *pqt.Table) {
 		pqtfmt.Public("log"),
 		pqtfmt.Public("log"),
 		entityName,
+		pqtfmt.Public("log"),
+		entityName,
 	)
 }
 
-func (g *Generator) RepositoryInsertQuery(t *pqt.Table) {
+func (g *Generator) RepositoryMethodInsertQuery(t *pqt.Table) {
 	entityName := pqtfmt.Public(t.Name)
 
 	g.Printf(`

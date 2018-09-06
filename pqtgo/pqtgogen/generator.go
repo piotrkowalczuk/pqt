@@ -89,6 +89,10 @@ func (g *Generator) generate(s *pqt.Schema) error {
 	if g.Components&ComponentRepository != 0 {
 		g.g.Funcs()
 		g.g.NewLine()
+		g.g.Errors()
+		g.g.NewLine()
+		g.g.RunInTransaction()
+		g.g.NewLine()
 	}
 	if g.Components&ComponentFind != 0 || g.Components&ComponentCount != 0 || g.Components&ComponentHelpers != 0 {
 		g.g.Interfaces()
@@ -136,56 +140,119 @@ func (g *Generator) generate(s *pqt.Schema) error {
 		if g.Components&ComponentRepository != 0 {
 			g.g.Repository(t)
 			g.g.NewLine()
+			g.g.RepositoryMethodTx(t)
+			g.g.NewLine()
+			g.g.RepositoryMethodBeginTx(t)
+			g.g.NewLine()
+			g.g.RepositoryMethodRunInTransaction(t)
+			g.g.NewLine()
 
 			if g.Components&ComponentInsert != 0 {
-				g.g.RepositoryInsertQuery(t)
+				g.g.RepositoryMethodInsertQuery(t)
 				g.g.NewLine()
-				g.g.RepositoryInsert(t)
+				g.g.RepositoryMethodPrivateInsert(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodInsert(t)
 				g.g.NewLine()
 			}
 			if g.Components&ComponentFind != 0 {
 				g.g.WhereClause(t)
 				g.g.NewLine()
-				g.g.RepositoryFindQuery(t)
+				g.g.RepositoryMethodFindQuery(t)
 				g.g.NewLine()
-				g.g.RepositoryFind(t)
+				g.g.RepositoryMethodPrivateFind(t)
 				g.g.NewLine()
-				g.g.RepositoryFindIter(t)
+				g.g.RepositoryMethodFind(t)
 				g.g.NewLine()
-				g.g.RepositoryFindOneByPrimaryKey(t)
+				g.g.RepositoryMethodPrivateFindIter(t)
 				g.g.NewLine()
-				g.g.RepositoryFindOneByUniqueConstraint(t)
+				g.g.RepositoryMethodFindIter(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodPrivateFindOneByPrimaryKey(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodFindOneByPrimaryKey(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodPrivateFindOneByUniqueConstraint(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodFindOneByUniqueConstraint(t)
 				g.g.NewLine()
 			}
 			if g.Components&ComponentUpdate != 0 {
-				g.g.RepositoryUpdateOneByPrimaryKeyQuery(t)
+				g.g.RepositoryMethodUpdateOneByPrimaryKeyQuery(t)
 				g.g.NewLine()
-				g.g.RepositoryUpdateOneByPrimaryKey(t)
+				g.g.RepositoryMethodPrivateUpdateOneByPrimaryKey(t)
 				g.g.NewLine()
-				g.g.RepositoryFindOneByPrimaryKeyAndUpdate(t)
+				g.g.RepositoryMethodUpdateOneByPrimaryKey(t)
 				g.g.NewLine()
-				g.g.RepositoryUpdateOneByUniqueConstraintQuery(t)
+				g.g.RepositoryMethodFindOneByPrimaryKeyAndUpdate(t)
 				g.g.NewLine()
-				g.g.RepositoryUpdateOneByUniqueConstraint(t)
+				g.g.RepositoryMethodUpdateOneByUniqueConstraintQuery(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodPrivateUpdateOneByUniqueConstraint(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodUpdateOneByUniqueConstraint(t)
 				g.g.NewLine()
 			}
 			if g.Components&ComponentUpsert != 0 {
-				g.g.RepositoryUpsertQuery(t)
+				g.g.RepositoryMethodUpsertQuery(t)
 				g.g.NewLine()
-				g.g.RepositoryUpsert(t)
+				g.g.RepositoryMethodPrivateUpsert(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodUpsert(t)
 				g.g.NewLine()
 			}
 			if g.Components&ComponentCount != 0 {
-				g.g.RepositoryCount(t)
+				g.g.RepositoryMethodPrivateCount(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodCount(t)
 				g.g.NewLine()
 			}
 			if g.Components&ComponentDelete != 0 {
-				g.g.RepositoryDeleteOneByPrimaryKey(t)
+				g.g.RepositoryMethodPrivateDeleteOneByPrimaryKey(t)
+				g.g.NewLine()
+				g.g.RepositoryMethodDeleteOneByPrimaryKey(t)
+				g.g.NewLine()
+			}
+			g.g.RepositoryTx(t)
+			g.g.NewLine()
+			g.g.RepositoryTxMethodCommitMethod(t)
+			g.g.NewLine()
+			g.g.RepositoryTxMethodRollbackMethod(t)
+			g.g.NewLine()
+			if g.Components&ComponentInsert != 0 {
+				g.g.RepositoryTxMethodInsert(t)
+				g.g.NewLine()
+			}
+			if g.Components&ComponentFind != 0 {
+				g.g.RepositoryTxMethodFind(t)
+				g.g.NewLine()
+				g.g.RepositoryTxMethodFindIter(t)
+				g.g.NewLine()
+				g.g.RepositoryTxMethodFindOneByPrimaryKey(t)
+				g.g.NewLine()
+			}
+			if g.Components&ComponentUpdate != 0 {
+				g.g.RepositoryTxMethodUpdateOneByPrimaryKey(t)
+				g.g.NewLine()
+				g.g.RepositoryTxMethodUpdateOneByUniqueConstraint(t)
+				g.g.NewLine()
+			}
+			if g.Components&ComponentUpsert != 0 {
+				g.g.RepositoryTxMethodUpsert(t)
+				g.g.NewLine()
+			}
+			if g.Components&ComponentCount != 0 {
+				g.g.RepositoryTxMethodCount(t)
+				g.g.NewLine()
+			}
+			if g.Components&ComponentDelete != 0 {
+				g.g.RepositoryTxMethodDeleteOneByPrimaryKey(t)
 				g.g.NewLine()
 			}
 		}
 	}
-	g.g.Statics(s)
+	g.g.Statics()
+	g.g.PluginsStatics(s)
 	g.g.NewLine()
 
 	return g.p.Err

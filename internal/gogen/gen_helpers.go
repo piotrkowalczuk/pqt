@@ -11,6 +11,40 @@ import (
 	"github.com/piotrkowalczuk/pqt/pqtgo"
 )
 
+func (g *Generator) RunInTransaction() {
+	g.Printf(`
+func RunInTransaction(db *sql.DB, ctx context.Context, f func(tx *sql.Tx) error, attempts int) (err error) {
+	for n := 0; n < attempts; n++ {
+		if err = func () error {
+			tx, err := db.BeginTx(ctx, nil)
+			if err != nil {
+				return err
+			}
+
+			defer func() {
+				if p := recover(); p != nil {
+					_ = tx.Rollback()
+					panic(p)
+				} else if err != nil {
+					_ = tx.Rollback()
+				}
+			}()
+
+			if err = f(tx); err != nil {
+				_ = tx.Rollback()
+				return err
+			}
+
+			return tx.Commit()
+		}(); err == RetryTransaction {
+			continue
+		}
+		return err
+	}
+	return err
+}`)
+}
+
 func (g *Generator) isArray(c *pqt.Column, m int32) bool {
 	if strings.HasPrefix(g.columnType(c, m), "[]") {
 		return true

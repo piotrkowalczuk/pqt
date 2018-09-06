@@ -72,6 +72,12 @@ type %sCriteria struct {`, tableName)
 }`, tableName)
 }
 
+func (g *Generator) Errors() {
+	g.Printf(`
+// RetryTransaction can be returned by user defined function when a transaction is rolled back and logic repeated.
+var RetryTransaction = errors.New("retry transaction")`)
+}
+
 func (g *Generator) Operand(t *pqt.Table) {
 	tableName := pqtfmt.Public(t.Name)
 
@@ -159,22 +165,6 @@ const (`)
 	}
 	g.Printf(`
 )`)
-}
-
-func (g *Generator) Repository(t *pqt.Table) {
-	g.Printf(`
-type %sRepositoryBase struct {
-	%s string
-	%s []string
-	%s *sql.DB
-	%s LogFunc
-}`,
-		pqtfmt.Public(t.Name),
-		pqtfmt.Public("table"),
-		pqtfmt.Public("columns"),
-		pqtfmt.Public("db"),
-		pqtfmt.Public("log"),
-	)
 }
 
 func (g *Generator) FindExpr(t *pqt.Table) {
@@ -576,7 +566,7 @@ func (g *Generator) Interfaces() {
 	}`)
 }
 
-func (g *Generator) Statics(s *pqt.Schema) {
+func (g *Generator) Statics() {
 	g.Print(`
 const (
 	JoinInner = iota
@@ -828,8 +818,10 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 		return nil
 	}
 
-	var tmp []string
-	var srcs string
+	var (
+		tmp []string
+		srcs string
+	)
 
 	switch t := src.(type) {
 	case []byte:
@@ -1022,7 +1014,9 @@ func (c *Composer) Add(arg interface{}) {
 func (c *Composer) Args() []interface{} {
 	return c.args
 }`)
+}
 
+func (g *Generator) PluginsStatics(s *pqt.Schema) {
 	for _, plugin := range g.Plugins {
 		if txt := plugin.Static(s); txt != "" {
 			g.Print(txt)

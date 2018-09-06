@@ -8,7 +8,7 @@ import (
 	"github.com/piotrkowalczuk/pqt/internal/testutil"
 )
 
-func TestGenerator_RepositoryUpsert(t *testing.T) {
+func TestGenerator_RepositoryUpsertPrivate(t *testing.T) {
 	t1 := pqt.NewTable("t1")
 	t2 := pqt.NewTable("t2").
 		AddRelationship(pqt.ManyToOne(t1)).
@@ -17,7 +17,7 @@ func TestGenerator_RepositoryUpsert(t *testing.T) {
 
 	g := &gogen.Generator{Version: 9.4}
 	g.Repository(t2)
-	g.RepositoryUpsert(t2)
+	g.RepositoryMethodPrivateUpsert(t2)
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
@@ -28,7 +28,7 @@ type T2RepositoryBase struct {
 
 	g = &gogen.Generator{Version: 9.5}
 	g.Repository(t2)
-	g.RepositoryUpsert(t2)
+	g.RepositoryMethodPrivateUpsert(t2)
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
 	Table   string
@@ -37,17 +37,28 @@ type T2RepositoryBase struct {
 	Log     LogFunc
 }
 
-func (r *T2RepositoryBase) Upsert(ctx context.Context, e *T2Entity, p *T2Patch, inf ...string) (*T2Entity, error) {
+func (r *T2RepositoryBase) upsert(ctx context.Context, tx *sql.Tx, e *T2Entity, p *T2Patch, inf ...string) (*T2Entity, error) {
 	query, args, err := r.UpsertQuery(e, p, inf...)
 	if err != nil {
 		return nil, err
 	}
-	err = r.DB.QueryRowContext(ctx, query, args...).Scan(
+
+	var row *sql.Row
+	if tx == nil {
+		row = r.DB.QueryRowContext(ctx, query, args...)
+	} else {
+		row = tx.QueryRowContext(ctx, query, args...)
+	}
+	err = row.Scan(
 		&e.ID,
 		&e.Name,
 	)
 	if r.Log != nil {
-		r.Log(err, TableT2, "upsert", query, args...)
+		if tx == nil {
+			r.Log(err, TableT2, "upsert", query, args...)
+		} else {
+			r.Log(err, TableT2, "upsert tx", query, args...)
+		} 
 	}
 	if err != nil {
 		return nil, err
@@ -84,7 +95,7 @@ func TestGenerator_RepositoryUpsertQuery(t *testing.T) {
 
 	g := &gogen.Generator{Version: 9.4}
 	g.Repository(t2) // Is here so output can be properly formatted
-	g.RepositoryUpsertQuery(t2)
+	g.RepositoryMethodUpsertQuery(t2)
 
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {
@@ -95,7 +106,7 @@ type T2RepositoryBase struct {
 }`)
 	g = &gogen.Generator{Version: 9.5}
 	g.Repository(t2) // Is here so output can be properly formatted
-	g.RepositoryUpsertQuery(t2)
+	g.RepositoryMethodUpsertQuery(t2)
 
 	testutil.AssertOutput(t, g.Printer, `
 type T2RepositoryBase struct {

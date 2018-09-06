@@ -186,3 +186,7 @@ func (e *T2Entity) Props(cns ...string) ([]interface{}, error) {
 	return res, nil
 }`)
 }
+
+type scanClausePlugin struct{
+
+}
