@@ -6,7 +6,7 @@ In comparison to other currently available libraries instead of pushing struct t
 
 From a developer perspective, pqt is primarily a toolkit generator, not an ORM. 
 It means it is focusing on bringing low-level building blocks. 
-Generated DAL (Data Access Layer) is only a (desired) side effect, a proof that those components fit together well.
+[Generated DAL](https://github.com/piotrkowalczuk/pqt/wiki/Features#data-access-layer) (Data Access Layer) is only a (desired) side effect, a proof that those components fit together well.
 
 A developer gets full access to the internals. 
 Building your own, type-safe logic takes minutes. 
