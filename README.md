@@ -4,6 +4,15 @@ This package is a toolbox for Postgres driven applications.
 It provides multiple tools to help to work with Postgres efficiently.
 In comparison to other currently available libraries instead of pushing struct tags into anti-pattern or parsing SQL, it allows defining schema programmatically.
 
+From a developer perspective, pqt is primarily a toolkit generator, not an ORM. 
+It means it is focusing on bringing low-level building blocks. 
+Generated DAL (Data Access Layer) is only a (desired) side effect, a proof that those components fit together well.
+
+A developer gets full access to the internals. 
+Building your own, type-safe logic takes minutes. 
+As a result, transition in and out is easy. 
+No fear that you will be stuck with an ORM that doesn't meet your requirements anymore.
+
 ## Documentation
 
 * wiki
