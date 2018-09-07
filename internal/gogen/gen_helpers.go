@@ -13,7 +13,7 @@ import (
 
 func (g *Generator) RunInTransaction() {
 	g.Printf(`
-func RunInTransaction(db *sql.DB, ctx context.Context, f func(tx *sql.Tx) error, attempts int) (err error) {
+func RunInTransaction(ctx context.Context, db *sql.DB, f func(tx *sql.Tx) error, attempts int) (err error) {
 	for n := 0; n < attempts; n++ {
 		if err = func () error {
 			tx, err := db.BeginTx(ctx, nil)

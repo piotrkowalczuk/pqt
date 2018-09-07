@@ -91,7 +91,7 @@ import(
 // RetryTransaction can be returned by user defined function when a transaction is rolled back and logic repeated.
 var RetryTransaction = errors.New("retry transaction")
 
-func RunInTransaction(db *sql.DB, ctx context.Context, f func(tx *sql.Tx) error, attempts int) (err error) {
+func RunInTransaction(ctx context.Context, db *sql.DB, f func(tx *sql.Tx) error, attempts int) (err error) {
 	for n := 0; n < attempts; n++ {
 		if err = func () error {
 			tx, err := db.BeginTx(ctx, nil)
@@ -368,7 +368,7 @@ type UserRepositoryBase struct {
 }
 
 func (r UserRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *UserRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
@@ -1443,7 +1443,7 @@ type CommentRepositoryBase struct {
 }
 
 func (r CommentRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *CommentRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err

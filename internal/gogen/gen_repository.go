@@ -60,7 +60,7 @@ func (g *Generator) RepositoryMethodBeginTx(t *pqt.Table) {
 func (g *Generator) RepositoryMethodRunInTransaction(t *pqt.Table) {
 	g.Printf(`
 func (r %sRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *%sRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.%s, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.%s, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
