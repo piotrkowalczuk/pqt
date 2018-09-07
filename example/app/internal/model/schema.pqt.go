@@ -25,7 +25,7 @@ type LogFunc func(err error, ent, fnc, sql string, args ...interface{})
 // RetryTransaction can be returned by user defined function when a transaction is rolled back and logic repeated.
 var RetryTransaction = errors.New("retry transaction")
 
-func RunInTransaction(db *sql.DB, ctx context.Context, f func(tx *sql.Tx) error, attempts int) (err error) {
+func RunInTransaction(ctx context.Context, db *sql.DB, f func(tx *sql.Tx) error, attempts int) (err error) {
 	for n := 0; n < attempts; n++ {
 		if err = func() error {
 			tx, err := db.BeginTx(ctx, nil)
@@ -346,7 +346,7 @@ func (r *CategoryRepositoryBase) BeginTx(ctx context.Context) (*CategoryReposito
 }
 
 func (r CategoryRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *CategoryRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
@@ -1736,7 +1736,7 @@ func (r *PackageRepositoryBase) BeginTx(ctx context.Context) (*PackageRepository
 }
 
 func (r PackageRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *PackageRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
@@ -3115,7 +3115,7 @@ func (r *NewsRepositoryBase) BeginTx(ctx context.Context) (*NewsRepositoryBaseTx
 }
 
 func (r NewsRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *NewsRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
@@ -5851,7 +5851,7 @@ func (r *CommentRepositoryBase) BeginTx(ctx context.Context) (*CommentRepository
 }
 
 func (r CommentRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *CommentRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
@@ -7299,7 +7299,7 @@ func (r *CompleteRepositoryBase) BeginTx(ctx context.Context) (*CompleteReposito
 }
 
 func (r CompleteRepositoryBase) RunInTransaction(ctx context.Context, fn func(rtx *CompleteRepositoryBaseTx) error, attempts int) (err error) {
-	return RunInTransaction(r.DB, ctx, func(tx *sql.Tx) error {
+	return RunInTransaction(ctx, r.DB, func(tx *sql.Tx) error {
 		rtx, err := r.Tx(tx)
 		if err != nil {
 			return err
