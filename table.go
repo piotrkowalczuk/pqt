@@ -53,6 +53,15 @@ func (t *Table) FullName() string {
 	return t.Name
 }
 
+func (t *Table) AddVersionColumn() *Table {
+	t.addColumn(NewColumn("version", 
+		TypeIntegerBig(), 
+		WithNotNull(),
+		WithDefault(t.Name + ".version+1", EventUpdate),
+	)
+	return t
+}
+
 // AddColumn adds column to the table.
 func (t *Table) AddColumn(c *Column) *Table {
 	if c.Reference != nil {
