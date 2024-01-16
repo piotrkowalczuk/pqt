@@ -36,4 +36,4 @@ jobs:
       - name: Test
         run: go test -race -count=2 -coverprofile=cover.out -mod=readonly ./...
         env:
-          PQT_POSTGRES_ADDRESS: postgres://postgres:postgres@postgres:5432/postgres
+          PQT_POSTGRES_ADDRESS: postgres://postgres:postgres@localhost:5432/postgres
