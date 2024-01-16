@@ -567,7 +567,7 @@ func (g *Generator) Interfaces() {
 }
 
 func (g *Generator) Statics() {
-	g.Print(`
+	code := `
 const (
 	JoinInner = iota
 	JoinLeft
@@ -720,7 +720,7 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not ` + "\x25T" + `", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
@@ -797,7 +797,7 @@ func (a *JSONArrayString) Scan(src interface{}) error {
 	case []byte:
 		return json.Unmarshal(t, a)
 	default:
-		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not ` + "\x25T" + `", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 }
 
@@ -829,7 +829,7 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not ` + "\x25T" + `", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
 	}
 
 	l := len(srcs)
@@ -1013,7 +1013,9 @@ func (c *Composer) Add(arg interface{}) {
 // Args returns all arguments stored as a slice.
 func (c *Composer) Args() []interface{} {
 	return c.args
-}`)
+}`
+
+	g.Print(code)
 }
 
 func (g *Generator) PluginsStatics(s *pqt.Schema) {
