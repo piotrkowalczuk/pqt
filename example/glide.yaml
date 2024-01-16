@@ -1,6 +1,0 @@
-package: github.com/piotrkowalczuk/pqt/example
-ignore:
-- github.com/piotrkowalczuk/pqt
-import:
-- package: github.com/lib/pq
-  version: 4a82388ebc5138c8289fe9bc602cb0b3e32cd617

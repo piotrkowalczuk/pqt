@@ -176,7 +176,7 @@ func main() {
 
 	count, err = repo.news.Count(ctx, &model.NewsCountExpr{})
 	if err != nil {
-		if err != context.DeadlineExceeded {
+		if !errors.Is(err, context.DeadlineExceeded) {
 			log.Fatal(err)
 		}
 		log.Fatal("as expected, news count failed due to deadline")

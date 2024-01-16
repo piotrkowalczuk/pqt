@@ -567,7 +567,7 @@ func (g *Generator) Interfaces() {
 }
 
 func (g *Generator) Statics() {
-	g.Print(`
+	code := `
 const (
 	JoinInner = iota
 	JoinLeft
@@ -1013,7 +1013,9 @@ func (c *Composer) Add(arg interface{}) {
 // Args returns all arguments stored as a slice.
 func (c *Composer) Args() []interface{} {
 	return c.args
-}`)
+}`
+
+	g.Print(code)
 }
 
 func (g *Generator) PluginsStatics(s *pqt.Schema) {
