@@ -7,35 +7,26 @@ on:
   pull_request:
     branches: [ "master" ]
 jobs:
-  # Label of the container job
-  container-job:
-    # Containers must run in Linux based operating systems
+  dependencies:
     runs-on: ubuntu-latest
-    # Docker Hub image that `container-job` executes in
     container: node:10.18-jessie
-
-    # Service containers to run with `container-job`
     services:
-      # Label used to access the service container
       postgres:
-        # Docker Hub image
         image: postgres
-        # Provide the password for postgres
         env:
           POSTGRES_PASSWORD: postgres
-        # Set health checks to wait until postgres has started
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-  build:
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: setup
         uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
       - name: test
         run: go test -race -count=2 -v ./...
         env:
