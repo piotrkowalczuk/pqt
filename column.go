@@ -15,24 +15,56 @@ const (
 // Event ...
 type Event string
 
-// Column ...
+// Column describes database column.
 type Column struct {
-	Name, ShortName, Collate, Check                                      string
-	Default                                                              map[Event]string
-	NotNull, Unique, PrimaryKey, Index                                   bool
-	Type                                                                 Type
-	Table                                                                *Table
-	Reference                                                            *Column
-	ReferenceOptions                                                     []RelationshipOption
-	Match, OnDelete, OnUpdate                                            int32
-	NoInherit, DeferrableInitiallyDeferred, DeferrableInitiallyImmediate bool
-	// Dynamic
+	// Name is a column name.
+	Name string
+	// ShortName is a column short name. It is used in queries when column name is ambiguous.
+	ShortName string
+	// Collate is a collation for column.
+	// It allows to specify the collation order for character data.
+	Collate string
+	// Check is a check constraint.
+	// It allows to specify a predicate that must be satisfied by each row of the table.
+	Check string
+	// Default is a default value for column for given event.
+	// For example for insert event it will be used when no value is provided.
+	Default map[Event]string
+	// NotNull if true means that column cannot be null.
+	NotNull bool
+	// Unique if true means that column value must be unique.
+	Unique bool
+	// PrimaryKey if true means that column is a primary key.
+	PrimaryKey bool
+	// Index if true means that column is indexed.
+	Index bool
+	// Type is a column type.
+	Type Type
+	// Table is a table that column belongs to.
+	Table *Table
+	// Reference is a column that this column references.
+	Reference *Column
+	// ReferenceOptions are options for reference.
+	ReferenceOptions []RelationshipOption
+	// Match is a match option for foreign key constraint.
+	Match int32
+	// OnDelete is a ON DELETE clause that specifies the action to perform when a referenced row in the referenced table is being deleted.
+	OnDelete int32
+	// OnUpdate is a ON UPDATE clause that specifies the action to perform when a referenced column in the referenced table is being updated to a new value.
+	OnUpdate int32
+	// NoInherit if true means that column is not inherited by child tables.
+	NoInherit                    bool
+	DeferrableInitiallyDeferred  bool
+	DeferrableInitiallyImmediate bool
+	// IsDynamic if true means that column is not stored in database, but is dynamically created using function.
 	IsDynamic bool
-	Func      *Function
-	Columns   Columns
+	// Func is a function that is used to create dynamic column.
+	Func *Function
+	// Columns are columns that are used by dynamic column function.
+	Columns Columns
 }
 
-// NewColumn ...
+// NewColumn initializes new instance of Column.
 func NewColumn(n string, t Type, opts ...ColumnOption) *Column {
 	c := &Column{
 		Name: n,
@@ -46,7 +78,7 @@ func NewColumn(n string, t Type, opts ...ColumnOption) *Column {
 	return c
 }
 
-// NewDynamicColumn ...
+// NewDynamicColumn initializes new instance of Column that is created using function.
 func NewDynamicColumn(n string, f *Function, cs ...*Column) *Column {
 	return &Column{
 		IsDynamic: true,
