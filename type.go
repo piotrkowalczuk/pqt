@@ -36,22 +36,35 @@ func TypeDecimal(precision, scale int) BaseType {
 	}
 }
 
-// TypeReal ...
+// TypeReal represents single precision floating-point numbers.
+// In postgres it is stored as 4-byte single-precision floating point numbers.
 func TypeReal() BaseType {
 	return BaseType{name: "REAL"}
 }
 
-// TypeSerial ...
+// TypeSerial is an auto-incrementing integer.
+// It is generally used to store the primary key of a table.
+// To specify that a column is to be used as a serial column, declare it as type SERIAL.
+// Note that, even though SERIAL appears to be a column type,
+// it is actually shorthand notation that tells PostgreSQL to create a auto-incrementing column behind the scenes.
 func TypeSerial() BaseType {
 	return BaseType{name: "SERIAL"}
 }
 
-// TypeSerialSmall ...
+// TypeSerialSmall is an auto-incrementing small integer.
+// It is generally used to store the primary key of a table.
+// To specify that a column is to be used as a serial column, declare it as type SMALLSERIAL.
+// Note that, even though SMALLSERIAL appears to be a column type,
+// it is actually shorthand notation that tells PostgreSQL to create a auto-incrementing column behind the scenes.
 func TypeSerialSmall() BaseType {
 	return BaseType{name: "SMALLSERIAL"}
 }
 
-// TypeSerialBig ...
+// TypeSerialBig is an auto-incrementing big integer.
+// It is generally used to store the primary key of a table.
+// To specify that a column is to be used as a serial column, declare it as type BIGSERIAL.
+// Note that, even though BIGSERIAL appears to be a column type,
+// it is actually shorthand notation that tells PostgreSQL to create a auto-incrementing column behind the scenes.
 func TypeSerialBig() BaseType {
 	return BaseType{name: "BIGSERIAL"}
 }
@@ -71,7 +84,7 @@ func TypeIntegerBig() BaseType {
 	return BaseType{name: "BIGINT"}
 }
 
-// TypeIntegerArray ...
+// TypeIntegerArray is an array of integers.
 func TypeIntegerArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "INTEGER[]"}
@@ -79,7 +92,7 @@ func TypeIntegerArray(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("INTEGER[%d]", l)}
 }
 
-// TypeIntegerBigArray ...
+// TypeIntegerBigArray is an array of big integers.
 func TypeIntegerBigArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "BIGINT[]"}
@@ -87,7 +100,7 @@ func TypeIntegerBigArray(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("BIGINT[%d]", l)}
 }
 
-// TypeIntegerSmallArray ...
+// TypeIntegerSmallArray is an array of small integers.
 func TypeIntegerSmallArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "SMALLINT[]"}
@@ -95,7 +108,7 @@ func TypeIntegerSmallArray(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("SMALLINT[%d]", l)}
 }
 
-// TypeDoubleArray ...
+// TypeDoubleArray is an array of double precision floating-point numbers.
 func TypeDoubleArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "DOUBLE PRECISION[]"}
@@ -146,7 +159,7 @@ func TypeText() BaseType {
 	return BaseType{name: "TEXT"}
 }
 
-// TypeTextArray ...
+// TypeTextArray is an array of text.
 func TypeTextArray(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "TEXT[]"}
@@ -154,7 +167,7 @@ func TypeTextArray(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("TEXT[%d]", l)}
 }
 
-// TypeVarchar ...
+// TypeVarchar is a character varying(n), where n is a positive integer.
 func TypeVarchar(l int) BaseType {
 	if l == 0 {
 		return BaseType{name: "VARCHAR"}
@@ -163,7 +176,7 @@ func TypeVarchar(l int) BaseType {
 	return BaseType{name: fmt.Sprintf("VARCHAR(%d)", l)}
 }
 
-// TypeBytea ...
+// TypeBytea is a binary string.
 func TypeBytea() BaseType {
 	return BaseType{name: "BYTEA"}
 }
@@ -223,7 +236,7 @@ func TypeComposite(name string, attributes ...*Attribute) CompositeType {
 	}
 }
 
-// EnumeratedType ...
+// EnumeratedType is a data type consisting of a set of named values called elements, members, enumeral, or enumerators of the type.
 // EXPERIMENTAL
 type EnumeratedType struct {
 	name  string
@@ -240,7 +253,7 @@ func (et EnumeratedType) Fingerprint() string {
 	return fmt.Sprintf("enumarated: %v", et)
 }
 
-// TypeEnumerated ...
+// TypeEnumerated initializes EnumeratedType with given name and enums.
 func TypeEnumerated(name string, enums ...string) EnumeratedType {
 	return EnumeratedType{
 		name:  name,
@@ -265,14 +278,15 @@ func (pt PseudoType) Fingerprint() string {
 	return fmt.Sprintf("pseudo: %v", pt)
 }
 
-// TypePseudo ...
+// TypePseudo initializes PseudoType with given name.
 func TypePseudo(name string) PseudoType {
 	return PseudoType{
 		name: name,
 	}
 }
 
-// MappableType ...
+// MappableType is a type that can be mapped to other types.
+// It allows
 type MappableType struct {
 	From    Type
 	Mapping []Type

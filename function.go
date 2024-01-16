@@ -21,9 +21,10 @@ const (
 	FunctionBehaviourStable
 )
 
+// FunctionBehaviour is a function behaviour, it can be volatile, immutable or stable.
 type FunctionBehaviour int
 
-// Function ...
+// Function describes database function.
 type Function struct {
 	Name      string
 	BuiltIn   bool
@@ -33,13 +34,14 @@ type Function struct {
 	Args      []*FunctionArg
 }
 
-// FunctionArg ...
+// FunctionArg is a function argument, it is used to describe function signature.
 type FunctionArg struct {
 	Name string
 	Type Type
 }
 
-// FunctionNow ...
+// FunctionNow is a helper function that creates now() function.
+// Now() returns current timestamp with time zone (abbreviated as timestamptz).
 func FunctionNow() *Function {
 	return &Function{
 		Name:    "now",

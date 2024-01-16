@@ -34,14 +34,31 @@ const (
 	SetDefault
 )
 
-// RelationshipType ...
+// RelationshipType can be used to describe relationship between tables.
+// It can be one to one, one to many, many to one or many to many.
 type RelationshipType int
 
-// Relationship ...
+// Relationship describes database relationship.
+// Usually it is used to describe foreign key constraint.
 type Relationship struct {
-	Bidirectional                           bool
-	Type                                    RelationshipType
-	OwnerName, InversedName                 string
+	// Bidirectional if true means that relationship is bidirectional.
+	// It is useful when we want to get all related rows from both tables.
+	// If true, the library will generate additional methods for both tables.
+	Bidirectional bool
+	// Type defines relationship type.
+	Type RelationshipType
+	// OwnerName is a name of relationship from owner table perspective.
+	// For example if we have table A and table B and relationship from A to B,
+	// then owner name is a name of relationship from A perspective.
+	// It is a good practice to give descriptive names to relationships.
+	OwnerName string
+	// InversedName is a name of relationship from inversed table perspective.
+	// For example if we have table A and table B and relationship from A to B,
+	// then inversed name is a name of relationship from B perspective.
+	// If not set, the library will generate it automatically.
+	// It is useful when we want to have two relationships between two tables or when table self references itself.
+	// It is a good practice to give descriptive names to relationships.
+	InversedName                            string
 	OwnerTable, InversedTable, ThroughTable *Table
 	OwnerForeignKey, InversedForeignKey     *Constraint
 	OwnerColumns, InversedColumns           Columns
@@ -64,22 +81,26 @@ func newRelationship(owner, inversed, through *Table, rt RelationshipType, opts 
 	return r
 }
 
-// OneToOne ...
+// OneToOne is a handy constructor that instantiates basic one-to-one relationship.
+// It can be adjusted using RelationshipOption.
 func OneToOne(t *Table, opts ...RelationshipOption) *Relationship {
 	return newRelationship(nil, t, nil, RelationshipTypeOneToOne, opts...)
 }
 
-// OneToMany ...
+// OneToMany is a handy constructor that instantiates basic one-to-many relationship.
+// It can be adjusted using RelationshipOption.
 func OneToMany(t *Table, opts ...RelationshipOption) *Relationship {
 	return newRelationship(t, nil, nil, RelationshipTypeOneToMany, opts...)
 }
 
-// ManyToOne ...
+// ManyToOne is a handy constructor that instantiates basic many-to-one relationship.
+// It can be adjusted using RelationshipOption.
 func ManyToOne(t *Table, opts ...RelationshipOption) *Relationship {
 	return newRelationship(nil, t, nil, RelationshipTypeManyToOne, opts...)
 }
 
-// ManyToMany ...
+// ManyToMany is a handy constructor that instantiates basic many-to-many relationship.
+// It can be adjusted using RelationshipOption.
 func ManyToMany(t1 *Table, t2 *Table, opts ...RelationshipOption) *Relationship {
 	return newRelationship(t1, t2, nil, RelationshipTypeManyToMany, opts...)
 }
@@ -105,7 +126,7 @@ func WithOwnerForeignKey(primaryColumns, referenceColumns Columns, opts ...Const
 	}
 }
 
-// WithInversedForeignKey ...
+// WithInversedForeignKey adjust relationship to have inversed foreign key.
 func WithInversedForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) RelationshipOption {
 	return func(r *Relationship) {
 		if r.Type != RelationshipTypeManyToMany {
@@ -122,7 +143,7 @@ func WithInversedForeignKey(primaryColumns, referenceColumns Columns, opts ...Co
 	}
 }
 
-// WithForeignKey ...
+// WithForeignKey adjust relationship to have foreign key.
 func WithForeignKey(primaryColumns, referenceColumns Columns, opts ...ConstraintOption) RelationshipOption {
 	return func(r *Relationship) {
 		if r.Type == RelationshipTypeManyToMany {
@@ -139,28 +160,28 @@ func WithForeignKey(primaryColumns, referenceColumns Columns, opts ...Constraint
 	}
 }
 
-// WithInversedName ...
+// WithInversedName adjust relationship by setting inversed name.
 func WithInversedName(s string) RelationshipOption {
 	return func(r *Relationship) {
 		r.InversedName = s
 	}
 }
 
-// WithColumnName ...
+// WithColumnName adjust relationship by setting column name.
 func WithColumnName(n string) RelationshipOption {
 	return func(r *Relationship) {
 		r.ColumnName = n
 	}
 }
 
-// WithBidirectional ...
+// WithBidirectional adjust relationship by setting bidirectional flag.
 func WithBidirectional() RelationshipOption {
 	return func(r *Relationship) {
 		r.Bidirectional = true
 	}
 }
 
-// WithOwnerName ...
+// WithOwnerName adjust relationship by setting owner name.
 func WithOwnerName(s string) RelationshipOption {
 	return func(r *Relationship) {
 		r.OwnerName = s

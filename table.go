@@ -10,12 +10,18 @@ type Table struct {
 	self                                 bool
 	Name, ShortName, Collate, TableSpace string
 	IfNotExists, Temporary               bool
-	Schema                               *Schema
-	Columns                              Columns
-	Constraints                          Constraints
-	OwnedRelationships                   []*Relationship
-	InversedRelationships                []*Relationship
-	ManyToManyRelationships              []*Relationship
+	// Schema references parent schema.
+	Schema *Schema
+	// Columns is a collection of columns that table contains.
+	Columns Columns
+	// Constraints is a collection of constraints that table contains.
+	Constraints Constraints
+	// OwnedRelationships is a collection of relationships that table owns.
+	OwnedRelationships []*Relationship
+	// InversedRelationships is a collection of relationships that table is inversed in.
+	InversedRelationships []*Relationship
+	// ManyToManyRelationships is a collection of relationships that table is inversed in.
+	ManyToManyRelationships []*Relationship
 }
 
 // NewTable allocates new table using given name and options.
@@ -297,7 +303,7 @@ func WithTableSpace(s string) TableOption {
 	}
 }
 
-// WithTableShortName ...
+// WithTableShortName pass the short name of the table.
 func WithTableShortName(s string) TableOption {
 	return func(t *Table) {
 		t.ShortName = s
