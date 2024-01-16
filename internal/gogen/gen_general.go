@@ -720,7 +720,7 @@ func (a *JSONArrayInt64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not ` + "\x25T" + `", src)
 	}
 
 	l := len(srcs)
@@ -797,7 +797,7 @@ func (a *JSONArrayString) Scan(src interface{}) error {
 	case []byte:
 		return json.Unmarshal(t, a)
 	default:
-		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not ` + "\x25T" + `", src)
 	}
 }
 
@@ -829,7 +829,7 @@ func (a *JSONArrayFloat64) Scan(src interface{}) error {
 	case string:
 		srcs = t
 	default:
-		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not %T", src)
+		return fmt.Errorf("expected slice of bytes or string as a source argument in Scan, not ` + "\x25T" + `", src)
 	}
 
 	l := len(srcs)

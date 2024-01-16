@@ -53,7 +53,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Fprint(file, "/// SQL ...\n")
+	fmt.Fprint(file, "// SQL ...\n")
 	fmt.Fprint(file, "const SQL = `\n")
 
 	if err := sqlGen.GenerateTo(sch, file); err != nil {
