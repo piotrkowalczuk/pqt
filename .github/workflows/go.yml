@@ -29,7 +29,11 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '1.21'
-      - name: test
+      - name: lool
         run: ls -lha
+        env:
+          PQT_POSTGRES_ADDRESS: postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
+      - name: test
+        run: go test -race -count=2 -coverprofile=cover.out -mod=readonly ./...
         env:
           PQT_POSTGRES_ADDRESS: postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
