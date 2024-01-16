@@ -30,6 +30,6 @@ jobs:
         with:
           go-version: '1.21'
       - name: test
-        run: go test -race -count=2 -v ./...
+        run: go test -race -count=2 ./...
         env:
           PQT_POSTGRES_ADDRESS: postgres://postgres:postgres@postgres:5432/postgres?sslmode=disable
